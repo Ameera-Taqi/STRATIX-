@@ -1,0 +1,205 @@
+<app-topbar titleKey="page.team" />
+<main class="stratix-page p-6">
+  <a
+    routerLink="/team"
+    class="mb-5 inline-flex items-center gap-1 rounded-lg border border-transparent px-2 py-1 text-sm text-primary transition hover:border-primary/20 hover:bg-primary/5"
+  >
+    ← {{ 'team.back' | t }}
+  </a>
+
+  @if (!employee()) {
+    <div class="stratix-card flex flex-col items-center px-8 py-16 text-center">
+      <span class="text-4xl opacity-30">👤</span>
+      <p class="mt-3 stratix-muted">{{ 'team.notFound' | t }}</p>
+      <a routerLink="/team" class="stratix-btn-ghost mt-4">{{ 'team.back' | t }}</a>
+    </div>
+  } @else {
+    <div class="stratix-card mb-6 overflow-hidden">
+      <div class="stratix-profile-hero">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div class="flex items-center gap-4">
+            <span class="stratix-avatar stratix-avatar-lg ring-4 ring-white dark:ring-slate-800">
+              {{ initials(employee()!.name) }}
+            </span>
+            <div>
+              <h1 class="text-xl font-bold text-dark dark:text-slate-100">{{ employee()!.name }}</h1>
+              <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">{{ employee()!.role }}</p>
+              <span class="stratix-badge mt-2" [class]="departmentBadge(employee()!.department)">
+                {{ employee()!.department }}
+              </span>
+            </div>
+          </div>
+          <div class="flex flex-col items-end gap-2">
+            @if (canEdit()) {
+              <button
+                type="button"
+                class="rounded-lg border border-primary/25 bg-primary/5 px-3 py-1.5 text-sm font-medium text-primary transition hover:bg-primary/10"
+                (click)="openEditModal()"
+              >
+                {{ 'common.edit' | t }}
+              </button>
+            }
+            <span class="text-xs font-medium uppercase tracking-wide stratix-muted">{{ 'common.status' | t }}</span>
+            <app-employee-status-toggle [status]="employee()!.status" (statusChange)="setStatus($event)" />
+          </div>
+        </div>
+      </div>
+      <div class="grid divide-x divide-slate-100 dark:divide-slate-700 sm:grid-cols-3">
+        <div class="stratix-metric-cell">
+          <p class="text-2xl font-bold text-primary">{{ employee()!.projects }}</p>
+          <p class="mt-0.5 text-xs stratix-muted">{{ 'team.assignedProjects' | t }}</p>
+        </div>
+        <div class="stratix-metric-cell">
+          <p class="text-2xl font-bold text-dark dark:text-slate-100">{{ employee()!.completedTasks }}</p>
+          <p class="mt-0.5 text-xs stratix-muted">{{ 'team.completedTasks' | t }}</p>
+        </div>
+        <div class="stratix-metric-cell">
+          <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{{ employee()!.kpiScore ?? 0 }}</p>
+          <p class="mt-0.5 text-xs stratix-muted">{{ 'performance.kpiScore' | t }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid gap-6 lg:grid-cols-3">
+      <div class="space-y-6 lg:col-span-2">
+        <div class="stratix-card overflow-hidden">
+          <div class="stratix-card-header">
+            <h3 class="stratix-heading text-sm">{{ 'team.assignedTasks' | t }}</h3>
+          </div>
+          <div class="p-5">
+            @if (assignedTasks().length === 0) {
+              <div class="rounded-lg border border-dashed border-slate-200 px-6 py-10 text-center dark:border-slate-600">
+                <p class="text-2xl opacity-30">📋</p>
+                <p class="mt-2 text-sm stratix-muted">{{ 'team.noTasks' | t }}</p>
+              </div>
+            } @else {
+              <ul class="space-y-2">
+                @for (task of assignedTasks(); track task.id) {
+                  <li class="stratix-task-row">
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm">📌</div>
+                    <div class="min-w-0 flex-1">
+                      <a [routerLink]="['/tasks', task.id]" class="font-medium text-primary hover:underline">
+                        {{ task.title }}
+                      </a>
+                      <p class="mt-0.5 truncate text-xs stratix-muted">
+                        {{ task.projectName }} · {{ task.status.replace('_', ' ') }}
+                      </p>
+                    </div>
+                    <span class="shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold" [class]="priorityClass(task.priority)">
+                      {{ task.priority }}
+                    </span>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="stratix-card overflow-hidden">
+        <div class="stratix-card-header">
+          <h3 class="stratix-heading text-sm">{{ 'team.performance' | t }}</h3>
+        </div>
+        <div class="p-5">
+          <div class="mb-4 flex items-center justify-center">
+            <div
+              class="flex h-24 w-24 flex-col items-center justify-center rounded-full border-4 border-primary/20 bg-primary/5 dark:border-primary/30 dark:bg-primary/10"
+            >
+              <span class="text-2xl font-bold text-primary">{{ employee()!.kpiScore ?? 0 }}</span>
+              <span class="text-[10px] uppercase tracking-wide stratix-muted">KPI</span>
+            </div>
+          </div>
+          <dl class="space-y-3 text-sm">
+            <div class="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-800/60">
+              <dt class="stratix-muted">{{ 'performance.tasksCompleted' | t }}</dt>
+              <dd class="font-semibold">{{ employee()!.tasksCompleted ?? 0 }}</dd>
+            </div>
+            <div class="flex items-center justify-between rounded-lg bg-red-50 px-3 py-2 dark:bg-red-900/20">
+              <dt class="stratix-muted">{{ 'performance.delayed' | t }}</dt>
+              <dd class="font-semibold text-danger">{{ employee()!.delayedTasks ?? 0 }}</dd>
+            </div>
+            <div class="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-800/60">
+              <dt class="stratix-muted">{{ 'performance.onTime' | t }}</dt>
+              <dd class="font-semibold">{{ employee()!.onTimePct ?? 0 }}%</dd>
+            </div>
+          </dl>
+          <a
+            routerLink="/performance"
+            class="mt-5 flex w-full items-center justify-center gap-1 rounded-lg border border-primary/20 bg-primary/5 py-2.5 text-sm font-medium text-primary transition hover:bg-primary/10"
+          >
+            {{ 'team.openPerformance' | t }} →
+          </a>
+        </div>
+      </div>
+    </div>
+  }
+</main>
+
+@if (showEditModal()) {
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-dark/50 p-4 backdrop-blur-sm"
+    role="dialog"
+    aria-modal="true"
+    (click)="closeEditModal()"
+  >
+    <div class="stratix-card w-full max-w-lg overflow-hidden shadow-2xl" (click)="$event.stopPropagation()">
+      <div class="h-1 bg-gradient-to-r from-primary to-primary/50"></div>
+      <div class="p-6">
+        <div class="mb-1 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-xl">✏️</div>
+        <h2 class="mt-3 stratix-heading text-lg">{{ 'team.editTitle' | t }}</h2>
+        <p class="stratix-muted mt-1 text-sm">{{ 'team.editHint' | t }}</p>
+
+        @if (formError()) {
+          <p class="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-danger dark:bg-red-900/30 dark:text-red-300">
+            {{ formError()! | t }}
+          </p>
+        }
+
+        <form class="mt-5 space-y-4" (ngSubmit)="saveEmployee()">
+          <div>
+            <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'common.name' | t }} *</label>
+            <input type="text" class="stratix-input w-full px-3 py-2.5 text-sm" [(ngModel)]="form.name" name="name" required />
+          </div>
+          <div>
+            <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'team.email' | t }} *</label>
+            <input type="email" class="stratix-input w-full px-3 py-2.5 text-sm" [(ngModel)]="form.email" name="email" required />
+          </div>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'team.role' | t }}</label>
+              <select class="stratix-input w-full px-3 py-2.5 text-sm" [(ngModel)]="form.role" name="role">
+                @for (r of roleOptions; track r) {
+                  <option [value]="r">{{ r }}</option>
+                }
+              </select>
+            </div>
+            <div>
+              <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'common.department' | t }}</label>
+              <select class="stratix-input w-full px-3 py-2.5 text-sm" [(ngModel)]="form.department" name="department">
+                @for (d of departments(); track d) {
+                  <option [value]="d">{{ d }}</option>
+                }
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="stratix-muted mb-2 block text-sm font-medium">{{ 'common.status' | t }}</label>
+            <app-employee-status-toggle [status]="form.status" (statusChange)="form.status = $event" />
+          </div>
+          <div class="flex justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-700">
+            <button type="button" class="stratix-btn-ghost px-4 py-2" (click)="closeEditModal()">
+              {{ 'projects.cancel' | t }}
+            </button>
+            <button
+              type="submit"
+              class="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary/90 disabled:opacity-60"
+              [disabled]="submitting()"
+            >
+              {{ 'team.saveChanges' | t }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+}

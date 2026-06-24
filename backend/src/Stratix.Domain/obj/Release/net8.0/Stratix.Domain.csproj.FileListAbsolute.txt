@@ -1,0 +1,11 @@
+/src/src/Stratix.Domain/obj/Release/net8.0/Stratix.Domain.GeneratedMSBuildEditorConfig.editorconfig
+/src/src/Stratix.Domain/obj/Release/net8.0/Stratix.Domain.AssemblyInfoInputs.cache
+/src/src/Stratix.Domain/obj/Release/net8.0/Stratix.Domain.AssemblyInfo.cs
+/src/src/Stratix.Domain/obj/Release/net8.0/Stratix.Domain.csproj.CoreCompileInputs.cache
+/src/src/Stratix.Domain/bin/Release/net8.0/Stratix.Domain.deps.json
+/src/src/Stratix.Domain/bin/Release/net8.0/Stratix.Domain.dll
+/src/src/Stratix.Domain/bin/Release/net8.0/Stratix.Domain.pdb
+/src/src/Stratix.Domain/obj/Release/net8.0/Stratix.Domain.dll
+/src/src/Stratix.Domain/obj/Release/net8.0/refint/Stratix.Domain.dll
+/src/src/Stratix.Domain/obj/Release/net8.0/Stratix.Domain.pdb
+/src/src/Stratix.Domain/obj/Release/net8.0/ref/Stratix.Domain.dll

@@ -1,0 +1,268 @@
+<app-topbar titleKey="page.risks" />
+<main class="stratix-page p-6">
+  <div class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div class="stratix-stat-card">
+      <div class="stratix-stat-icon bg-primary/10 text-primary">⚠</div>
+      <div>
+        <p class="text-2xl font-bold text-dark dark:text-slate-100">{{ stats().totalRisks }}</p>
+        <p class="text-xs stratix-muted">{{ 'risks.statTotal' | t }}</p>
+      </div>
+    </div>
+    <div class="stratix-stat-card">
+      <div class="stratix-stat-icon bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300">!</div>
+      <div>
+        <p class="text-2xl font-bold text-red-600 dark:text-red-300">{{ stats().openRisks }}</p>
+        <p class="text-xs stratix-muted">{{ 'risks.statOpen' | t }}</p>
+      </div>
+    </div>
+    <div class="stratix-stat-card">
+      <div class="stratix-stat-icon bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300">🔥</div>
+      <div>
+        <p class="text-2xl font-bold text-orange-600 dark:text-orange-300">{{ stats().criticalRisks }}</p>
+        <p class="text-xs stratix-muted">{{ 'risks.statCritical' | t }}</p>
+      </div>
+    </div>
+    <div class="stratix-stat-card">
+      <div class="stratix-stat-icon bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-300">✓</div>
+      <div>
+        <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-300">{{ stats().closedRisks }}</p>
+        <p class="text-xs stratix-muted">{{ 'risks.statClosed' | t }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="mb-6 grid gap-4 lg:grid-cols-3">
+    <div class="stratix-card p-5 lg:col-span-2">
+      <h3 class="mb-4 stratix-heading text-sm">{{ 'risks.heatMap' | t }}</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[360px] text-center text-xs">
+          <thead>
+            <tr>
+              <th class="p-2"></th>
+              @for (p of probabilityOptions; track p) {
+                <th class="p-2 font-medium stratix-muted">{{ p }}</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (impact of impactOptions; track impact) {
+              <tr>
+                <td class="p-2 text-start font-medium stratix-muted">{{ impact }}</td>
+                @for (probability of probabilityOptions; track probability) {
+                  <td class="p-2">
+                    <div
+                      class="mx-auto flex h-14 w-14 flex-col items-center justify-center rounded-lg border"
+                      [class]="riskLevelClass(getHeatMapCell(impact, probability)?.riskLevel ?? 'LOW')"
+                    >
+                      <span class="text-base font-bold">{{ getHeatMapCell(impact, probability)?.count ?? 0 }}</span>
+                      <span class="text-[9px] uppercase">{{ getHeatMapCell(impact, probability)?.riskLevel }}</span>
+                    </div>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="stratix-card p-5">
+      <h3 class="mb-3 stratix-heading text-sm">{{ 'risks.legend' | t }}</h3>
+      <ul class="space-y-2 text-xs stratix-muted">
+        <li>{{ 'risks.legendCritical' | t }}</li>
+        <li>{{ 'risks.legendHigh' | t }}</li>
+        <li>{{ 'risks.legendMedium' | t }}</li>
+        <li>{{ 'risks.legendLow' | t }}</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div class="flex flex-1 flex-wrap gap-2">
+      <div class="stratix-search-wrap max-w-sm flex-1">
+        <span class="stratix-search-icon" aria-hidden="true">🔍</span>
+        <input
+          type="search"
+          [placeholder]="'risks.search' | t"
+          class="stratix-input w-full py-2.5 text-sm"
+          (input)="search.set($any($event.target).value)"
+        />
+      </div>
+      <select class="stratix-input px-3 py-2 text-sm" (change)="statusFilter.set($any($event.target).value)">
+        <option value="ALL">{{ 'common.all' | t }}</option>
+        @for (s of statusOptions; track s) {
+          <option [value]="s">{{ s }}</option>
+        }
+      </select>
+      <select class="stratix-input px-3 py-2 text-sm" (change)="levelFilter.set($any($event.target).value)">
+        <option value="ALL">{{ 'common.all' | t }}</option>
+        <option value="CRITICAL">CRITICAL</option>
+        <option value="HIGH">HIGH</option>
+        <option value="MEDIUM">MEDIUM</option>
+        <option value="LOW">LOW</option>
+      </select>
+    </div>
+    @if (canWrite()) {
+      <button
+        type="button"
+        class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-primary/90"
+        (click)="openCreate()"
+      >
+        <span class="text-lg leading-none">+</span>
+        {{ 'risks.add' | t }}
+      </button>
+    }
+  </div>
+
+  <div class="stratix-card overflow-hidden">
+    <div class="stratix-card-header flex items-center justify-between">
+      <h2 class="stratix-heading text-sm">{{ 'page.risks' | t }}</h2>
+      <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+        {{ filtered().length }} / {{ stats().totalRisks }}
+      </span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full min-w-[900px] text-start text-sm">
+        <thead class="stratix-table-head">
+          <tr>
+            <th class="px-5 py-3.5 font-medium">{{ 'risks.title' | t }}</th>
+            <th class="px-5 py-3.5 font-medium">{{ 'common.project' | t }}</th>
+            <th class="px-5 py-3.5 font-medium">{{ 'common.owner' | t }}</th>
+            <th class="px-5 py-3.5 font-medium">{{ 'risks.impact' | t }}</th>
+            <th class="px-5 py-3.5 font-medium">{{ 'risks.probability' | t }}</th>
+            <th class="px-5 py-3.5 font-medium">{{ 'risks.level' | t }}</th>
+            <th class="px-5 py-3.5 font-medium">{{ 'common.status' | t }}</th>
+            <th class="px-5 py-3.5 font-medium">{{ 'common.actions' | t }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (filtered().length === 0) {
+            <tr>
+              <td colspan="8" class="px-5 py-14 text-center">
+                <p class="text-3xl opacity-40">⚠</p>
+                <p class="mt-2 stratix-muted">{{ 'risks.empty' | t }}</p>
+              </td>
+            </tr>
+          } @else {
+            @for (r of filtered(); track r.id) {
+              <tr class="stratix-table-row">
+                <td class="px-5 py-3.5">
+                  <a [routerLink]="['/risks', r.id]" class="font-medium text-primary hover:underline">{{ r.title }}</a>
+                </td>
+                <td class="px-5 py-3.5 text-slate-600 dark:text-slate-300">{{ r.projectName }}</td>
+                <td class="px-5 py-3.5 text-slate-600 dark:text-slate-300">{{ r.ownerName }}</td>
+                <td class="px-5 py-3.5">{{ r.impact }}</td>
+                <td class="px-5 py-3.5">{{ r.probability }}</td>
+                <td class="px-5 py-3.5">
+                  <span class="stratix-badge" [class]="riskLevelClass(r.riskLevel)">{{ r.riskLevel }}</span>
+                </td>
+                <td class="px-5 py-3.5">
+                  <span class="stratix-badge" [class]="riskStatusClass(r.status)">{{ r.status }}</span>
+                </td>
+                <td class="px-5 py-3.5">
+                  <div class="flex gap-2">
+                    <a [routerLink]="['/risks', r.id]" class="stratix-btn-ghost">{{ 'common.view' | t }}</a>
+                    @if (canWrite()) {
+                      <button type="button" class="stratix-btn-ghost" (click)="openEdit(r.id)">{{ 'common.edit' | t }}</button>
+                    }
+                    @if (canDelete()) {
+                      <button type="button" class="stratix-btn-ghost text-danger" (click)="deleteRisk(r.id)">{{ 'common.delete' | t }}</button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+@if (showModal()) {
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-dark/50 p-4 backdrop-blur-sm"
+    role="dialog"
+    aria-modal="true"
+    (click)="closeModal()"
+  >
+    <div class="stratix-card w-full max-w-2xl overflow-hidden shadow-2xl" (click)="$event.stopPropagation()">
+      <div class="h-1 bg-gradient-to-r from-primary to-orange-500"></div>
+      <div class="p-6">
+        <div class="mb-1 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-xl">⚠</div>
+        <h2 class="mt-3 stratix-heading text-lg">{{ modalTitle() | t }}</h2>
+
+        @if (formError()) {
+          <p class="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-danger dark:bg-red-900/30 dark:text-red-300">
+            {{ formError()! | t }}
+          </p>
+        }
+
+        <form class="mt-5 space-y-4" (ngSubmit)="saveRisk()">
+          <div>
+            <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'risks.title' | t }} *</label>
+            <input type="text" class="stratix-input w-full px-3 py-2.5 text-sm" [(ngModel)]="form.title" name="title" required />
+          </div>
+          <div>
+            <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'common.description' | t }}</label>
+            <textarea class="stratix-input w-full px-3 py-2.5 text-sm" rows="3" [(ngModel)]="form.description" name="description"></textarea>
+          </div>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'common.project' | t }}</label>
+              <select class="stratix-input w-full px-3 py-2.5 text-sm" [(ngModel)]="form.projectId" name="projectId">
+                @for (p of projects(); track p.id) {
+                  <option [ngValue]="p.id">{{ p.name }}</option>
+                }
+              </select>
+            </div>
+            <div>
+              <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'common.owner' | t }}</label>
+              <select class="stratix-input w-full px-3 py-2.5 text-sm" [(ngModel)]="form.ownerId" name="ownerId">
+                @for (e of employees(); track e.id) {
+                  <option [ngValue]="e.id">{{ e.name }}</option>
+                }
+              </select>
+            </div>
+          </div>
+          <div class="grid gap-4 sm:grid-cols-3">
+            <div>
+              <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'risks.impact' | t }}</label>
+              <select class="stratix-input w-full px-3 py-2.5 text-sm" [(ngModel)]="form.impact" name="impact">
+                @for (i of impactOptions; track i) {
+                  <option [value]="i">{{ i }}</option>
+                }
+              </select>
+            </div>
+            <div>
+              <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'risks.probability' | t }}</label>
+              <select class="stratix-input w-full px-3 py-2.5 text-sm" [(ngModel)]="form.probability" name="probability">
+                @for (p of probabilityOptions; track p) {
+                  <option [value]="p">{{ p }}</option>
+                }
+              </select>
+            </div>
+            <div>
+              <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'common.status' | t }}</label>
+              <select class="stratix-input w-full px-3 py-2.5 text-sm" [(ngModel)]="form.status" name="status">
+                @for (s of statusOptions; track s) {
+                  <option [value]="s">{{ s }}</option>
+                }
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'risks.mitigation' | t }}</label>
+            <textarea class="stratix-input w-full px-3 py-2.5 text-sm" rows="3" [(ngModel)]="form.mitigationPlan" name="mitigationPlan"></textarea>
+          </div>
+          <div class="flex justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-700">
+            <button type="button" class="stratix-btn-ghost px-4 py-2" (click)="closeModal()">{{ 'projects.cancel' | t }}</button>
+            <button type="submit" class="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-white hover:bg-primary/90">
+              {{ 'risks.save' | t }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+}

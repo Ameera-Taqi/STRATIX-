@@ -1,0 +1,20 @@
+<aside class="flex h-full w-64 shrink-0 flex-col bg-dark text-white">
+  <div class="border-b border-white/10 px-4 py-5">
+    <img src="/stratix-logo.png" alt="STRATIX" class="mx-auto h-28 w-auto object-contain" />
+    <p class="mt-2 text-center text-[9px] uppercase tracking-[0.25em] text-white/50">{{ 'app.tagline' | t }}</p>
+  </div>
+  <nav class="flex-1 space-y-0.5 p-3">
+    @for (item of nav(); track item.path) {
+      <a
+        [routerLink]="item.path"
+        routerLinkActive="bg-primary text-white shadow-lg shadow-primary/20"
+        [routerLinkActiveOptions]="{ exact: item.path === '/dashboard' }"
+        class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/75 transition hover:bg-white/10 hover:text-white"
+      >
+        <span class="w-5 shrink-0 text-center text-xs opacity-90">{{ item.icon }}</span>
+        {{ item.labelKey | t }}
+      </a>
+    }
+  </nav>
+  <p class="border-t border-white/10 p-4 text-center text-[10px] text-white/40">{{ 'app.platform' | t }}</p>
+</aside>

@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "jOxmghJVCS1D2uKlQxRMkScfx8vGC7uK3G9fPNhhy20=",
+  "Source": "Stratix.Api",
+  "BasePath": "_content/Stratix.Api",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}

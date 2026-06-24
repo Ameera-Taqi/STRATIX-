@@ -1,0 +1,15 @@
+/src/src/Stratix.Application/obj/Release/net8.0/Stratix.Application.csproj.AssemblyReference.cache
+/src/src/Stratix.Application/obj/Release/net8.0/Stratix.Application.GeneratedMSBuildEditorConfig.editorconfig
+/src/src/Stratix.Application/obj/Release/net8.0/Stratix.Application.AssemblyInfoInputs.cache
+/src/src/Stratix.Application/obj/Release/net8.0/Stratix.Application.AssemblyInfo.cs
+/src/src/Stratix.Application/obj/Release/net8.0/Stratix.Application.csproj.CoreCompileInputs.cache
+/src/src/Stratix.Application/bin/Release/net8.0/Stratix.Application.deps.json
+/src/src/Stratix.Application/bin/Release/net8.0/Stratix.Application.dll
+/src/src/Stratix.Application/bin/Release/net8.0/Stratix.Application.pdb
+/src/src/Stratix.Application/bin/Release/net8.0/Stratix.Domain.dll
+/src/src/Stratix.Application/bin/Release/net8.0/Stratix.Domain.pdb
+/src/src/Stratix.Application/obj/Release/net8.0/Stratix..D80D011B.Up2Date
+/src/src/Stratix.Application/obj/Release/net8.0/Stratix.Application.dll
+/src/src/Stratix.Application/obj/Release/net8.0/refint/Stratix.Application.dll
+/src/src/Stratix.Application/obj/Release/net8.0/Stratix.Application.pdb
+/src/src/Stratix.Application/obj/Release/net8.0/ref/Stratix.Application.dll

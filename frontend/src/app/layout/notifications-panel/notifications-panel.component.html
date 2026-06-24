@@ -1,0 +1,60 @@
+@if (isOpen()) {
+  <div
+    class="fixed inset-0 z-[200] bg-dark/40 backdrop-blur-[1px]"
+    aria-hidden="true"
+    (click)="close()"
+  ></div>
+  <div
+    class="stratix-notifications-dropdown fixed z-[210] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-600 dark:bg-slate-800"
+    role="dialog"
+    [attr.aria-label]="'common.notifications' | t"
+    (click)="$event.stopPropagation()"
+  >
+    <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-700">
+      <h2 class="text-sm font-semibold text-dark dark:text-slate-100">{{ 'common.notifications' | t }}</h2>
+      @if (unreadCount() > 0) {
+        <button type="button" class="text-xs font-medium text-primary hover:underline" (click)="markAllRead()">
+          {{ 'notifications.markAllRead' | t }}
+        </button>
+      }
+    </div>
+    <ul class="max-h-80 overflow-y-auto">
+      @if (recentNotifications().length === 0) {
+        <li class="px-4 py-10 text-center text-sm stratix-muted">{{ 'notifications.empty' | t }}</li>
+      } @else {
+        @for (n of recentNotifications(); track n.id) {
+          <li>
+            <button
+              type="button"
+              class="w-full border-b border-slate-50 px-4 py-3 text-start transition hover:bg-slate-50 dark:border-slate-700/50 dark:hover:bg-slate-700/50"
+              [class.stratix-notification-unread]="!n.read"
+              (click)="openNotification(n.id)"
+            >
+              <div class="flex items-start gap-2">
+                @if (!n.read) {
+                  <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary"></span>
+                } @else {
+                  <span class="mt-1.5 h-2 w-2 shrink-0"></span>
+                }
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium text-dark dark:text-slate-100">{{ title(n) }}</p>
+                  <p class="mt-0.5 line-clamp-2 text-xs stratix-muted">{{ body(n) }}</p>
+                  <p class="mt-1 text-[10px] text-slate-400">{{ store.timeAgo(n.createdAt) }}</p>
+                </div>
+              </div>
+            </button>
+          </li>
+        }
+      }
+    </ul>
+    <div class="border-t border-slate-100 p-2 dark:border-slate-700">
+      <button
+        type="button"
+        class="block w-full rounded-lg py-2.5 text-center text-sm font-medium text-primary transition hover:bg-primary/5"
+        (click)="viewAll()"
+      >
+        {{ 'notifications.viewAll' | t }} →
+      </button>
+    </div>
+  </div>
+}

@@ -1,0 +1,213 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+app-root {
+  display: block;
+  height: 100%;
+}
+
+body {
+  @apply bg-surface text-dark antialiased dark:bg-slate-950 dark:text-slate-100;
+}
+
+@layer components {
+  .stratix-shell {
+    @apply flex h-screen overflow-hidden bg-surface dark:bg-slate-950;
+  }
+
+  .stratix-page {
+    @apply bg-surface dark:bg-slate-950;
+  }
+
+  .stratix-card {
+    @apply rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800;
+  }
+
+  .stratix-heading {
+    @apply font-semibold text-dark dark:text-slate-100;
+  }
+
+  .stratix-text {
+    @apply text-dark dark:text-slate-200;
+  }
+
+  .stratix-muted {
+    @apply text-slate-500 dark:text-slate-400;
+  }
+
+  .stratix-topbar {
+    @apply flex h-16 items-center justify-between gap-4 border-b border-slate-200 bg-white px-6 dark:border-slate-700 dark:bg-slate-900;
+  }
+
+  .stratix-notifications-dropdown {
+    top: 4.25rem;
+    inset-inline-end: 1rem;
+    width: min(20rem, calc(100vw - 2rem));
+  }
+
+  @media (min-width: 640px) {
+    .stratix-notifications-dropdown {
+      inset-inline-end: 1.5rem;
+    }
+  }
+
+  .stratix-input {
+    @apply rounded-lg border border-slate-200 bg-white text-dark outline-none focus:border-primary focus:ring-1 focus:ring-primary dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500;
+  }
+
+  .stratix-table-head {
+    @apply bg-surface text-slate-500 dark:bg-slate-800/80 dark:text-slate-400;
+  }
+
+  .stratix-table-row {
+    @apply border-t border-slate-100 hover:bg-surface/80 dark:border-slate-700 dark:hover:bg-slate-800/60;
+  }
+
+  .stratix-kanban-col {
+    @apply flex flex-col rounded-xl border border-slate-200 bg-slate-100/50 dark:border-slate-700 dark:bg-slate-800/40;
+  }
+
+  .stratix-kanban-header {
+    @apply border-b border-slate-200 bg-white font-semibold text-dark dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100;
+  }
+
+  .stratix-task-card {
+    @apply block rounded-lg border border-slate-200 bg-white shadow-sm transition hover:border-primary/40 hover:shadow-md dark:border-slate-600 dark:bg-slate-800 dark:hover:border-primary/50;
+  }
+
+  .stratix-avatar {
+    @apply flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/70 text-sm font-semibold text-white shadow-sm;
+  }
+
+  .stratix-avatar-sm {
+    @apply h-9 w-9;
+  }
+
+  .stratix-avatar-lg {
+    @apply h-16 w-16 text-xl;
+  }
+
+  .stratix-badge {
+    @apply inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  .stratix-stat-card {
+    @apply stratix-card flex items-center gap-3 p-4;
+  }
+
+  .stratix-stat-icon {
+    @apply flex h-10 w-10 items-center justify-center rounded-lg text-lg;
+  }
+
+  .stratix-switch {
+    @apply inline-flex cursor-pointer items-center gap-2.5 border-0 bg-transparent p-0 text-start;
+  }
+
+  .stratix-switch--compact {
+    @apply gap-2;
+  }
+
+  .stratix-switch-track {
+    @apply relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-slate-300 transition-colors duration-200 dark:bg-slate-600;
+  }
+
+  .stratix-switch--compact .stratix-switch-track {
+    @apply h-5 w-9;
+  }
+
+  .stratix-switch-track--on {
+    @apply bg-emerald-500 dark:bg-emerald-600;
+  }
+
+  .stratix-switch-thumb {
+    @apply pointer-events-none absolute start-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-[inset-inline-start] duration-200;
+  }
+
+  .stratix-switch--compact .stratix-switch-thumb {
+    @apply h-4 w-4;
+  }
+
+  .stratix-switch-track--on .stratix-switch-thumb {
+    inset-inline-start: calc(100% - 1.375rem);
+  }
+
+  .stratix-switch--compact .stratix-switch-track--on .stratix-switch-thumb {
+    inset-inline-start: calc(100% - 1.125rem);
+  }
+
+  .stratix-switch-label {
+    @apply min-w-[4.5rem] text-xs font-medium text-slate-500 dark:text-slate-400;
+  }
+
+  .stratix-switch--compact .stratix-switch-label {
+    @apply min-w-0 text-[11px];
+  }
+
+  .stratix-btn-ghost {
+    @apply inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-primary transition hover:border-primary/40 hover:bg-primary/5 dark:border-slate-600 dark:bg-slate-800 dark:hover:bg-primary/10;
+  }
+
+  .stratix-search-wrap {
+    @apply relative flex items-center;
+  }
+
+  .stratix-search-wrap .stratix-input {
+    @apply ps-9;
+  }
+
+  .stratix-search-icon {
+    @apply pointer-events-none absolute start-3 text-slate-400 dark:text-slate-500;
+  }
+
+  .stratix-card-header {
+    @apply border-b border-slate-100 px-5 py-4 dark:border-slate-700;
+  }
+
+  .stratix-profile-hero {
+    @apply border-b border-slate-100 bg-gradient-to-br from-primary/10 via-transparent to-transparent px-6 py-6 dark:border-slate-700 dark:from-primary/15;
+  }
+
+  .stratix-metric-cell {
+    @apply border-slate-100 px-5 py-4 text-center dark:border-slate-700;
+  }
+
+  .stratix-task-row {
+    @apply flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50/80 p-3 transition hover:border-primary/30 hover:bg-white dark:border-slate-700 dark:bg-slate-800/50 dark:hover:border-primary/40 dark:hover:bg-slate-800;
+  }
+
+  .stratix-notification-unread {
+    @apply bg-primary/5;
+  }
+}
+
+.dashboard-content > :not(router-outlet) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dashboard-content main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+[dir='rtl'] {
+  font-family: 'Segoe UI', Tahoma, 'Noto Sans Arabic', sans-serif;
+}
+
+[dir='rtl'] .dashboard-content table {
+  text-align: right;
+}

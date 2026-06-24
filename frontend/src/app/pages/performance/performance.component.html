@@ -1,0 +1,80 @@
+<app-topbar titleKey="page.performance" />
+<main class="stratix-page p-6">
+  @if (loading()) {
+    <div class="stratix-card mb-6 px-6 py-14 text-center stratix-muted">
+      {{ 'performance.loading' | t }}
+    </div>
+  } @else if (error()) {
+    <div class="stratix-card mb-6 px-6 py-10 text-center">
+      <p class="text-sm text-danger">{{ error()! | t }}</p>
+      <button type="button" class="stratix-btn-primary mt-4" (click)="retry()">
+        {{ 'performance.retry' | t }}
+      </button>
+    </div>
+  } @else {
+    <div class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <app-kpi-card
+        [label]="'kpi.taskCompletion' | t"
+        [value]="metrics().completionRate + '%'"
+        [tone]="completionTone()"
+        [suffix]="metrics().completedTasks + ' / ' + metrics().totalTasks + ' ' + ('performance.tasksLabel' | t)"
+      />
+      <app-kpi-card
+        [label]="'kpi.onTime' | t"
+        [value]="metrics().onTimePct + '%'"
+        [tone]="onTimeTone()"
+        [suffix]="metrics().onTimeTaskCount + ' / ' + metrics().totalTasks + ' ' + ('performance.tasksLabel' | t)"
+      />
+      <app-kpi-card
+        [label]="'kpi.overdueTasks' | t"
+        [value]="metrics().overdueTasks"
+        [tone]="overdueTone()"
+      />
+      <app-kpi-card
+        [label]="'kpi.teamProductivity' | t"
+        [value]="metrics().teamProductivity"
+        [tone]="productivityTone()"
+        [suffix]="metrics().riskImpact > 0 ? ('performance.riskImpactHint' | t) + ': ' + metrics().riskImpact : ''"
+      />
+    </div>
+  }
+
+  <div class="stratix-card overflow-hidden">
+    <div class="border-b border-slate-200 px-5 py-4 dark:border-slate-700 stratix-heading">
+      {{ 'performance.table' | t }}
+    </div>
+
+    @if (loading()) {
+      <p class="px-5 py-10 text-center text-sm stratix-muted">{{ 'performance.loading' | t }}</p>
+    } @else if (error()) {
+      <p class="px-5 py-10 text-center text-sm text-danger">{{ error()! | t }}</p>
+    } @else if (isEmpty()) {
+      <p class="px-5 py-10 text-center text-sm stratix-muted">{{ 'performance.empty' | t }}</p>
+    } @else if (employees().length === 0) {
+      <p class="px-5 py-10 text-center text-sm stratix-muted">{{ 'performance.noEmployees' | t }}</p>
+    } @else {
+      <table class="w-full text-start text-sm">
+        <thead class="stratix-table-head">
+          <tr>
+            <th class="px-5 py-3">{{ 'performance.employee' | t }}</th>
+            <th class="px-5 py-3">{{ 'performance.tasksCompleted' | t }}</th>
+            <th class="px-5 py-3">{{ 'performance.delayed' | t }}</th>
+            <th class="px-5 py-3">{{ 'performance.onTime' | t }}</th>
+            <th class="px-5 py-3">{{ 'performance.kpiScore' | t }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (e of employees(); track e.id) {
+            <tr class="stratix-table-row">
+              <td class="px-5 py-3 font-medium">{{ e.name }}</td>
+              <td class="px-5 py-3">{{ e.tasksCompleted }}</td>
+              <td class="px-5 py-3 text-danger">{{ e.delayedTasks }}</td>
+              <td class="px-5 py-3">{{ e.onTimePct }}%</td>
+              <td class="px-5 py-3 font-semibold text-primary">{{ e.kpiScore }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+</main>

@@ -1,0 +1,65 @@
+<app-topbar titleKey="page.tasks" />
+<main class="stratix-page p-6">
+  <a [routerLink]="['/tasks']" [queryParams]="{ project: task().projectId }" class="mb-4 inline-block text-sm text-primary hover:underline">← {{ 'tasks.back' | t }}</a>
+
+  <div class="grid gap-6 lg:grid-cols-3">
+    <div class="space-y-6 lg:col-span-2">
+      <div class="stratix-card p-6">
+        <h3 class="mb-4 stratix-heading">{{ task().title }}</h3>
+        <h4 class="mb-3 text-sm font-medium stratix-muted">{{ 'tasks.info' | t }}</h4>
+        <dl class="grid gap-3 text-sm sm:grid-cols-2">
+          <div>
+            <dt class="stratix-muted">{{ 'dashboard.projectName' | t }}</dt>
+            <dd><a [routerLink]="projectLink()" class="font-medium text-primary hover:underline">{{ task().projectName }}</a></dd>
+          </div>
+          @if (task().stageName) {
+            <div>
+              <dt class="stratix-muted">{{ 'module.stages' | t }}</dt>
+              <dd class="font-medium">{{ task().stageName }}</dd>
+            </div>
+          }
+          <div><dt class="stratix-muted">{{ 'common.assigned' | t }}</dt><dd class="font-medium">{{ task().assignee }}</dd></div>
+          <div><dt class="stratix-muted">{{ 'common.priority' | t }}</dt><dd><span class="rounded px-2 py-0.5 text-xs" [class]="priorityClass(task().priority)">{{ task().priority }}</span></dd></div>
+          <div><dt class="stratix-muted">{{ 'common.status' | t }}</dt><dd class="font-medium">{{ task().status.replace('_', ' ') }}</dd></div>
+          <div><dt class="stratix-muted">{{ 'common.deadline' | t }}</dt><dd>{{ task().dueDate }}</dd></div>
+        </dl>
+        <p class="mt-4 text-sm text-slate-600 dark:text-slate-300">{{ task().description ?? ('tasks.noDescription' | t) }}</p>
+      </div>
+
+      <div class="stratix-card p-6">
+        <h3 class="mb-4 stratix-heading">{{ 'comments.title' | t }}</h3>
+        <app-comments-panel [taskId]="taskId" [taskTitle]="task().title" />
+      </div>
+
+      <div class="stratix-card p-6">
+        <h3 class="mb-4 stratix-heading">{{ 'attachments.title' | t }}</h3>
+        <app-attachments-panel [projectId]="task().projectId" [projectName]="task().projectName" [taskId]="taskId" />
+      </div>
+
+      <div class="stratix-card p-6">
+        <h3 class="mb-4 stratix-heading">{{ 'tasks.subtasks' | t }}</h3>
+        @if (subtasks.length === 0) {
+          <p class="text-sm stratix-muted">{{ 'tasks.noSubtasks' | t }}</p>
+        } @else {
+          <table class="w-full text-sm">
+            <thead class="stratix-muted"><tr><th class="pb-2 text-start">{{ 'common.name' | t }}</th><th>{{ 'common.progress' | t }}</th><th class="text-end">{{ 'common.status' | t }}</th></tr></thead>
+            <tbody>
+              @for (s of subtasks; track s.name) {
+                <tr class="stratix-table-row">
+                  <td class="py-2">{{ s.name }}</td>
+                  <td class="py-2 text-center">{{ s.progress }}%</td>
+                  <td class="py-2 text-end">{{ s.status }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+    </div>
+
+    <div class="stratix-card p-6">
+      <h3 class="mb-4 stratix-heading">{{ 'tasks.activity' | t }}</h3>
+      <app-activity-feed [entityType]="'TASK'" [entityId]="taskId" [limit]="25" />
+    </div>
+  </div>
+</main>

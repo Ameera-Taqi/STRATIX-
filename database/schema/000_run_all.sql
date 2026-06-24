@@ -1,0 +1,15 @@
+-- Stratix — run all migrations in order (SSMS or sqlcmd)
+:r 001_departments.sql
+:r 002_users.sql
+:r 003_projects.sql
+:r 004_project_stages.sql
+:r 005_tasks.sql
+:r 006_task_comments.sql
+:r 007_employee_kpis.sql
+:r 008_notifications.sql
+:r 009_project_files.sql
+:r 010_reports.sql
+:r 011_project_risks.sql
+:r 012_status_lookups.sqlserver.sql
+:r 014_drop_project_milestones.sqlserver.sql
+:r 015_password_reset_tokens.sqlserver.sql

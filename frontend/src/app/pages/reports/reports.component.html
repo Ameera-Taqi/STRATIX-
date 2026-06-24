@@ -1,0 +1,101 @@
+<app-topbar titleKey="page.reports" />
+<main class="stratix-page p-6">
+  <div class="mb-6 flex flex-wrap items-center gap-2">
+    <select
+      class="stratix-input px-3 py-2 text-sm"
+      [ngModel]="dateRange()"
+      (ngModelChange)="dateRange.set($event)"
+    >
+      @for (opt of dateRangeOptions; track opt.value) {
+        <option [ngValue]="opt.value">{{ opt.labelKey | t }}</option>
+      }
+    </select>
+
+    <select
+      class="stratix-input px-3 py-2 text-sm"
+      [ngModel]="projectFilter()"
+      (ngModelChange)="projectFilter.set($event)"
+    >
+      <option [ngValue]="'all'">{{ 'common.all' | t }} {{ 'reports.project' | t }}</option>
+      @for (p of projects(); track p.id) {
+        <option [ngValue]="p.id">{{ p.name }}</option>
+      }
+    </select>
+
+    <select
+      class="stratix-input px-3 py-2 text-sm"
+      [ngModel]="departmentFilter()"
+      (ngModelChange)="departmentFilter.set($event)"
+    >
+      <option value="all">{{ 'common.all' | t }} {{ 'common.department' | t }}</option>
+      @for (d of departmentOptions(); track d) {
+        <option [value]="d">{{ d }}</option>
+      }
+    </select>
+
+    <select
+      class="stratix-input px-3 py-2 text-sm"
+      [ngModel]="employeeFilter()"
+      (ngModelChange)="employeeFilter.set($event)"
+    >
+      <option [ngValue]="'all'">{{ 'common.all' | t }} {{ 'reports.employee' | t }}</option>
+      @for (e of employees(); track e.id) {
+        <option [ngValue]="e.id">{{ e.name }}</option>
+      }
+    </select>
+
+    @if (hasActiveFilters()) {
+      <button type="button" class="stratix-btn-ghost px-3 py-2 text-sm" (click)="clearFilters()">
+        {{ 'reports.clearFilters' | t }}
+      </button>
+    }
+
+    <div class="ms-auto flex gap-2">
+      <button type="button" class="stratix-input px-4 py-2 text-sm hover:opacity-90" (click)="exportPdf()">
+        {{ 'reports.exportPdf' | t }}
+      </button>
+      <button type="button" class="rounded-lg bg-primary px-4 py-2 text-sm text-white" (click)="exportExcel()">
+        {{ 'reports.exportExcel' | t }}
+      </button>
+    </div>
+  </div>
+
+  <div class="mb-4 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary dark:bg-primary/10">
+    {{ 'reports.executiveHint' | t }}
+  </div>
+
+  <div class="grid gap-4 md:grid-cols-2">
+    <div class="stratix-card p-5">
+      <h3 class="mb-4 stratix-heading">{{ 'chart.projectsProgress' | t }}</h3>
+      @if (projectBars().length === 0) {
+        <p class="py-8 text-center text-sm stratix-muted">{{ 'reports.noData' | t }}</p>
+      } @else {
+        <app-bar-chart [items]="projectBars()" [height]="180" [maxValue]="100" />
+      }
+    </div>
+    <div class="stratix-card p-5">
+      <h3 class="mb-4 stratix-heading">{{ 'chart.tasksStatus' | t }}</h3>
+      @if (taskStatusDonut().length === 0) {
+        <p class="py-8 text-center text-sm stratix-muted">{{ 'reports.noData' | t }}</p>
+      } @else {
+        <app-donut-chart [segments]="taskStatusDonut()" [size]="160" />
+      }
+    </div>
+    <div class="stratix-card p-5">
+      <h3 class="mb-4 stratix-heading">{{ 'chart.delayedTasks' | t }}</h3>
+      @if (delayedBars().length === 0) {
+        <p class="py-8 text-center text-sm stratix-muted">{{ 'reports.noDelayed' | t }}</p>
+      } @else {
+        <app-bar-chart [items]="delayedBars()" [height]="180" />
+      }
+    </div>
+    <div class="stratix-card p-5">
+      <h3 class="mb-4 stratix-heading">{{ 'dashboard.budgetStatus' | t }}</h3>
+      @if (budgetBars().length === 0) {
+        <p class="py-8 text-center text-sm stratix-muted">{{ 'reports.noData' | t }}</p>
+      } @else {
+        <app-bar-chart [items]="budgetBars()" [height]="180" [maxValue]="100" />
+      }
+    </div>
+  </div>
+</main>

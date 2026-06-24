@@ -1,0 +1,112 @@
+# Stratix — production Docker stack (Microsoft SQL Server 2022 + .NET API)
+#
+# Start:  docker compose up -d --build
+# Verify: curl http://localhost:8080/api/health
+# Logs:   docker compose logs -f stratix-api sqlserver
+# Mail:   http://localhost:8025 (Mailpit — local dev inbox; emails do NOT go to real Gmail/Outlook)
+# Real SMTP: set SPRING_MAIL_HOST, SPRING_MAIL_PORT, SPRING_MAIL_USERNAME, SPRING_MAIL_PASSWORD,
+#            SPRING_MAIL_SMTP_AUTH=true, SPRING_MAIL_STARTTLS=true in .env or shell
+
+name: stratix
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: stratix-sqlserver
+    platform: linux/amd64
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-YourStrong!Passw0rd}
+    ports:
+      - "${MSSQL_PORT:-1433}:1433"
+    volumes:
+      - stratix_mssql_data:/var/opt/mssql
+    networks:
+      - stratix-net
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q \"SELECT 1\" -b -o /dev/null",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  sqlserver-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: stratix-sqlserver-init
+    platform: linux/amd64
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-YourStrong!Passw0rd}
+      MSSQL_HOST: sqlserver
+      MSSQL_DATABASE: ${MSSQL_DATABASE:-StratixDB}
+    volumes:
+      - ./database/docker/sqlserver/init-db.sh:/scripts/init-db.sh:ro
+      - ./database/init/sqlserver:/scripts/sql:ro
+    entrypoint: ["/bin/bash", "/scripts/init-db.sh"]
+    networks:
+      - stratix-net
+    restart: "no"
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: stratix-mailpit
+    restart: unless-stopped
+    ports:
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+    networks:
+      - stratix-net
+
+  stratix-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: stratix-api:latest
+    container_name: stratix-api
+    restart: unless-stopped
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      sqlserver-init:
+        condition: service_completed_successfully
+      mailpit:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ConnectionStrings__DefaultConnection: Server=sqlserver,1433;Database=${MSSQL_DATABASE:-StratixDB};User Id=sa;Password=${MSSQL_SA_PASSWORD:-YourStrong!Passw0rd};TrustServerCertificate=True;Encrypt=False
+      Stratix__Jwt__Secret: ${STRATIX_JWT_SECRET:-change-this-secret-in-production-min-256-bits-long-enough}
+      Stratix__FrontendUrl: ${FRONTEND_URL:-http://localhost:4200}
+      Stratix__Cors__Origins: ${FRONTEND_URL:-http://localhost:4200}
+      Stratix__SyncSeedPasswords: ${STRATIX_SYNC_SEED_PASSWORDS:-true}
+      Stratix__SeedData: ${STRATIX_SEED_DATA:-true}
+      Stratix__Mail__Host: ${STRATIX_MAIL_HOST:-mailpit}
+      Stratix__Mail__Port: ${STRATIX_MAIL_PORT:-1025}
+      Stratix__Mail__From: ${STRATIX_MAIL_FROM:-noreply@stratix.local}
+      Stratix__Mail__SmtpAuth: "false"
+    ports:
+      - "${API_PORT:-8080}:8080"
+    networks:
+      - stratix-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+
+volumes:
+  stratix_mssql_data:
+    name: stratix_mssql_data
+
+networks:
+  stratix-net:
+    name: stratix-net
+    driver: bridge

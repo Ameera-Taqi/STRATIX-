@@ -1,0 +1,396 @@
+<app-topbar titleKey="page.projects" />
+
+<main class="stratix-page p-6">
+
+  <a routerLink="/projects" class="mb-4 inline-block text-sm text-primary hover:underline">← {{ 'projects.back' | t }}</a>
+
+
+
+  <div class="mb-6 stratix-card p-6">
+
+    <div class="flex flex-wrap items-start justify-between gap-4">
+
+      <div>
+
+        <h2 class="text-2xl font-bold text-dark dark:text-slate-100">{{ project().name }}</h2>
+
+        <app-status-badge class="mt-2 inline-block" [status]="project().status" />
+
+      </div>
+
+      <div class="flex flex-col items-end gap-3">
+
+        <app-project-health-score [health]="health()" />
+
+        <div class="text-end text-sm text-slate-600 dark:text-slate-300">
+
+          <p><strong>{{ 'common.progress' | t }}:</strong> {{ project().progress }}%</p>
+
+          <p><strong>{{ 'common.start' | t }}:</strong> {{ project().startDate }}</p>
+
+          <p><strong>{{ 'common.end' | t }}:</strong> {{ project().endDate }}</p>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+
+      <div class="h-full rounded-full bg-primary" [style.width.%]="project().progress"></div>
+
+    </div>
+
+  </div>
+
+
+
+  <div class="mb-4 flex gap-1 border-b border-slate-200 dark:border-slate-700">
+
+    @for (key of tabKeys; track key) {
+
+      <button
+
+        type="button"
+
+        class="border-b-2 px-4 py-2 text-sm font-medium transition"
+
+        [class.border-primary]="activeTabKey === key"
+
+        [class.text-primary]="activeTabKey === key"
+
+        [class.border-transparent]="activeTabKey !== key"
+
+        [class.text-slate-500]="activeTabKey !== key"
+
+        (click)="activeTabKey = key"
+
+      >
+
+        {{ key | t }}
+
+      </button>
+
+    }
+
+  </div>
+
+
+
+  @if (activeTabKey === 'project.tabs.overview') {
+
+    <div class="stratix-card p-6">
+
+      <p class="text-slate-600 dark:text-slate-300">{{ 'project.overviewDept' | t }}: <strong>{{ project().department }}</strong></p>
+
+      <p class="mt-2 text-slate-600 dark:text-slate-300">{{ 'project.overviewManager' | t }}: <strong>{{ project().manager }}</strong></p>
+
+      <p class="mt-4 text-sm stratix-muted">{{ 'project.overviewHint' | t }}</p>
+
+      @if (health()) {
+
+        <div class="mt-6 border-t border-slate-100 pt-6 dark:border-slate-700">
+
+          <h4 class="mb-4 text-sm font-semibold text-dark dark:text-slate-100">{{ 'health.breakdown' | t }}</h4>
+
+          <app-health-breakdown [factors]="health()!.factors" />
+
+        </div>
+
+      }
+
+    </div>
+
+  }
+
+
+
+  @if (activeTabKey === 'project.tabs.timeline') {
+
+    <div class="stratix-card p-5">
+
+      <p class="mb-4 text-xs stratix-muted">{{ 'timeline.hint' | t }}</p>
+
+      <app-gantt-chart [rows]="ganttRows()" [markers]="ganttMarkers()" [emptyLabel]="'timeline.noStages' | t" />
+
+      <p class="mt-4 text-end">
+
+        <a routerLink="/timeline" class="text-xs text-primary hover:underline">{{ 'timeline.viewAll' | t }} →</a>
+
+      </p>
+
+    </div>
+
+  }
+
+
+
+  @if (activeTabKey === 'project.tabs.stages') {
+
+    <div class="mb-4 flex justify-end">
+
+      <button
+
+        type="button"
+
+        class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90"
+
+        (click)="openStageForm()"
+
+      >
+
+        + {{ 'project.addStage' | t }}
+
+      </button>
+
+    </div>
+
+
+
+    @if (showStageForm()) {
+
+      <div class="stratix-card mb-4 p-5">
+
+        <h3 class="stratix-heading text-base">{{ 'project.addStageTitle' | t }}</h3>
+
+        @if (stageError()) {
+
+          <p class="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-danger dark:bg-red-900/30">{{ stageError()! | t }}</p>
+
+        }
+
+        <form class="mt-4 grid gap-4 sm:grid-cols-2" (ngSubmit)="saveStage()">
+
+          <div class="sm:col-span-2">
+
+            <label class="stratix-muted mb-1 block text-sm">{{ 'project.stageName' | t }} *</label>
+
+            <input type="text" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="stageForm.name" name="stageName" required />
+
+          </div>
+
+          <div>
+
+            <label class="stratix-muted mb-1 block text-sm">{{ 'common.start' | t }}</label>
+
+            <input type="date" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="stageForm.startDate" name="stageStart" />
+
+          </div>
+
+          <div>
+
+            <label class="stratix-muted mb-1 block text-sm">{{ 'common.end' | t }} *</label>
+
+            <input type="date" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="stageForm.endDate" name="stageEnd" required />
+
+          </div>
+
+          <div>
+
+            <label class="stratix-muted mb-1 block text-sm">{{ 'common.status' | t }}</label>
+
+            <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="stageForm.status" name="stageStatus">
+
+              @for (st of stageStatusOptions; track st) {
+
+                <option [value]="st">{{ st }}</option>
+
+              }
+
+            </select>
+
+          </div>
+
+          <div>
+
+            <label class="stratix-muted mb-1 block text-sm">{{ 'common.progress' | t }} (%)</label>
+
+            <input type="number" min="0" max="100" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="stageForm.progress" name="stageProgress" />
+
+          </div>
+
+          <div class="flex justify-end gap-2 sm:col-span-2">
+
+            <button type="button" class="stratix-input px-4 py-2 text-sm" (click)="cancelStageForm()">{{ 'projects.cancel' | t }}</button>
+
+            <button type="submit" class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white">{{ 'project.saveStage' | t }}</button>
+
+          </div>
+
+        </form>
+
+      </div>
+
+    }
+
+
+
+    <div class="stratix-card overflow-hidden">
+
+      @if (stages().length === 0) {
+
+        <div class="px-6 py-12 text-center">
+
+          <p class="stratix-muted text-sm">{{ 'project.noStages' | t }}</p>
+
+          <p class="mt-2 text-xs stratix-muted">{{ 'project.noStagesHint' | t }}</p>
+
+          <button type="button" class="mt-4 text-sm font-medium text-primary" (click)="openStageForm()">
+
+            + {{ 'project.addStage' | t }}
+
+          </button>
+
+        </div>
+
+      } @else {
+
+        <table class="w-full text-start text-sm">
+
+          <thead class="stratix-table-head">
+
+            <tr>
+
+              <th class="px-5 py-3 w-12">#</th>
+
+              <th class="px-5 py-3">{{ 'project.stageName' | t }}</th>
+
+              <th class="px-5 py-3">{{ 'common.start' | t }}</th>
+
+              <th class="px-5 py-3">{{ 'common.end' | t }}</th>
+
+              <th class="px-5 py-3">{{ 'common.progress' | t }}</th>
+
+              <th class="px-5 py-3">{{ 'common.status' | t }}</th>
+
+              <th class="px-5 py-3">{{ 'common.actions' | t }}</th>
+
+            </tr>
+
+          </thead>
+
+          <tbody>
+
+            @for (s of stages(); track s.id) {
+
+              <tr class="stratix-table-row">
+
+                <td class="px-5 py-3 stratix-muted">{{ s.orderNumber }}</td>
+
+                <td class="px-5 py-3 font-medium">{{ s.name }}</td>
+
+                <td class="px-5 py-3 text-slate-600 dark:text-slate-300">{{ s.startDate }}</td>
+
+                <td class="px-5 py-3 text-slate-600 dark:text-slate-300">{{ s.endDate }}</td>
+
+                <td class="px-5 py-3">
+
+                  <div class="flex items-center gap-2">
+
+                    <div class="h-2 w-16 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+
+                      <div class="h-full bg-primary" [style.width.%]="s.progress"></div>
+
+                    </div>
+
+                    {{ s.progress }}%
+
+                  </div>
+
+                </td>
+
+                <td class="px-5 py-3"><app-status-badge [status]="s.status" /></td>
+
+                <td class="px-5 py-3">
+
+                  @if (s.status !== 'Done') {
+
+                    <button type="button" class="me-3 text-sm text-primary hover:underline" (click)="completeStage(s.id)">
+
+                      {{ 'project.completeStage' | t }}
+
+                    </button>
+
+                  }
+
+                  <button type="button" class="text-sm text-danger hover:underline" (click)="deleteStage(s.id)">
+
+                    {{ 'common.delete' | t }}
+
+                  </button>
+
+                </td>
+
+              </tr>
+
+            }
+
+          </tbody>
+
+        </table>
+
+      }
+
+    </div>
+
+  }
+
+
+
+  @if (activeTabKey === 'project.tabs.tasks') {
+
+    <app-task-board [projectId]="projectId" [embedded]="true" />
+
+    <p class="mt-3 text-end">
+
+      <a [routerLink]="['/tasks']" [queryParams]="{ project: projectId }" class="text-sm text-primary hover:underline">
+
+        {{ 'tasks.openFullBoard' | t }} →
+
+      </a>
+
+    </p>
+
+  }
+
+
+
+  @if (activeTabKey === 'project.tabs.files') {
+
+    <div class="stratix-card p-6">
+
+      <h3 class="mb-4 stratix-heading text-sm">{{ 'project.tabs.files' | t }}</h3>
+
+      <app-attachments-panel [projectId]="projectId" [projectName]="project().name" />
+
+    </div>
+
+  }
+
+
+
+  @if (activeTabKey === 'project.tabs.activity') {
+
+    <div class="stratix-card p-6">
+
+      <div class="mb-2 flex items-center justify-between">
+
+        <h3 class="stratix-heading text-sm">{{ 'activity.title' | t }}</h3>
+
+        <a routerLink="/audit" class="text-xs font-medium text-primary hover:underline">{{ 'audit.viewAll' | t }} →</a>
+
+      </div>
+
+      <p class="mb-6 text-xs stratix-muted">{{ 'activity.hint' | t }}</p>
+
+      <app-activity-timeline [projectId]="projectId" [limit]="50" />
+
+    </div>
+
+  }
+
+</main>
+
+<app-project-ai-bot [projectId]="projectId" />
+

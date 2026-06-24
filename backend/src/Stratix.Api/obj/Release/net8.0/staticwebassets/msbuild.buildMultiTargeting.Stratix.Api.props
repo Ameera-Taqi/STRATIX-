@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="../build/Stratix.Api.props" />
+</Project>

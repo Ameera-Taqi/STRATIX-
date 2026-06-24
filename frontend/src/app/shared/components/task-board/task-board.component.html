@@ -1,0 +1,104 @@
+@if (projectId() != null) {
+  <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+  <p class="stratix-muted text-sm">
+    {{ 'tasks.forProject' | t }}: <strong class="text-dark dark:text-slate-100">{{ project()?.name }}</strong>
+  </p>
+  <div class="flex gap-2">
+    @if (!embedded()) {
+      <a [routerLink]="['/tasks']" [queryParams]="{ project: projectId() }" class="text-sm text-primary hover:underline">
+        {{ 'tasks.openBoard' | t }}
+      </a>
+    }
+    <button type="button" class="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-white" (click)="openAddTask()">
+      + {{ 'tasks.add' | t }}
+    </button>
+  </div>
+  </div>
+}
+
+@if (showAddForm() && projectId() != null) {
+  <div class="stratix-card mb-4 p-4">
+    <h4 class="stratix-heading text-sm">{{ 'tasks.addTitle' | t }}</h4>
+    @if (taskError()) {
+      <p class="mt-2 text-sm text-danger">{{ taskError()! | t }}</p>
+    }
+    <form class="mt-3 grid gap-3 sm:grid-cols-2" (ngSubmit)="saveTask()">
+      <div class="sm:col-span-2">
+        <input type="text" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="taskForm.title" [placeholder]="'tasks.titlePlaceholder' | t" name="title" />
+      </div>
+      <select class="stratix-input px-3 py-2 text-sm" [(ngModel)]="taskForm.assigneeId" name="assigneeId" required>
+        <option [ngValue]="null" disabled>{{ 'common.assigned' | t }}</option>
+        @for (e of employees(); track e.id) {
+          <option [ngValue]="e.id">{{ e.name }}</option>
+        }
+      </select>
+      <input type="date" class="stratix-input px-3 py-2 text-sm" [(ngModel)]="taskForm.dueDate" name="dueDate" />
+      @if (stages().length > 0) {
+        <select class="stratix-input px-3 py-2 text-sm sm:col-span-2" [(ngModel)]="taskForm.stageId" name="stageId">
+          <option [ngValue]="null">{{ 'tasks.noStage' | t }}</option>
+          @for (s of stages(); track s.id) {
+            <option [ngValue]="s.id">{{ s.name }}</option>
+          }
+        </select>
+      }
+      <div class="flex justify-end gap-2 sm:col-span-2">
+        <button type="button" class="stratix-input px-3 py-1.5 text-sm" (click)="showAddForm.set(false)">{{ 'projects.cancel' | t }}</button>
+        <button type="submit" class="rounded-lg bg-primary px-3 py-1.5 text-sm text-white">{{ 'tasks.add' | t }}</button>
+      </div>
+    </form>
+  </div>
+}
+
+@if (tasks().length === 0) {
+  <div class="stratix-card px-6 py-10 text-center stratix-muted text-sm">
+    {{ 'tasks.empty' | t }}
+    @if (projectId() != null) {
+      <button type="button" class="mt-3 block w-full text-primary" (click)="openAddTask()">+ {{ 'tasks.add' | t }}</button>
+    }
+  </div>
+} @else {
+  <div class="flex min-h-[min(28rem,calc(100vh-12rem))] gap-4 overflow-x-auto pb-2">
+    @for (col of columns; track col.key) {
+      <div
+        class="stratix-kanban-col w-72 min-w-[280px] transition"
+        [class.ring-2]="dropTarget() === col.key"
+        [class]="dropTarget() === col.key ? 'ring-primary/40' : ''"
+        (dragover)="onDragOver($event, col.key)"
+        (drop)="onDrop(col.key)"
+      >
+        <div class="stratix-kanban-header px-4 py-3">
+          {{ col.labelKey | t }}
+          <span class="ms-1 stratix-muted">({{ tasksIn(col.key).length }})</span>
+        </div>
+        <div class="flex-1 space-y-3 overflow-y-auto p-3">
+          @for (task of tasksIn(col.key); track task.id) {
+            <div
+              draggable="true"
+              class="stratix-task-card cursor-grab p-4 active:cursor-grabbing"
+              [class.opacity-50]="draggingTaskId() === task.id"
+              (dragstart)="onDragStart(task.id)"
+              (dragend)="onDragEnd()"
+            >
+              <a [routerLink]="['/tasks', task.id]" class="block" (click)="$event.stopPropagation()">
+                <p class="font-medium text-dark dark:text-slate-100">{{ task.title }}</p>
+                @if (projectId() == null) {
+                  <p class="mt-1 text-xs text-primary">{{ task.projectName }}</p>
+                }
+                @if (task.stageName) {
+                  <p class="mt-0.5 text-xs stratix-muted">{{ 'module.stages' | t }}: {{ task.stageName }}</p>
+                }
+                <p class="mt-2 text-xs text-slate-600 dark:text-slate-400">👤 {{ task.assignee }}</p>
+                <div class="mt-3 flex items-center justify-between">
+                  <span class="rounded px-1.5 py-0.5 text-[10px] font-medium" [class]="priorityClass(task.priority)">
+                    {{ task.priority }}
+                  </span>
+                  <span class="text-[10px] stratix-muted">{{ 'common.due' | t }} {{ task.dueDate }}</span>
+                </div>
+              </a>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  </div>
+}

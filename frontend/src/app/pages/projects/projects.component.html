@@ -1,0 +1,182 @@
+<app-topbar titleKey="page.projects" />
+<main class="stratix-page p-6">
+  <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div class="flex flex-wrap gap-2">
+      <input
+        type="search"
+        [placeholder]="'projects.search' | t"
+        class="stratix-input px-3 py-2 text-sm"
+        (input)="search.set($any($event.target).value)"
+      />
+      <select
+        class="stratix-input px-3 py-2 text-sm"
+        (change)="statusFilter.set($any($event.target).value)"
+      >
+        <option value="All">{{ 'common.all' | t }}</option>
+        <option value="Active">Active</option>
+        <option value="Review">Review</option>
+        <option value="Delayed">Delayed</option>
+        <option value="Planned">Planned</option>
+      </select>
+    </div>
+    <button
+      type="button"
+      class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary/90 active:scale-[0.98]"
+      (click)="openCreateModal()"
+    >
+      + {{ 'projects.new' | t }}
+    </button>
+  </div>
+
+  <div class="stratix-card overflow-hidden">
+    @if (formError()) {
+      <p class="mx-5 mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-danger dark:bg-red-900/30 dark:text-red-300">
+        {{ formError()! | t }}
+      </p>
+    }
+    <table class="w-full text-start text-sm">
+      <thead class="stratix-table-head">
+        <tr>
+          <th class="px-5 py-3 font-medium">{{ 'dashboard.projectName' | t }}</th>
+          <th class="px-5 py-3 font-medium">{{ 'common.department' | t }}</th>
+          <th class="px-5 py-3 font-medium">{{ 'projects.manager' | t }}</th>
+          <th class="px-5 py-3 font-medium">{{ 'common.start' | t }}</th>
+          <th class="px-5 py-3 font-medium">{{ 'common.end' | t }}</th>
+          <th class="px-5 py-3 font-medium">{{ 'health.score' | t }}</th>
+          <th class="px-5 py-3 font-medium">{{ 'common.progress' | t }}</th>
+          <th class="px-5 py-3 font-medium">{{ 'common.status' | t }}</th>
+          <th class="px-5 py-3 font-medium">{{ 'common.actions' | t }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (filtered().length === 0) {
+          <tr>
+            <td colspan="9" class="px-5 py-10 text-center stratix-muted">{{ 'projects.empty' | t }}</td>
+          </tr>
+        } @else {
+          @for (p of filtered(); track p.id) {
+            <tr class="stratix-table-row">
+              <td class="px-5 py-3 font-medium">{{ p.name }}</td>
+              <td class="px-5 py-3 text-slate-600 dark:text-slate-300">{{ p.department }}</td>
+              <td class="px-5 py-3">{{ p.manager }}</td>
+              <td class="px-5 py-3 text-slate-600 dark:text-slate-300">{{ p.startDate }}</td>
+              <td class="px-5 py-3 text-slate-600 dark:text-slate-300">{{ p.endDate }}</td>
+              <td class="px-5 py-3">
+                <app-project-health-score [health]="healthFor(p.id)" [compact]="true" />
+              </td>
+              <td class="px-5 py-3">{{ p.progress }}%</td>
+              <td class="px-5 py-3"><app-status-badge [status]="p.status" /></td>
+              <td class="px-5 py-3">
+                <div class="flex flex-wrap items-center gap-3">
+                  <a [routerLink]="['/projects', p.id]" class="text-primary hover:underline">{{ 'common.view' | t }}</a>
+                  @if (canDelete()) {
+                    <button
+                      type="button"
+                      class="text-sm text-danger hover:underline disabled:opacity-50"
+                      [disabled]="deletingId() === p.id"
+                      (click)="deleteProject(p)"
+                    >
+                      {{ 'common.delete' | t }}
+                    </button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+</main>
+
+@if (showCreateModal()) {
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-dark/50 p-4 backdrop-blur-sm"
+    role="dialog"
+    aria-modal="true"
+    (click)="closeCreateModal()"
+  >
+    <div
+      class="stratix-card w-full max-w-lg p-6 shadow-xl"
+      (click)="$event.stopPropagation()"
+    >
+      <h2 class="stratix-heading text-lg">{{ 'projects.createTitle' | t }}</h2>
+      <p class="stratix-muted mt-1 text-sm">{{ 'projects.createHint' | t }}</p>
+
+      @if (formError()) {
+        <p class="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-danger dark:bg-red-900/30 dark:text-red-300">
+          {{ formError()! | t }}
+        </p>
+      }
+
+      <form class="mt-4 space-y-4" (ngSubmit)="saveProject()">
+        <div>
+          <label class="stratix-muted mb-1 block text-sm">{{ 'dashboard.projectName' | t }} *</label>
+          <input type="text" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="form.name" name="name" required />
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label class="stratix-muted mb-1 block text-sm">{{ 'common.department' | t }}</label>
+            <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="form.department" name="department">
+              @for (d of departments; track d) {
+                <option [value]="d">{{ d }}</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label class="stratix-muted mb-1 block text-sm">{{ 'projects.manager' | t }} *</label>
+            @if (managerOptions().length === 0) {
+              <p class="stratix-muted text-xs">{{ 'projects.loadingManagers' | t }}</p>
+            } @else {
+              <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="form.managerId" name="managerId" required>
+                @for (m of managerOptions(); track m.id) {
+                  <option [ngValue]="m.id">{{ m.name }} — {{ m.department }}</option>
+                }
+              </select>
+            }
+          </div>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label class="stratix-muted mb-1 block text-sm">{{ 'common.start' | t }}</label>
+            <input type="date" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="form.startDate" name="startDate" />
+          </div>
+          <div>
+            <label class="stratix-muted mb-1 block text-sm">{{ 'common.end' | t }} *</label>
+            <input type="date" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="form.endDate" name="endDate" required />
+          </div>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label class="stratix-muted mb-1 block text-sm">{{ 'common.status' | t }}</label>
+            <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="form.status" name="status">
+              @for (s of statusOptions; track s) {
+                <option [value]="s">{{ s }}</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label class="stratix-muted mb-1 block text-sm">{{ 'common.priority' | t }}</label>
+            <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="form.priority" name="priority">
+              @for (pr of priorityOptions; track pr) {
+                <option [value]="pr">{{ pr }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" class="stratix-input px-4 py-2 text-sm" (click)="closeCreateModal()">
+            {{ 'projects.cancel' | t }}
+          </button>
+          <button
+            type="submit"
+            class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60"
+            [disabled]="submitting() || managerOptions().length === 0"
+          >
+            {{ 'projects.save' | t }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}

@@ -1,0 +1,178 @@
+<app-topbar titleKey="page.team" />
+<main class="stratix-page p-6">
+  <div class="mb-6 grid gap-4 sm:grid-cols-3">
+    <div class="stratix-stat-card">
+      <div class="stratix-stat-icon bg-primary/10 text-primary">👥</div>
+      <div>
+        <p class="text-2xl font-bold text-dark dark:text-slate-100">{{ stats().total }}</p>
+        <p class="text-xs stratix-muted">{{ 'team.statTotal' | t }}</p>
+      </div>
+    </div>
+    <div class="stratix-stat-card">
+      <div class="stratix-stat-icon bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400">✓</div>
+      <div>
+        <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{{ stats().active }}</p>
+        <p class="text-xs stratix-muted">{{ 'team.statActive' | t }}</p>
+      </div>
+    </div>
+    <div class="stratix-stat-card">
+      <div class="stratix-stat-icon bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400">○</div>
+      <div>
+        <p class="text-2xl font-bold text-slate-600 dark:text-slate-400">{{ stats().inactive }}</p>
+        <p class="text-xs stratix-muted">{{ 'team.statInactive' | t }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div class="stratix-search-wrap max-w-sm flex-1">
+      <span class="stratix-search-icon" aria-hidden="true">🔍</span>
+      <input
+        type="search"
+        [placeholder]="'team.search' | t"
+        class="stratix-input w-full py-2.5 text-sm"
+        (input)="search.set($any($event.target).value)"
+      />
+    </div>
+    <button
+      type="button"
+      class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary/90 hover:shadow active:scale-[0.98]"
+      (click)="openAddModal()"
+    >
+      <span class="text-lg leading-none">+</span>
+      {{ 'team.add' | t }}
+    </button>
+  </div>
+
+  <div class="stratix-card overflow-hidden">
+    <div class="stratix-card-header flex items-center justify-between">
+      <h2 class="stratix-heading text-sm">{{ 'page.team' | t }}</h2>
+      <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+        {{ filtered().length }} / {{ stats().total }}
+      </span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full min-w-[720px] text-start text-sm">
+        <thead class="stratix-table-head">
+          <tr>
+            <th class="px-5 py-3.5 font-medium">{{ 'common.name' | t }}</th>
+            <th class="px-5 py-3.5 font-medium">{{ 'team.role' | t }}</th>
+            <th class="px-5 py-3.5 font-medium">{{ 'common.department' | t }}</th>
+            <th class="px-5 py-3.5 text-center font-medium">{{ 'team.assignedProjects' | t }}</th>
+            <th class="px-5 py-3.5 text-center font-medium">{{ 'team.completedTasks' | t }}</th>
+            <th class="px-5 py-3.5 font-medium">{{ 'common.status' | t }}</th>
+            <th class="px-5 py-3.5 font-medium">{{ 'common.actions' | t }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (filtered().length === 0) {
+            <tr>
+              <td colspan="7" class="px-5 py-14 text-center">
+                <p class="text-3xl opacity-40">👤</p>
+                <p class="mt-2 stratix-muted">{{ 'team.noEmployees' | t }}</p>
+              </td>
+            </tr>
+          } @else {
+            @for (e of filtered(); track e.id) {
+              <tr class="stratix-table-row">
+                <td class="px-5 py-3.5">
+                  <div class="flex items-center gap-3">
+                    <span class="stratix-avatar stratix-avatar-sm">{{ initials(e.name) }}</span>
+                    <span class="font-medium text-dark dark:text-slate-100">{{ e.name }}</span>
+                  </div>
+                </td>
+                <td class="px-5 py-3.5 text-slate-600 dark:text-slate-300">{{ e.role }}</td>
+                <td class="px-5 py-3.5">
+                  <span class="stratix-badge" [class]="departmentBadge(e.department)">{{ e.department }}</span>
+                </td>
+                <td class="px-5 py-3.5 text-center font-mono text-slate-700 dark:text-slate-300">{{ e.projects }}</td>
+                <td class="px-5 py-3.5 text-center font-mono text-slate-700 dark:text-slate-300">{{ e.completedTasks }}</td>
+                <td class="px-5 py-3.5">
+                  <app-employee-status-toggle [status]="e.status" [compact]="true" (statusChange)="setStatus(e.id, $event)" />
+                </td>
+                <td class="px-5 py-3.5">
+                  <a [routerLink]="['/team', e.id]" class="stratix-btn-ghost">{{ 'common.view' | t }} →</a>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+@if (showAddModal()) {
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-dark/50 p-4 backdrop-blur-sm"
+    role="dialog"
+    aria-modal="true"
+    (click)="closeAddModal()"
+  >
+    <div class="stratix-card w-full max-w-lg overflow-hidden shadow-2xl" (click)="$event.stopPropagation()">
+      <div class="h-1 bg-gradient-to-r from-primary to-primary/50"></div>
+      <div class="p-6">
+        <div class="mb-1 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-xl">👤</div>
+        <h2 class="mt-3 stratix-heading text-lg">{{ 'team.createTitle' | t }}</h2>
+        <p class="stratix-muted mt-1 text-sm">{{ 'team.createHint' | t }}</p>
+
+        @if (formError()) {
+          <p class="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-danger dark:bg-red-900/30 dark:text-red-300">
+            {{ formError()! | t }}
+          </p>
+        }
+
+        <form class="mt-5 space-y-4" (ngSubmit)="saveEmployee()">
+          <div>
+            <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'common.name' | t }} *</label>
+            <input type="text" class="stratix-input w-full px-3 py-2.5 text-sm" [(ngModel)]="form.name" name="name" required />
+          </div>
+          <div>
+            <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'team.email' | t }}</label>
+            <input
+              type="email"
+              class="stratix-input w-full px-3 py-2.5 text-sm"
+              [(ngModel)]="form.email"
+              name="email"
+              [placeholder]="'team.emailHint' | t"
+            />
+          </div>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'team.role' | t }}</label>
+              <select class="stratix-input w-full px-3 py-2.5 text-sm" [(ngModel)]="form.role" name="role">
+                @for (r of roleOptions; track r) {
+                  <option [value]="r">{{ r }}</option>
+                }
+              </select>
+            </div>
+            <div>
+              <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'common.department' | t }}</label>
+              <select class="stratix-input w-full px-3 py-2.5 text-sm" [(ngModel)]="form.department" name="department">
+                @for (d of departments(); track d) {
+                  <option [value]="d">{{ d }}</option>
+                }
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="stratix-muted mb-2 block text-sm font-medium">{{ 'common.status' | t }}</label>
+            <app-employee-status-toggle [status]="form.status" (statusChange)="form.status = $event" />
+          </div>
+          <div class="flex justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-700">
+            <button type="button" class="stratix-btn-ghost px-4 py-2" (click)="closeAddModal()">
+              {{ 'projects.cancel' | t }}
+            </button>
+            <button
+              type="submit"
+              class="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary/90 disabled:opacity-60"
+              [disabled]="submitting()"
+            >
+              {{ 'team.save' | t }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+}

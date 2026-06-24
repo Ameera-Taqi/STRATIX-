@@ -1,0 +1,164 @@
+<app-topbar titleKey="page.auditLog" />
+<main class="stratix-page p-6">
+  <p class="mb-4 text-sm stratix-muted">{{ 'audit.hint' | t }}</p>
+
+  <div class="mb-6 grid gap-3 sm:grid-cols-4">
+    <div class="stratix-stat-card">
+      <div class="stratix-stat-icon bg-primary/10 text-primary">📋</div>
+      <div>
+        <p class="text-xl font-bold text-dark dark:text-slate-100">{{ stats().total }}</p>
+        <p class="text-xs stratix-muted">{{ 'audit.statTotal' | t }}</p>
+      </div>
+    </div>
+    <div class="stratix-stat-card">
+      <div class="stratix-stat-icon bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30">+</div>
+      <div>
+        <p class="text-xl font-bold text-dark dark:text-slate-100">{{ stats().creates }}</p>
+        <p class="text-xs stratix-muted">{{ 'audit.statCreates' | t }}</p>
+      </div>
+    </div>
+    <div class="stratix-stat-card">
+      <div class="stratix-stat-icon bg-amber-50 text-amber-600 dark:bg-amber-900/30">✎</div>
+      <div>
+        <p class="text-xl font-bold text-dark dark:text-slate-100">{{ stats().updates }}</p>
+        <p class="text-xs stratix-muted">{{ 'audit.statUpdates' | t }}</p>
+      </div>
+    </div>
+    <div class="stratix-stat-card">
+      <div class="stratix-stat-icon bg-slate-100 text-slate-600 dark:bg-slate-700">⏱</div>
+      <div>
+        <p class="text-xl font-bold text-dark dark:text-slate-100">{{ stats().today }}</p>
+        <p class="text-xs stratix-muted">{{ 'audit.statToday' | t }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="mb-4 flex flex-wrap gap-2">
+    <input
+      type="search"
+      class="stratix-input min-w-[200px] px-3 py-2 text-sm"
+      [placeholder]="'audit.search' | t"
+      [value]="search()"
+      (input)="onSearchInput($any($event.target).value)"
+    />
+    <select
+      class="stratix-input px-3 py-2 text-sm"
+      [ngModel]="entityFilter()"
+      (ngModelChange)="entityFilter.set($event); onFilterChange()"
+    >
+      @for (e of entityOptions; track e) {
+        <option [ngValue]="e">{{ e === 'ALL' ? ('common.all' | t) : ('audit.entity.' + e | t) }}</option>
+      }
+    </select>
+    <select
+      class="stratix-input px-3 py-2 text-sm"
+      [ngModel]="actionFilter()"
+      (ngModelChange)="actionFilter.set($event); onFilterChange()"
+    >
+      @for (a of actionOptions; track a) {
+        <option [value]="a">{{ a === 'ALL' ? ('common.all' | t) : ('audit.action.' + a | t) }}</option>
+      }
+    </select>
+    <input
+      type="date"
+      class="stratix-input px-3 py-2 text-sm"
+      [ngModel]="startDate()"
+      (ngModelChange)="startDate.set($event); onFilterChange()"
+      [title]="'audit.startDate' | t"
+    />
+    <input
+      type="date"
+      class="stratix-input px-3 py-2 text-sm"
+      [ngModel]="endDate()"
+      (ngModelChange)="endDate.set($event); onFilterChange()"
+      [title]="'audit.endDate' | t"
+    />
+  </div>
+
+  @if (loading()) {
+    <div class="stratix-card px-6 py-14 text-center stratix-muted">{{ 'audit.loading' | t }}</div>
+  } @else if (error()) {
+    <div class="stratix-card px-6 py-14 text-center">
+      <p class="text-sm text-danger">{{ error()! | t }}</p>
+      <button type="button" class="stratix-btn-ghost mt-4 px-4 py-2 text-sm" (click)="reload()">
+        {{ 'audit.retry' | t }}
+      </button>
+    </div>
+  } @else if (entries().length === 0) {
+    <div class="stratix-card px-6 py-14 text-center stratix-muted">{{ 'audit.empty' | t }}</div>
+  } @else {
+    <div class="stratix-card overflow-x-auto">
+      <table class="w-full min-w-[900px] text-start text-sm">
+        <thead class="stratix-table-head">
+          <tr>
+            <th class="px-5 py-3 font-medium">{{ 'audit.when' | t }}</th>
+            <th class="px-5 py-3 font-medium">{{ 'audit.who' | t }}</th>
+            <th class="px-5 py-3 font-medium">{{ 'audit.what' | t }}</th>
+            <th class="px-5 py-3 font-medium">{{ 'audit.entity' | t }}</th>
+            <th class="px-5 py-3 font-medium">{{ 'audit.change' | t }}</th>
+            <th class="px-5 py-3 font-medium">{{ 'common.project' | t }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (e of entries(); track e.id) {
+            <tr class="stratix-table-row">
+              <td class="whitespace-nowrap px-5 py-3 text-xs text-slate-500">{{ formatAt(e.at) }}</td>
+              <td class="px-5 py-3">
+                <p class="font-medium text-dark dark:text-slate-100">{{ e.actor }}</p>
+              </td>
+              <td class="px-5 py-3">
+                <span class="stratix-badge bg-primary/10 text-primary">{{ 'audit.action.' + e.action | t }}</span>
+              </td>
+              <td class="px-5 py-3">
+                <span class="text-xs stratix-muted">{{ 'audit.entity.' + e.entityType | t }}</span>
+                @if (entityLink(e); as link) {
+                  <a [routerLink]="link" class="mt-0.5 block font-medium text-primary hover:underline">{{ e.entityLabel }}</a>
+                } @else {
+                  <p class="mt-0.5 font-medium">{{ e.entityLabel }}</p>
+                }
+              </td>
+              <td class="px-5 py-3">
+                @if (e.field && e.oldValue != null && e.newValue != null) {
+                  <p class="font-mono text-xs">
+                    <span class="stratix-muted">{{ 'audit.field.' + e.field | t }}:</span>
+                    {{ formatValue(e.oldValue) }} → {{ formatValue(e.newValue) }}
+                  </p>
+                } @else {
+                  <p class="text-xs stratix-muted">{{ e.details }}</p>
+                }
+              </td>
+              <td class="px-5 py-3 text-xs">
+                @if (e.projectName && e.projectId) {
+                  <a [routerLink]="['/projects', e.projectId]" class="text-primary hover:underline">{{ e.projectName }}</a>
+                } @else {
+                  <span class="stratix-muted">—</span>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (totalPages() > 1) {
+      <div class="mt-4 flex items-center justify-between text-sm">
+        <p class="stratix-muted">
+          {{ 'audit.page' | t }} {{ page() + 1 }} / {{ totalPages() }} · {{ totalElements() }} {{ 'audit.entries' | t }}
+        </p>
+        <div class="flex gap-2">
+          <button type="button" class="stratix-btn-ghost px-3 py-1.5" [disabled]="page() === 0" (click)="prevPage()">
+            {{ 'audit.prev' | t }}
+          </button>
+          <button
+            type="button"
+            class="stratix-btn-ghost px-3 py-1.5"
+            [disabled]="page() >= totalPages() - 1"
+            (click)="nextPage()"
+          >
+            {{ 'audit.next' | t }}
+          </button>
+        </div>
+      </div>
+    }
+  }
+</main>

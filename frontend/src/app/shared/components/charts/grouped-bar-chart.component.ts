@@ -26,9 +26,10 @@ import { GroupedBarItem, GroupedBarSeries } from './chart.types';
               >
                 @for (bar of group.bars; track bar.key) {
                   <div
-                    class="w-full rounded-t-sm"
+                    class="w-full rounded-t-[10px] transition-all dark:shadow-[0_0_14px_color-mix(in_srgb,var(--bar)_40%,transparent)]"
+                    [style.--bar]="bar.color"
                     [style.height.px]="bar.barHeight"
-                    [style.background]="bar.color"
+                    [style.background]="'linear-gradient(180deg, color-mix(in srgb, ' + bar.color + ' 90%, white) 0%, ' + bar.color + ' 40%, color-mix(in srgb, ' + bar.color + ' 85%, black) 100%)'"
                     [title]="bar.label + ': ' + bar.value"
                   ></div>
                 }

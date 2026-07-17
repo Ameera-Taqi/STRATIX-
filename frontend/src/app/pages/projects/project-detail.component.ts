@@ -36,10 +36,9 @@ import { CurrentUserService } from '../../core/services/current-user.service';
 import { MilestoneStatus } from '../../core/models/milestone.model';
 import { ChangeRequestPriority, ChangeRequestStatus } from '../../core/models/change-request.model';
 import { UiIconComponent } from '../../shared/components/ui-icon/ui-icon.component';
+import { CHART_COLORS, CHART_SERIES } from '../../shared/components/charts/chart-palette';
 
-
-
-const STAGE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'];
+const STAGE_COLORS = [...CHART_SERIES];
 
 
 
@@ -177,7 +176,7 @@ export class ProjectDetailComponent {
 
         date: t.dueDate,
 
-        color: t.status === 'DONE' ? '#10b981' : '#ef4444',
+        color: t.status === 'DONE' ? CHART_COLORS.teal : CHART_COLORS.coral,
 
       }));
 

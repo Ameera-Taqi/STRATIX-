@@ -91,7 +91,7 @@ export function healthStatusClass(status: HealthStatus): string {
 }
 
 export const HEALTH_COLORS: Record<HealthStatus, string> = {
-  HEALTHY: '#10b981',
-  WARNING: '#f59e0b',
-  CRITICAL: '#ef4444',
+  HEALTHY: '#4E9B92',
+  WARNING: '#E0B45C',
+  CRITICAL: '#E07A7A',
 };

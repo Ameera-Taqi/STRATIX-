@@ -16,6 +16,19 @@ app-root {
 
 body {
   @apply bg-surface text-dark antialiased dark:bg-slate-950 dark:text-slate-100;
+  /* Chart palette — exact samples from reference screenshots */
+  --chart-blue: #3060d0;
+  --chart-purple: #acacf4;
+  --chart-teal: #4e9b92;
+  --chart-amber: #e0b45c;
+  --chart-coral: #e07a7a;
+  --chart-slate: #8b95a8;
+  --chart-track: #d8dee8;
+}
+
+.dark body,
+.dark {
+  --chart-track: #2a3344;
 }
 
 /* Subtle dotted-grid backdrop for the premium dark theme (reference-inspired). */

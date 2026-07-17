@@ -5,12 +5,19 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primary: '#2f6bfd',
+        primary: '#3060D0',
         dark: '#0F172A',
         surface: '#F8FAFC',
-        success: '#22C55E',
-        warning: '#F59E0B',
-        danger: '#EF4444',
+        success: '#4E9B92',
+        warning: '#E0B45C',
+        danger: '#E07A7A',
+        chart: {
+          blue: '#3060D0',
+          purple: '#ACACF4',
+          teal: '#4E9B92',
+          amber: '#E0B45C',
+          coral: '#E07A7A',
+        },
         // Premium dark palette (navy-black) — overrides the deep slate shades so the
         // whole dark theme adopts the reference look without touching every component.
         slate: {

@@ -1,5 +1,6 @@
 import { Component, computed, input } from '@angular/core';
 import { BarItem } from './chart.types';
+import { chartSeriesColor } from './chart-palette';
 
 @Component({
   selector: 'app-horizontal-bar-chart',
@@ -12,11 +13,12 @@ import { BarItem } from './chart.types';
             <span class="truncate font-medium text-dark dark:text-slate-100" [title]="bar.label">{{ bar.label }}</span>
             <span class="shrink-0 font-semibold text-dark dark:text-slate-200">{{ bar.value }}%</span>
           </div>
-          <div class="h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+          <div class="h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700/80">
             <div
-              class="h-full rounded-full transition-all"
+              class="h-full rounded-full transition-all dark:shadow-[0_0_10px_color-mix(in_srgb,var(--bar)_40%,transparent)]"
+              [style.--bar]="bar.fillColor"
               [style.width.%]="bar.pct"
-              [style.background]="bar.color ?? '#3b82f6'"
+              [style.background]="bar.fill"
             ></div>
           </div>
           @if (bar.sublabel) {
@@ -33,9 +35,14 @@ export class HorizontalBarChartComponent {
 
   readonly normalized = computed(() => {
     const max = this.maxValue();
-    return this.items().map((item) => ({
-      ...item,
-      pct: Math.min(Math.max((item.value / max) * 100, 2), 100),
-    }));
+    return this.items().map((item, index) => {
+      const fillColor = item.color ?? chartSeriesColor(index);
+      return {
+        ...item,
+        fillColor,
+        fill: `linear-gradient(90deg, color-mix(in srgb, ${fillColor} 88%, white) 0%, ${fillColor} 100%)`,
+        pct: Math.min(Math.max((item.value / max) * 100, 2), 100),
+      };
+    });
   });
 }

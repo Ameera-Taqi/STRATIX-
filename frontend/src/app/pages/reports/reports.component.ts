@@ -13,6 +13,12 @@ import { EmployeesStore } from '../../core/services/employees.store';
 import { ProjectHealthService } from '../../core/services/project-health.service';
 import { TaskCard } from '../../core/data/mock-data';
 import { computeScheduleStatus } from '../../shared/utils/dashboard-insights.util';
+import {
+  CHART_BUDGET_STATUS,
+  CHART_COLORS,
+  CHART_TASK_STATUS,
+  chartSeriesColor,
+} from '../../shared/components/charts/chart-palette';
 
 type DateRangeFilter = 'all' | '7d' | '30d' | '90d';
 
@@ -131,10 +137,10 @@ export class ReportsComponent implements OnInit {
     this.health
       .all()
       .filter((p) => this.filteredProjectIds().has(p.projectId))
-      .map((p) => ({
+      .map((p, i) => ({
         label: this.shortLabel(p.projectName),
         value: p.progress,
-        color: '#3b82f6',
+        color: chartSeriesColor(i),
       })),
   );
 
@@ -144,10 +150,10 @@ export class ReportsComponent implements OnInit {
     const counts = { TODO: 0, IN_PROGRESS: 0, REVIEW: 0, DONE: 0 };
     for (const t of list) counts[t.status]++;
     return [
-      { label: this.lang.t('task.todo'), value: counts.TODO, color: '#94a3b8' },
-      { label: this.lang.t('task.inProgress'), value: counts.IN_PROGRESS, color: '#3b82f6' },
-      { label: this.lang.t('task.review'), value: counts.REVIEW, color: '#f59e0b' },
-      { label: this.lang.t('task.done'), value: counts.DONE, color: '#10b981' },
+      { label: this.lang.t('task.todo'), value: counts.TODO, color: CHART_TASK_STATUS.TODO },
+      { label: this.lang.t('task.inProgress'), value: counts.IN_PROGRESS, color: CHART_TASK_STATUS.IN_PROGRESS },
+      { label: this.lang.t('task.review'), value: counts.REVIEW, color: CHART_TASK_STATUS.REVIEW },
+      { label: this.lang.t('task.done'), value: counts.DONE, color: CHART_TASK_STATUS.DONE },
     ].filter((s) => s.value > 0);
   });
 
@@ -156,10 +162,10 @@ export class ReportsComponent implements OnInit {
     return this.filteredTasks()
       .filter((t) => t.dueDate < today && t.status !== 'DONE')
       .slice(0, 8)
-      .map((t) => ({
+      .map((t, i) => ({
         label: this.shortLabel(t.title, 18),
         value: Math.max(1, Math.floor((Date.parse(today) - Date.parse(t.dueDate)) / 86400000)),
-        color: '#ef4444',
+        color: chartSeriesColor(i),
       }));
   });
 
@@ -172,7 +178,12 @@ export class ReportsComponent implements OnInit {
     this.scheduleStatus().map((b) => ({
       label: this.shortLabel(b.projectName),
       value: Math.round(b.spent / 1000),
-      color: b.status === 'OVER_BUDGET' ? '#ef4444' : b.status === 'WARNING' ? '#f59e0b' : '#10b981',
+      color:
+        b.status === 'OVER_BUDGET'
+          ? CHART_BUDGET_STATUS.OVER_BUDGET
+          : b.status === 'WARNING'
+            ? CHART_BUDGET_STATUS.WARNING
+            : CHART_BUDGET_STATUS.OK,
       sublabel: `${Math.round(b.budget / 1000)}%`,
     })),
   );

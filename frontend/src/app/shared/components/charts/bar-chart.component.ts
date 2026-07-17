@@ -1,5 +1,6 @@
 import { Component, computed, input } from '@angular/core';
 import { BarItem } from './chart.types';
+import { chartBarFill, chartSeriesColor } from './chart-palette';
 
 @Component({
   selector: 'app-bar-chart',
@@ -18,9 +19,10 @@ import { BarItem } from './chart.types';
                 [style.height.px]="plotHeight()"
               >
                 <div
-                  class="w-full rounded-t-md transition-all"
+                  class="w-[72%] max-w-[40px] rounded-t-[10px] transition-all dark:shadow-[0_0_16px_color-mix(in_srgb,var(--bar)_45%,transparent)]"
+                  [style.--bar]="bar.fillColor"
                   [style.height.px]="bar.barHeight"
-                  [style.background]="bar.color ?? '#3b82f6'"
+                  [style.background]="bar.fill"
                   [title]="bar.label + ': ' + bar.value"
                 ></div>
               </div>
@@ -52,9 +54,14 @@ export class BarChartComponent {
     const max = this.maxValue() ?? Math.max(...items.map((i) => i.value), 1);
     const plot = this.plotHeight();
 
-    return items.map((item) => ({
-      ...item,
-      barHeight: Math.max((item.value / max) * plot, 4),
-    }));
+    return items.map((item, index) => {
+      const fillColor = item.color ?? chartSeriesColor(index);
+      return {
+        ...item,
+        fillColor,
+        fill: chartBarFill(fillColor),
+        barHeight: Math.max((item.value / max) * plot, 4),
+      };
+    });
   });
 }

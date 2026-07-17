@@ -21,20 +21,16 @@ import { GroupedBarChartComponent } from '../../shared/components/charts/grouped
 
 import { ChartSegment } from '../../shared/components/charts/chart.types';
 import { UiIconComponent } from '../../shared/components/ui-icon/ui-icon.component';
+import {
+  CHART_COLORS,
+  CHART_LOAD,
+  CHART_PRIORITY,
+  CHART_RISK,
+  chartSeriesColor,
+} from '../../shared/components/charts/chart-palette';
 
-const LOAD_COLORS = { NORMAL: '#10b981', HIGH: '#f59e0b', OVERLOADED: '#ef4444' };
-
-const PRIORITY_COLORS: Record<string, string> = {
-
-  URGENT: '#ef4444',
-
-  HIGH: '#f97316',
-
-  MEDIUM: '#f59e0b',
-
-  LOW: '#3b82f6',
-
-};
+const LOAD_COLORS = CHART_LOAD;
+const PRIORITY_COLORS: Record<string, string> = { ...CHART_PRIORITY };
 
 
 
@@ -157,7 +153,7 @@ export class DashboardComponent implements OnInit {
 
       { label: this.lang.t('dashboard.health.' + h.status), value: h.score, color: HEALTH_COLORS[h.status] },
 
-      { label: this.lang.t('dashboard.chartRemaining'), value: 100 - h.score, color: '#e2e8f0' },
+      { label: this.lang.t('dashboard.chartRemaining'), value: 100 - h.score, color: CHART_COLORS.trackLight },
 
     ];
 
@@ -182,7 +178,7 @@ export class DashboardComponent implements OnInit {
 
         value: counts[s],
 
-        color: HEALTH_COLORS[s],
+        color: s === 'HEALTHY' ? CHART_COLORS.teal : s === 'WARNING' ? CHART_COLORS.purple : CHART_COLORS.blue,
 
       }));
 
@@ -192,13 +188,13 @@ export class DashboardComponent implements OnInit {
 
   readonly projectHealthBars = computed(() =>
 
-    this.projectHealth().map((p) => ({
+    this.projectHealth().map((p, i) => ({
 
       label: p.projectName.split(' ')[0],
 
       value: p.score,
 
-      color: HEALTH_COLORS[p.status],
+      color: chartSeriesColor(i),
 
       sublabel: `${p.progress}%`,
 
@@ -209,13 +205,13 @@ export class DashboardComponent implements OnInit {
 
 
   readonly overdueTaskBars = computed(() =>
-    this.overdueTasks().map((t) => ({
+    this.overdueTasks().map((t, i) => ({
 
       label: t.title.split(' ').slice(0, 2).join(' '),
 
       value: t.daysOverdue,
 
-      color: PRIORITY_COLORS[t.priority] ?? '#3b82f6',
+      color: chartSeriesColor(i),
 
       sublabel: t.priority,
 
@@ -243,13 +239,13 @@ export class DashboardComponent implements OnInit {
 
 
   readonly departmentBars = computed(() =>
-    this.departmentPerformance().map((d) => ({
+    this.departmentPerformance().map((d, i) => ({
 
       label: d.department,
 
       value: d.score,
 
-      color: '#3b82f6',
+      color: chartSeriesColor(i),
 
       sublabel: `${d.trend >= 0 ? '+' : ''}${d.trend}%`,
 
@@ -267,17 +263,17 @@ export class DashboardComponent implements OnInit {
 
     const segments = [
 
-      { label: this.lang.t('risks.statOpen'), value: s.openRisks, color: '#ef4444' },
+      { label: this.lang.t('risks.statOpen'), value: s.openRisks, color: CHART_COLORS.purple },
 
-      { label: this.lang.t('risks.statCritical'), value: s.criticalRisks, color: '#f97316' },
+      { label: this.lang.t('risks.statCritical'), value: s.criticalRisks, color: CHART_COLORS.coral },
 
-      { label: this.lang.t('risks.statClosed'), value: s.closedRisks, color: '#10b981' },
+      { label: this.lang.t('risks.statClosed'), value: s.closedRisks, color: CHART_COLORS.teal },
 
     ].filter((seg) => seg.value > 0);
 
     return segments.length > 0
       ? segments
-      : [{ label: this.lang.t('risks.statTotal'), value: 1, color: '#e2e8f0' }];
+      : [{ label: this.lang.t('risks.statTotal'), value: 1, color: CHART_COLORS.trackLight }];
 
   });
 
@@ -289,13 +285,13 @@ export class DashboardComponent implements OnInit {
 
     return [
 
-      { label: this.lang.t('dashboard.health.CRITICAL'), value: this.projectHealth().filter((p) => p.status === 'CRITICAL').length, color: '#ef4444' },
+      { label: this.lang.t('dashboard.health.CRITICAL'), value: this.projectHealth().filter((p) => p.status === 'CRITICAL').length, color: CHART_COLORS.blue },
 
-      { label: this.lang.t('dashboard.tasksOverdue'), value: this.overdueTasks().length, color: '#f97316' },
+      { label: this.lang.t('dashboard.tasksOverdue'), value: this.overdueTasks().length, color: CHART_COLORS.purple },
 
-      { label: this.lang.t('dashboard.riskLevel'), value: this.riskStats().criticalRisks, color: '#f59e0b' },
+      { label: this.lang.t('dashboard.riskLevel'), value: this.riskStats().criticalRisks, color: CHART_COLORS.teal },
 
-      { label: this.lang.t('dashboard.budgetAlerts'), value: this.budgetAlertsCount(), color: '#8b5cf6' },
+      { label: this.lang.t('dashboard.budgetAlerts'), value: this.budgetAlertsCount(), color: CHART_COLORS.amber },
 
     ];
 
@@ -306,9 +302,9 @@ export class DashboardComponent implements OnInit {
   readonly budgetSeries = computed(() => {
     this.lang.lang();
     return [
-      { key: 'budget', label: this.lang.t('dashboard.plan'), color: '#94a3b8' },
-      { key: 'spent', label: this.lang.t('common.progress'), color: '#3b82f6' },
-      { key: 'forecast', label: this.lang.t('dashboard.forecast'), color: '#f59e0b' },
+      { key: 'budget', label: this.lang.t('dashboard.plan'), color: CHART_COLORS.blue },
+      { key: 'spent', label: this.lang.t('common.progress'), color: CHART_COLORS.purple },
+      { key: 'forecast', label: this.lang.t('dashboard.forecast'), color: CHART_COLORS.teal },
     ];
   });
 

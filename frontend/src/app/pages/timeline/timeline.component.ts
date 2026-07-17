@@ -7,8 +7,9 @@ import { GanttChartComponent } from '../../shared/components/gantt/gantt-chart.c
 import { GanttRow, GanttTaskMarker } from '../../shared/components/gantt/gantt.types';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { UiIconComponent } from '../../shared/components/ui-icon/ui-icon.component';
+import { CHART_COLORS, CHART_SERIES } from '../../shared/components/charts/chart-palette';
 
-const STAGE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'];
+const STAGE_COLORS = [...CHART_SERIES];
 
 @Component({
   selector: 'app-timeline',
@@ -79,7 +80,7 @@ export class TimelineComponent {
           rowId: t.stageId!,
           label: t.title,
           date: t.dueDate,
-          color: t.status === 'DONE' ? '#10b981' : '#ef4444',
+          color: t.status === 'DONE' ? CHART_COLORS.teal : CHART_COLORS.coral,
         }));
 
       return {

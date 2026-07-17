@@ -21,7 +21,7 @@ interface DonutArc {
             [attr.cy]="center"
             [attr.r]="radius"
             fill="none"
-            class="stroke-slate-100 dark:stroke-slate-700"
+            class="stroke-[var(--chart-track)] dark:stroke-slate-700"
             [attr.stroke-width]="stroke"
           />
           @for (arc of arcs(); track arc.label) {

@@ -1,5 +1,6 @@
 import { Component, computed, input } from '@angular/core';
 import { GanttRow, GanttTaskMarker } from './gantt.types';
+import { CHART_COLORS } from '../charts/chart-palette';
 
 @Component({
   selector: 'app-gantt-chart',
@@ -26,10 +27,11 @@ import { GanttRow, GanttTaskMarker } from './gantt.types';
                 </div>
                 <div class="relative h-8 rounded-lg bg-slate-100 dark:bg-slate-700/60">
                   <div
-                    class="absolute top-1 h-6 rounded-md shadow-sm"
+                    class="absolute top-1 h-6 rounded-md shadow-sm dark:shadow-[0_0_12px_color-mix(in_srgb,var(--bar)_25%,transparent)]"
+                    [style.--bar]="row.color ?? chartBlue"
                     [style.left.%]="row.leftPct"
                     [style.width.%]="row.widthPct"
-                    [style.background]="row.color ?? '#3b82f6'"
+                    [style.background]="row.color ?? chartBlue"
                     [title]="row.start + ' → ' + row.end"
                   >
                     <div class="h-full overflow-hidden rounded-md bg-black/15">
@@ -40,7 +42,7 @@ import { GanttRow, GanttTaskMarker } from './gantt.types';
                     <div
                       class="absolute top-0 h-full w-0.5"
                       [style.left.%]="m.leftPct"
-                      [style.background]="m.color ?? '#ef4444'"
+                      [style.background]="m.color ?? chartCoral"
                       [title]="m.label + ': ' + m.date"
                     ></div>
                   }
@@ -54,6 +56,8 @@ import { GanttRow, GanttTaskMarker } from './gantt.types';
   `,
 })
 export class GanttChartComponent {
+  readonly chartBlue = CHART_COLORS.blue;
+  readonly chartCoral = CHART_COLORS.coral;
   readonly rows = input.required<GanttRow[]>();
   readonly markers = input<GanttTaskMarker[]>([]);
   readonly emptyLabel = input('—');

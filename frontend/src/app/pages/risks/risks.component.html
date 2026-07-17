@@ -1,29 +1,34 @@
 <app-topbar titleKey="page.risks" />
 <main class="stratix-page p-6">
+  <div class="mb-6 max-w-3xl">
+    <h2 class="text-lg font-semibold text-dark dark:text-slate-100">{{ 'page.risks' | t }}</h2>
+    <p class="mt-1 text-sm stratix-muted">{{ 'risks.hint' | t }}</p>
+  </div>
+
   <div class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
     <div class="stratix-stat-card">
-      <div class="stratix-stat-icon bg-primary/10 text-primary">⚠</div>
+      <div class="stratix-stat-icon bg-primary/10 text-primary"><app-ui-icon name="warning" size="md" /></div>
       <div>
         <p class="text-2xl font-bold text-dark dark:text-slate-100">{{ stats().totalRisks }}</p>
         <p class="text-xs stratix-muted">{{ 'risks.statTotal' | t }}</p>
       </div>
     </div>
     <div class="stratix-stat-card">
-      <div class="stratix-stat-icon bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300">!</div>
+      <div class="stratix-stat-icon bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300"><app-ui-icon name="alert-circle" size="md" /></div>
       <div>
         <p class="text-2xl font-bold text-red-600 dark:text-red-300">{{ stats().openRisks }}</p>
         <p class="text-xs stratix-muted">{{ 'risks.statOpen' | t }}</p>
       </div>
     </div>
     <div class="stratix-stat-card">
-      <div class="stratix-stat-icon bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300">🔥</div>
+      <div class="stratix-stat-icon bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300"><app-ui-icon name="flame" size="md" /></div>
       <div>
         <p class="text-2xl font-bold text-orange-600 dark:text-orange-300">{{ stats().criticalRisks }}</p>
         <p class="text-xs stratix-muted">{{ 'risks.statCritical' | t }}</p>
       </div>
     </div>
     <div class="stratix-stat-card">
-      <div class="stratix-stat-icon bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-300">✓</div>
+      <div class="stratix-stat-icon bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-300"><app-ui-icon name="check" size="md" /></div>
       <div>
         <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-300">{{ stats().closedRisks }}</p>
         <p class="text-xs stratix-muted">{{ 'risks.statClosed' | t }}</p>
@@ -40,14 +45,14 @@
             <tr>
               <th class="p-2"></th>
               @for (p of probabilityOptions; track p) {
-                <th class="p-2 font-medium stratix-muted">{{ p }}</th>
+                <th class="p-2 font-medium stratix-muted">{{ riskProbabilityKey(p) | t }}</th>
               }
             </tr>
           </thead>
           <tbody>
             @for (impact of impactOptions; track impact) {
               <tr>
-                <td class="p-2 text-start font-medium stratix-muted">{{ impact }}</td>
+                <td class="p-2 text-start font-medium stratix-muted">{{ riskImpactKey(impact) | t }}</td>
                 @for (probability of probabilityOptions; track probability) {
                   <td class="p-2">
                     <div
@@ -55,7 +60,7 @@
                       [class]="riskLevelClass(getHeatMapCell(impact, probability)?.riskLevel ?? 'LOW')"
                     >
                       <span class="text-base font-bold">{{ getHeatMapCell(impact, probability)?.count ?? 0 }}</span>
-                      <span class="text-[9px] uppercase">{{ getHeatMapCell(impact, probability)?.riskLevel }}</span>
+                      <span class="text-[9px] uppercase">{{ riskLevelKey(getHeatMapCell(impact, probability)?.riskLevel ?? 'LOW') | t }}</span>
                     </div>
                   </td>
                 }
@@ -80,7 +85,7 @@
   <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <div class="flex flex-1 flex-wrap gap-2">
       <div class="stratix-search-wrap max-w-sm flex-1">
-        <span class="stratix-search-icon" aria-hidden="true">🔍</span>
+        <span class="stratix-search-icon" aria-hidden="true"><app-ui-icon name="search" size="sm" /></span>
         <input
           type="search"
           [placeholder]="'risks.search' | t"
@@ -91,15 +96,14 @@
       <select class="stratix-input px-3 py-2 text-sm" (change)="statusFilter.set($any($event.target).value)">
         <option value="ALL">{{ 'common.all' | t }}</option>
         @for (s of statusOptions; track s) {
-          <option [value]="s">{{ s }}</option>
+          <option [value]="s">{{ riskStatusKey(s) | t }}</option>
         }
       </select>
       <select class="stratix-input px-3 py-2 text-sm" (change)="levelFilter.set($any($event.target).value)">
         <option value="ALL">{{ 'common.all' | t }}</option>
-        <option value="CRITICAL">CRITICAL</option>
-        <option value="HIGH">HIGH</option>
-        <option value="MEDIUM">MEDIUM</option>
-        <option value="LOW">LOW</option>
+        @for (level of levelOptions; track level) {
+          <option [value]="level">{{ riskLevelKey(level) | t }}</option>
+        }
       </select>
     </div>
     @if (canWrite()) {
@@ -139,7 +143,7 @@
           @if (filtered().length === 0) {
             <tr>
               <td colspan="8" class="px-5 py-14 text-center">
-                <p class="text-3xl opacity-40">⚠</p>
+                <p class="flex justify-center opacity-40"><app-ui-icon name="warning" size="2xl" /></p>
                 <p class="mt-2 stratix-muted">{{ 'risks.empty' | t }}</p>
               </td>
             </tr>
@@ -151,13 +155,13 @@
                 </td>
                 <td class="px-5 py-3.5 text-slate-600 dark:text-slate-300">{{ r.projectName }}</td>
                 <td class="px-5 py-3.5 text-slate-600 dark:text-slate-300">{{ r.ownerName }}</td>
-                <td class="px-5 py-3.5">{{ r.impact }}</td>
-                <td class="px-5 py-3.5">{{ r.probability }}</td>
+                <td class="px-5 py-3.5">{{ riskImpactKey(r.impact) | t }}</td>
+                <td class="px-5 py-3.5">{{ riskProbabilityKey(r.probability) | t }}</td>
                 <td class="px-5 py-3.5">
-                  <span class="stratix-badge" [class]="riskLevelClass(r.riskLevel)">{{ r.riskLevel }}</span>
+                  <span class="stratix-badge" [class]="riskLevelClass(r.riskLevel)">{{ riskLevelKey(r.riskLevel) | t }}</span>
                 </td>
                 <td class="px-5 py-3.5">
-                  <span class="stratix-badge" [class]="riskStatusClass(r.status)">{{ r.status }}</span>
+                  <span class="stratix-badge" [class]="riskStatusClass(r.status)">{{ riskStatusKey(r.status) | t }}</span>
                 </td>
                 <td class="px-5 py-3.5">
                   <div class="flex gap-2">
@@ -189,7 +193,7 @@
     <div class="stratix-card w-full max-w-2xl overflow-hidden shadow-2xl" (click)="$event.stopPropagation()">
       <div class="h-1 bg-gradient-to-r from-primary to-orange-500"></div>
       <div class="p-6">
-        <div class="mb-1 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-xl">⚠</div>
+        <div class="mb-1 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><app-ui-icon name="warning" size="lg" /></div>
         <h2 class="mt-3 stratix-heading text-lg">{{ modalTitle() | t }}</h2>
 
         @if (formError()) {
@@ -230,7 +234,7 @@
               <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'risks.impact' | t }}</label>
               <select class="stratix-input w-full px-3 py-2.5 text-sm" [(ngModel)]="form.impact" name="impact">
                 @for (i of impactOptions; track i) {
-                  <option [value]="i">{{ i }}</option>
+                  <option [value]="i">{{ riskImpactKey(i) | t }}</option>
                 }
               </select>
             </div>
@@ -238,7 +242,7 @@
               <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'risks.probability' | t }}</label>
               <select class="stratix-input w-full px-3 py-2.5 text-sm" [(ngModel)]="form.probability" name="probability">
                 @for (p of probabilityOptions; track p) {
-                  <option [value]="p">{{ p }}</option>
+                  <option [value]="p">{{ riskProbabilityKey(p) | t }}</option>
                 }
               </select>
             </div>
@@ -246,7 +250,7 @@
               <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'common.status' | t }}</label>
               <select class="stratix-input w-full px-3 py-2.5 text-sm" [(ngModel)]="form.status" name="status">
                 @for (s of statusOptions; track s) {
-                  <option [value]="s">{{ s }}</option>
+                  <option [value]="s">{{ riskStatusKey(s) | t }}</option>
                 }
               </select>
             </div>

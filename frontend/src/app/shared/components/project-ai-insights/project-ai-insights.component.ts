@@ -8,17 +8,20 @@ import { TasksStore } from '../../../core/services/tasks.store';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { buildProjectHealthAnalysisRequest } from '../../utils/project-ai-metrics.util';
 import { healthStatusClass } from '../../utils/project-health.util';
+import { UiIconComponent } from '../ui-icon/ui-icon.component';
 
 @Component({
   selector: 'app-project-ai-insights',
   standalone: true,
-  imports: [TranslatePipe],
+  imports: [TranslatePipe, UiIconComponent],
   template: `
     <div [class]="embedded() ? 'p-4' : 'stratix-card overflow-hidden border border-violet-200 dark:border-violet-900/40'">
       @if (!embedded()) {
         <div class="flex flex-wrap items-center justify-between gap-3 border-b border-violet-100 bg-gradient-to-r from-violet-50 to-primary/5 px-6 py-4 dark:border-violet-900/30 dark:from-violet-950/40 dark:to-primary/10">
           <div class="flex items-center gap-3">
-            <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600 text-lg text-white shadow-sm">✨</span>
+            <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm">
+              <app-ui-icon name="sparkles" size="md" />
+            </span>
             <div>
               <h3 class="stratix-heading text-base">{{ 'ai.title' | t }}</h3>
               <p class="text-xs stratix-muted">{{ 'ai.subtitle' | t }}</p>
@@ -63,7 +66,7 @@ import { healthStatusClass } from '../../utils/project-health.util';
           </div>
         } @else if (!result()) {
           <div class="rounded-lg border border-dashed border-violet-200 bg-violet-50/50 px-4 py-8 text-center dark:border-violet-900/40 dark:bg-violet-950/20">
-            <p class="text-2xl">🤖</p>
+            <p class="flex justify-center text-violet-600"><app-ui-icon name="bot" size="xl" /></p>
             <p class="mt-2 text-sm font-medium text-dark dark:text-slate-100">{{ 'ai.emptyTitle' | t }}</p>
             <p class="mx-auto mt-1 text-xs stratix-muted">{{ 'ai.botEmptyHint' | t }}</p>
           </div>
@@ -95,7 +98,7 @@ import { healthStatusClass } from '../../utils/project-health.util';
 
           <section class="mb-4">
             <h4 class="mb-2 flex items-center gap-1.5 text-xs font-semibold text-dark dark:text-slate-100">
-              <span class="text-amber-500">⚠</span> {{ 'ai.mainConcerns' | t }}
+              <app-ui-icon name="warning" size="xs" className="text-amber-500" /> {{ 'ai.mainConcerns' | t }}
             </h4>
             <ul class="space-y-1.5">
               @for (item of result()!.mainConcerns; track item) {
@@ -110,7 +113,7 @@ import { healthStatusClass } from '../../utils/project-health.util';
 
           <section class="mb-4">
             <h4 class="mb-2 flex items-center gap-1.5 text-xs font-semibold text-dark dark:text-slate-100">
-              <span class="text-primary">✓</span> {{ 'ai.recommendations' | t }}
+              <app-ui-icon name="check" size="xs" className="text-primary" /> {{ 'ai.recommendations' | t }}
             </h4>
             <ul class="space-y-1.5">
               @for (item of result()!.recommendations; track item) {
@@ -125,7 +128,7 @@ import { healthStatusClass } from '../../utils/project-health.util';
 
           <section>
             <h4 class="mb-2 flex items-center gap-1.5 text-xs font-semibold text-dark dark:text-slate-100">
-              <span class="text-violet-500">💡</span> {{ 'ai.managementInsights' | t }}
+              <app-ui-icon name="lightbulb" size="xs" className="text-violet-500" /> {{ 'ai.managementInsights' | t }}
             </h4>
             <ul class="space-y-1.5">
               @for (item of result()!.managementInsights; track item) {

@@ -13,7 +13,7 @@
     <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-700">
       <h2 class="text-sm font-semibold text-dark dark:text-slate-100">{{ 'common.notifications' | t }}</h2>
       @if (unreadCount() > 0) {
-        <button type="button" class="text-xs font-medium text-primary hover:underline" (click)="markAllRead()">
+        <button type="button" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline" (click)="markAllRead()">
           {{ 'notifications.markAllRead' | t }}
         </button>
       }
@@ -53,7 +53,7 @@
         class="block w-full rounded-lg py-2.5 text-center text-sm font-medium text-primary transition hover:bg-primary/5"
         (click)="viewAll()"
       >
-        {{ 'notifications.viewAll' | t }} →
+        {{ 'notifications.viewAll' | t }} <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span>
       </button>
     </div>
   </div>

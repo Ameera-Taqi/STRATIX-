@@ -46,7 +46,7 @@ import { DataBootstrapService } from '../../core/services/data-bootstrap.service
               <input
                 type="text"
                 class="w-full rounded-lg border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-primary/60 focus:bg-white/[0.07] focus:ring-2 focus:ring-primary/20"
-                placeholder="you@company.com"
+                [placeholder]="'auth.emailPlaceholder' | t"
                 [(ngModel)]="username"
                 name="username"
                 autocomplete="username"
@@ -59,7 +59,7 @@ import { DataBootstrapService } from '../../core/services/data-bootstrap.service
                 <input
                   [type]="showPassword() ? 'text' : 'password'"
                   class="w-full rounded-lg border border-white/10 bg-white/5 px-3.5 py-2.5 pe-10 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-primary/60 focus:bg-white/[0.07] focus:ring-2 focus:ring-primary/20"
-                  placeholder="••••••••"
+                  [placeholder]="'auth.passwordPlaceholder' | t"
                   [(ngModel)]="password"
                   name="password"
                   autocomplete="current-password"
@@ -116,7 +116,7 @@ import { DataBootstrapService } from '../../core/services/data-bootstrap.service
           </p>
         </div>
 
-        <p class="mt-6 text-center text-xs text-slate-500">© STRATIX — Plan · Execute · Achieve</p>
+        <p class="mt-6 text-center text-xs text-slate-500">{{ 'auth.footer' | t }}</p>
       </div>
     </div>
   `,

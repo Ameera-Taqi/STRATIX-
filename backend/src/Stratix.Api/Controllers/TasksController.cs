@@ -46,4 +46,12 @@ public class TasksController : ControllerBase
     [Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN,PROJECT_MANAGER,EMPLOYEE,TEAM_LEADER")]
     public async Task<TaskResponse> UpdateStatus(long id, [FromBody] UpdateTaskStatusRequest request, CancellationToken ct) =>
         await _tasks.UpdateStatusAsync(id, request, ct);
+
+    [HttpDelete("{id:long}")]
+    [Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN,PROJECT_MANAGER,TEAM_LEADER")]
+    public async Task<IActionResult> Delete(long id, CancellationToken ct)
+    {
+        await _tasks.DeleteAsync(id, ct);
+        return NoContent();
+    }
 }

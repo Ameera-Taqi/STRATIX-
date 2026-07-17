@@ -1,11 +1,17 @@
 <app-topbar titleKey="page.projects" />
 <main class="stratix-page p-6">
+  <div class="mb-6 max-w-3xl">
+    <h2 class="text-lg font-semibold text-dark dark:text-slate-100">{{ 'page.projects' | t }}</h2>
+    <p class="mt-1 text-sm stratix-muted">{{ 'projects.hint' | t }}</p>
+  </div>
+
   <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <div class="flex flex-wrap gap-2">
       <input
         type="search"
         [placeholder]="'projects.search' | t"
         class="stratix-input px-3 py-2 text-sm"
+        [value]="search()"
         (input)="search.set($any($event.target).value)"
       />
       <select
@@ -13,19 +19,21 @@
         (change)="statusFilter.set($any($event.target).value)"
       >
         <option value="All">{{ 'common.all' | t }}</option>
-        <option value="Active">Active</option>
-        <option value="Review">Review</option>
-        <option value="Delayed">Delayed</option>
-        <option value="Planned">Planned</option>
+        <option value="Active">{{ 'status.active' | t }}</option>
+        <option value="Review">{{ 'status.review' | t }}</option>
+        <option value="Delayed">{{ 'status.delayed' | t }}</option>
+        <option value="Planned">{{ 'status.planned' | t }}</option>
       </select>
     </div>
-    <button
-      type="button"
-      class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary/90 active:scale-[0.98]"
-      (click)="openCreateModal()"
-    >
-      + {{ 'projects.new' | t }}
-    </button>
+    @if (canCreate()) {
+      <button
+        type="button"
+        class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary/90 active:scale-[0.98]"
+        (click)="openCreateModal()"
+      >
+        + {{ 'projects.new' | t }}
+      </button>
+    }
   </div>
 
   <div class="stratix-card overflow-hidden">
@@ -34,7 +42,8 @@
         {{ formError()! | t }}
       </p>
     }
-    <table class="w-full text-start text-sm">
+    <div class="overflow-x-auto">
+    <table class="w-full min-w-[920px] text-start text-sm">
       <thead class="stratix-table-head">
         <tr>
           <th class="px-5 py-3 font-medium">{{ 'dashboard.projectName' | t }}</th>
@@ -93,6 +102,7 @@
         }
       </tbody>
     </table>
+    </div>
   </div>
 </main>
 
@@ -158,7 +168,7 @@
             <label class="stratix-muted mb-1 block text-sm">{{ 'common.status' | t }}</label>
             <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="form.status" name="status">
               @for (s of statusOptions; track s) {
-                <option [value]="s">{{ s }}</option>
+                <option [value]="s">{{ statusLabelKey(s) | t }}</option>
               }
             </select>
           </div>
@@ -166,7 +176,7 @@
             <label class="stratix-muted mb-1 block text-sm">{{ 'common.priority' | t }}</label>
             <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="form.priority" name="priority">
               @for (pr of priorityOptions; track pr) {
-                <option [value]="pr">{{ pr }}</option>
+                <option [value]="pr">{{ priorityLabelKeyFn(pr) | t }}</option>
               }
             </select>
           </div>

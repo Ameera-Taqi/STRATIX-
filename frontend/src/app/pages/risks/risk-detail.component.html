@@ -1,12 +1,12 @@
 <app-topbar titleKey="page.risks" />
 <main class="stratix-page p-6">
   <a routerLink="/risks" class="mb-5 inline-flex items-center gap-1 text-sm text-primary hover:underline">
-    ← {{ 'risks.back' | t }}
+    <span class="stratix-chevron-flip"><app-ui-icon name="chevron-left" size="xs" /></span> {{ 'risks.back' | t }}
   </a>
 
   @if (!risk()) {
     <div class="stratix-card flex flex-col items-center px-8 py-16 text-center">
-      <span class="text-4xl opacity-30">⚠</span>
+      <span class="opacity-30"><app-ui-icon name="warning" size="2xl" /></span>
       <p class="mt-3 stratix-muted">{{ 'risks.notFound' | t }}</p>
       <a routerLink="/risks" class="stratix-btn-ghost mt-4">{{ 'risks.back' | t }}</a>
     </div>
@@ -19,21 +19,21 @@
             <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">{{ risk()!.description }}</p>
           </div>
           <div class="flex flex-col items-end gap-2">
-            <span class="stratix-badge" [class]="riskLevelClass(risk()!.riskLevel)">{{ risk()!.riskLevel }}</span>
-            <span class="stratix-badge" [class]="riskStatusClass(risk()!.status)">{{ risk()!.status }}</span>
+            <span class="stratix-badge" [class]="riskLevelClass(risk()!.riskLevel)">{{ riskLevelKey(risk()!.riskLevel) | t }}</span>
+            <span class="stratix-badge" [class]="riskStatusClass(risk()!.status)">{{ riskStatusKey(risk()!.status) | t }}</span>
           </div>
         </div>
       </div>
-      <div class="grid divide-x divide-slate-100 dark:divide-slate-700 sm:grid-cols-4">
-        <div class="stratix-metric-cell">
-          <p class="text-sm font-semibold text-dark dark:text-slate-100">{{ risk()!.impact }}</p>
+      <div class="grid sm:grid-cols-4">
+        <div class="stratix-metric-cell sm:border-e sm:border-slate-100 sm:last:border-e-0 dark:sm:border-slate-700">
+          <p class="text-sm font-semibold text-dark dark:text-slate-100">{{ riskImpactKey(risk()!.impact) | t }}</p>
           <p class="mt-0.5 text-xs stratix-muted">{{ 'risks.impact' | t }}</p>
         </div>
-        <div class="stratix-metric-cell">
-          <p class="text-sm font-semibold text-dark dark:text-slate-100">{{ risk()!.probability }}</p>
+        <div class="stratix-metric-cell sm:border-e sm:border-slate-100 sm:last:border-e-0 dark:sm:border-slate-700">
+          <p class="text-sm font-semibold text-dark dark:text-slate-100">{{ riskProbabilityKey(risk()!.probability) | t }}</p>
           <p class="mt-0.5 text-xs stratix-muted">{{ 'risks.probability' | t }}</p>
         </div>
-        <div class="stratix-metric-cell">
+        <div class="stratix-metric-cell sm:border-e sm:border-slate-100 sm:last:border-e-0 dark:sm:border-slate-700">
           <p class="text-sm font-semibold text-primary">{{ risk()!.projectName }}</p>
           <p class="mt-0.5 text-xs stratix-muted">{{ 'common.project' | t }}</p>
         </div>
@@ -64,7 +64,7 @@
           </div>
         </dl>
         <a [routerLink]="['/projects', risk()!.projectId]" class="mt-4 inline-flex text-sm font-medium text-primary hover:underline">
-          {{ 'risks.viewProject' | t }} →
+          {{ 'risks.viewProject' | t }} <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span>
         </a>
       </div>
     </div>

@@ -1,6 +1,6 @@
 <app-topbar titleKey="page.tasks" />
 <main class="stratix-page p-6">
-  <a [routerLink]="['/tasks']" [queryParams]="{ project: task().projectId }" class="mb-4 inline-block text-sm text-primary hover:underline">← {{ 'tasks.back' | t }}</a>
+  <a [routerLink]="['/projects', task().projectId]" class="mb-4 inline-flex items-center gap-1 text-sm text-primary hover:underline"><span class="stratix-chevron-flip"><app-ui-icon name="chevron-left" size="xs" /></span> {{ 'tasks.back' | t }}</a>
 
   <div class="grid gap-6 lg:grid-cols-3">
     <div class="space-y-6 lg:col-span-2">
@@ -33,7 +33,7 @@
 
       <div class="stratix-card p-6">
         <h3 class="mb-4 stratix-heading">{{ 'attachments.title' | t }}</h3>
-        <app-attachments-panel [projectId]="task().projectId" [projectName]="task().projectName" [taskId]="taskId" />
+        <app-attachments-panel [projectId]="task().projectId" [projectName]="task().projectName" />
       </div>
 
       <div class="stratix-card p-6">

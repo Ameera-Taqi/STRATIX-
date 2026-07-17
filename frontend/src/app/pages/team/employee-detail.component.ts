@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, effect, inject, OnInit, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -9,16 +9,21 @@ import { EditEmployeeForm, EmployeeStatus, EmployeesStore } from '../../core/ser
 import { ProjectsStore } from '../../core/services/projects.store';
 import { RoleAccessService } from '../../core/services/role-access.service';
 import { TasksStore } from '../../core/services/tasks.store';
+import { ApiService } from '../../core/services/api.service';
+import { EmployeeKpiResponse } from '../../core/models/employee-kpi.model';
 import { EmployeeStatusToggleComponent } from '../../shared/components/employee-status-toggle.component';
 import { priorityClass } from '../../shared/utils/status.util';
 import { departmentBadgeClass, employeeInitials } from '../../shared/utils/employee.util';
 import { computeEmployeeTaskStats } from '../../shared/utils/employee-stats.util';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { UiIconComponent } from '../../shared/components/ui-icon/ui-icon.component';
+import { assignableRolesFor, roleLabelKey } from '../../core/config/stratix-roles';
+import { UserRole } from '../../core/models/user.model';
 
 @Component({
   selector: 'app-employee-detail',
   standalone: true,
-  imports: [TopbarComponent, RouterLink, TranslatePipe, FormsModule, EmployeeStatusToggleComponent],
+  imports: [TopbarComponent, RouterLink, TranslatePipe, FormsModule, EmployeeStatusToggleComponent, UiIconComponent],
   templateUrl: './employee-detail.component.html',
 })
 export class EmployeeDetailComponent implements OnInit {
@@ -27,6 +32,13 @@ export class EmployeeDetailComponent implements OnInit {
   private readonly tasksStore = inject(TasksStore);
   private readonly projectsStore = inject(ProjectsStore);
   private readonly roleAccess = inject(RoleAccessService);
+  private readonly api = inject(ApiService);
+
+  readonly apiKpis = signal<EmployeeKpiResponse[]>([]);
+  readonly latestApiKpi = computed(() => {
+    const list = this.apiKpis();
+    return list.length === 0 ? null : list[0];
+  });
 
   private readonly employeeId = toSignal(
     this.route.paramMap.pipe(map((params) => Number(params.get('id')))),
@@ -38,26 +50,18 @@ export class EmployeeDetailComponent implements OnInit {
   readonly submitting = signal(false);
 
   readonly departments = this.employeesStore.departmentOptions;
-  readonly roleOptions = [
-    'Project Manager',
-    'Team Leader',
-    'Employee',
-    'Admin',
-    'Executive Viewer',
-  ];
+  readonly roleOptions = computed(() => assignableRolesFor(this.roleAccess.role()));
+  readonly roleKey = roleLabelKey;
 
   form: EditEmployeeForm = {
     name: '',
     email: '',
-    role: 'Employee',
+    role: 'EMPLOYEE',
     department: 'IT',
     status: 'Active',
   };
 
-  readonly canEdit = computed(() => {
-    const role = this.roleAccess.role();
-    return role === 'ADMIN' || role === 'PROJECT_MANAGER';
-  });
+  readonly canEdit = computed(() => this.roleAccess.canWrite('EMPLOYEES'));
 
   readonly priorityClass = priorityClass;
 
@@ -89,16 +93,29 @@ export class EmployeeDetailComponent implements OnInit {
   readonly initials = employeeInitials;
   readonly departmentBadge = departmentBadgeClass;
 
+  constructor() {
+    effect(() => {
+      const id = this.employeeId();
+      if (!id) return;
+      this.api.getEmployeeKpis(id).subscribe({
+        next: (kpis) => this.apiKpis.set([...kpis].sort((a, b) => b.period.localeCompare(a.period))),
+        error: () => this.apiKpis.set([]),
+      });
+    });
+  }
+
   openEditModal(): void {
     const emp = this.employee();
     if (!emp) return;
     this.formError.set(null);
 
     const openForm = (email: string) => {
+      const role = emp.role as UserRole;
+      const options = this.roleOptions();
       this.form = {
         name: emp.name,
         email,
-        role: emp.role,
+        role: options.includes(role) ? role : (options[0] ?? 'EMPLOYEE'),
         department: emp.department,
         status: emp.status,
       };
@@ -148,7 +165,7 @@ export class EmployeeDetailComponent implements OnInit {
   }
 
   setStatus(status: EmployeeStatus): void {
-    if (!this.employee()) return;
+    if (!this.canEdit() || !this.employee()) return;
     this.employeesStore.updateStatus(this.employeeId(), status).subscribe({
       error: () => this.formError.set('team.errorSave'),
     });

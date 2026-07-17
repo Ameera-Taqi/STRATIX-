@@ -21,7 +21,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && useradd -r -u 1001 stratix
 
 COPY --from=build /app/publish .
-RUN chown -R stratix:stratix /app
+RUN mkdir -p /app/data/org-logos \
+    && chown -R stratix:stratix /app
 USER stratix
 
 ENV ASPNETCORE_URLS=http://0.0.0.0:8080

@@ -2,19 +2,18 @@ import { Component, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { NotificationsPanelService } from '../../core/services/notifications-panel.service';
 import { NotificationsStore } from '../../core/services/notifications.store';
-import { LanguageService } from '../../core/i18n/language.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { UiIconComponent } from '../../shared/components/ui-icon/ui-icon.component';
 
 @Component({
   selector: 'app-notifications-panel',
   standalone: true,
-  imports: [TranslatePipe],
+  imports: [TranslatePipe, UiIconComponent],
   templateUrl: './notifications-panel.component.html',
 })
 export class NotificationsPanelComponent {
   private readonly panel = inject(NotificationsPanelService);
   readonly store = inject(NotificationsStore);
-  private readonly lang = inject(LanguageService);
   private readonly router = inject(Router);
 
   readonly isOpen = this.panel.open;
@@ -22,11 +21,11 @@ export class NotificationsPanelComponent {
   readonly recentNotifications = computed(() => this.store.getRecent(5));
 
   title(n: Parameters<NotificationsStore['displayTitle']>[0]): string {
-    return this.store.displayTitle(n, (k) => this.lang.t(k));
+    return this.store.displayTitle(n);
   }
 
   body(n: Parameters<NotificationsStore['displayBody']>[0]): string {
-    return this.store.displayBody(n, (k) => this.lang.t(k));
+    return this.store.displayBody(n);
   }
 
   close(): void {

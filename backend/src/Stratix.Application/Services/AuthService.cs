@@ -17,6 +17,8 @@ public class AuthService : IAuthService
 
     private static readonly Dictionary<string, string> LoginAliases = new(StringComparer.OrdinalIgnoreCase)
     {
+        ["superadmin"] = "superadmin@stratix.local",
+        ["super"] = "superadmin@stratix.local",
         ["admin"] = "admin@stratix.local",
         ["sara"] = "sara.ali@stratix.local",
         ["employee"] = "lina.noor@stratix.local"
@@ -145,8 +147,27 @@ public class AuthService : IAuthService
             await _db.SaveChangesAsync(ct);
         }
 
+        await EnsureOrganizationActiveAsync(user, ct);
+
         var refresh = await IssueRefreshTokenAsync(user.Id, ct);
         return new LoginResponse(_jwt.GenerateToken(user), _jwt.GetExpirationSeconds(), EntityMappers.ToProfile(user), refresh);
+    }
+
+    // Platform owners (SUPER_ADMIN) are exempt — they are attached to a tenant only for FK
+    // integrity and must always be able to sign in regardless of that tenant's billing state.
+    private async Task EnsureOrganizationActiveAsync(User user, CancellationToken ct)
+    {
+        if (user.Role == UserRole.SUPER_ADMIN) return;
+
+        var org = await _db.Organizations.FirstOrDefaultAsync(o => o.Id == user.OrganizationId, ct);
+        if (org == null) return;
+
+        if (org.Status is OrganizationStatus.SUSPENDED or OrganizationStatus.CANCELLED)
+            throw new UnauthorizedAccessException($"Your organization's account is {org.Status.ToString().ToLowerInvariant()}. Contact your administrator or support.");
+
+        var subscription = await _db.Subscriptions.FirstOrDefaultAsync(s => s.OrganizationId == user.OrganizationId, ct);
+        if (subscription?.Status == SubscriptionStatus.CANCELLED)
+            throw new UnauthorizedAccessException("Your organization's subscription has been cancelled. Contact your administrator or support.");
     }
 
     public async Task<LoginResponse> RefreshAsync(string refreshToken, CancellationToken ct = default)
@@ -247,6 +268,7 @@ public class AuthService : IAuthService
 
     private async Task<User?> ResolveAliasFallbackAsync(string alias, CancellationToken ct) => alias switch
     {
+        "superadmin" or "super" => await _db.Users.Include(u => u.Department).FirstOrDefaultAsync(u => u.Role == UserRole.SUPER_ADMIN, ct),
         "admin" => await _db.Users.Include(u => u.Department).FirstOrDefaultAsync(u => u.Role == UserRole.ADMIN, ct),
         "sara" => await _db.Users.Include(u => u.Department).FirstOrDefaultAsync(u => u.Role == UserRole.PROJECT_MANAGER, ct),
         "employee" => await _db.Users.Include(u => u.Department).FirstOrDefaultAsync(u => u.Role == UserRole.EMPLOYEE, ct),

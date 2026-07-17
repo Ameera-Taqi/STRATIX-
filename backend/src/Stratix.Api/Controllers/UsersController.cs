@@ -30,7 +30,7 @@ public class UsersController : ControllerBase
     public async Task<UserResponse> Get(long id, CancellationToken ct) => await _users.GetByIdAsync(id, ct);
 
     [HttpPost]
-    [Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN,PROJECT_MANAGER")]
+    [Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN")]
     public async Task<ActionResult<UserResponse>> Create([FromBody] CreateUserRequest request, CancellationToken ct)
     {
         var user = await _users.CreateAsync(request, ct);
@@ -38,7 +38,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPut("{id:long}")]
-    [Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN,PROJECT_MANAGER")]
+    [Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN")]
     public async Task<UserResponse> Update(long id, [FromBody] UpdateUserRequest request, CancellationToken ct) =>
         await _users.UpdateAsync(id, request, ct);
 }

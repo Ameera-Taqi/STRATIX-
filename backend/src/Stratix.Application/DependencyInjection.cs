@@ -15,6 +15,7 @@ public static class DependencyInjection
         services.AddScoped<IProjectService, ProjectService>();
         services.AddScoped<IStageService, StageService>();
         services.AddScoped<ITaskService, TaskService>();
+        services.AddScoped<ITaskCommentService, TaskCommentService>();
         services.AddScoped<IRiskService, RiskService>();
         services.AddScoped<IMilestoneService, MilestoneService>();
         services.AddScoped<IChangeRequestService, ChangeRequestService>();
@@ -26,6 +27,8 @@ public static class DependencyInjection
         services.AddScoped<IHealthService, HealthService>();
         services.AddScoped<IPasswordResetService, PasswordResetService>();
         services.AddScoped<IProjectHealthAnalysisService, ProjectHealthAnalysisService>();
+        services.AddScoped<IPlatformCmsService, PlatformCmsService>();
+        services.AddScoped<IOrganizationBrandingService, OrganizationBrandingService>();
         return services;
     }
 }

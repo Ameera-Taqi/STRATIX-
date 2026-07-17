@@ -1,22 +1,27 @@
 <app-topbar titleKey="page.team" />
 <main class="stratix-page p-6">
+  <div class="mb-6 max-w-3xl">
+    <h2 class="text-lg font-semibold text-dark dark:text-slate-100">{{ 'page.team' | t }}</h2>
+    <p class="mt-1 text-sm stratix-muted">{{ 'team.hint' | t }}</p>
+  </div>
+
   <div class="mb-6 grid gap-4 sm:grid-cols-3">
     <div class="stratix-stat-card">
-      <div class="stratix-stat-icon bg-primary/10 text-primary">👥</div>
+      <div class="stratix-stat-icon bg-primary/10 text-primary"><app-ui-icon name="users" size="md" /></div>
       <div>
         <p class="text-2xl font-bold text-dark dark:text-slate-100">{{ stats().total }}</p>
         <p class="text-xs stratix-muted">{{ 'team.statTotal' | t }}</p>
       </div>
     </div>
     <div class="stratix-stat-card">
-      <div class="stratix-stat-icon bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400">✓</div>
+      <div class="stratix-stat-icon bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400"><app-ui-icon name="check" size="md" /></div>
       <div>
         <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{{ stats().active }}</p>
         <p class="text-xs stratix-muted">{{ 'team.statActive' | t }}</p>
       </div>
     </div>
     <div class="stratix-stat-card">
-      <div class="stratix-stat-icon bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400">○</div>
+      <div class="stratix-stat-icon bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400"><app-ui-icon name="circle" size="md" /></div>
       <div>
         <p class="text-2xl font-bold text-slate-600 dark:text-slate-400">{{ stats().inactive }}</p>
         <p class="text-xs stratix-muted">{{ 'team.statInactive' | t }}</p>
@@ -26,7 +31,7 @@
 
   <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <div class="stratix-search-wrap max-w-sm flex-1">
-      <span class="stratix-search-icon" aria-hidden="true">🔍</span>
+      <span class="stratix-search-icon" aria-hidden="true"><app-ui-icon name="search" size="sm" /></span>
       <input
         type="search"
         [placeholder]="'team.search' | t"
@@ -34,14 +39,16 @@
         (input)="search.set($any($event.target).value)"
       />
     </div>
-    <button
-      type="button"
-      class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary/90 hover:shadow active:scale-[0.98]"
-      (click)="openAddModal()"
-    >
-      <span class="text-lg leading-none">+</span>
-      {{ 'team.add' | t }}
-    </button>
+    @if (canWrite()) {
+      <button
+        type="button"
+        class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary/90 hover:shadow active:scale-[0.98]"
+        (click)="openAddModal()"
+      >
+        <span class="text-lg leading-none">+</span>
+        {{ 'team.add' | t }}
+      </button>
+    }
   </div>
 
   <div class="stratix-card overflow-hidden">
@@ -68,7 +75,7 @@
           @if (filtered().length === 0) {
             <tr>
               <td colspan="7" class="px-5 py-14 text-center">
-                <p class="text-3xl opacity-40">👤</p>
+                <p class="flex justify-center opacity-40"><app-ui-icon name="user" size="2xl" /></p>
                 <p class="mt-2 stratix-muted">{{ 'team.noEmployees' | t }}</p>
               </td>
             </tr>
@@ -81,17 +88,22 @@
                     <span class="font-medium text-dark dark:text-slate-100">{{ e.name }}</span>
                   </div>
                 </td>
-                <td class="px-5 py-3.5 text-slate-600 dark:text-slate-300">{{ e.role }}</td>
+                <td class="px-5 py-3.5 text-slate-600 dark:text-slate-300">{{ roleKey(e.role) | t }}</td>
                 <td class="px-5 py-3.5">
                   <span class="stratix-badge" [class]="departmentBadge(e.department)">{{ e.department }}</span>
                 </td>
                 <td class="px-5 py-3.5 text-center font-mono text-slate-700 dark:text-slate-300">{{ e.projects }}</td>
                 <td class="px-5 py-3.5 text-center font-mono text-slate-700 dark:text-slate-300">{{ e.completedTasks }}</td>
                 <td class="px-5 py-3.5">
-                  <app-employee-status-toggle [status]="e.status" [compact]="true" (statusChange)="setStatus(e.id, $event)" />
+                  <app-employee-status-toggle
+                    [status]="e.status"
+                    [compact]="true"
+                    [disabled]="!canWrite()"
+                    (statusChange)="setStatus(e.id, $event)"
+                  />
                 </td>
                 <td class="px-5 py-3.5">
-                  <a [routerLink]="['/team', e.id]" class="stratix-btn-ghost">{{ 'common.view' | t }} →</a>
+                  <a [routerLink]="['/team', e.id]" class="stratix-btn-ghost inline-flex items-center gap-1">{{ 'common.view' | t }} <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span></a>
                 </td>
               </tr>
             }
@@ -112,7 +124,7 @@
     <div class="stratix-card w-full max-w-lg overflow-hidden shadow-2xl" (click)="$event.stopPropagation()">
       <div class="h-1 bg-gradient-to-r from-primary to-primary/50"></div>
       <div class="p-6">
-        <div class="mb-1 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-xl">👤</div>
+        <div class="mb-1 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><app-ui-icon name="user" size="lg" /></div>
         <h2 class="mt-3 stratix-heading text-lg">{{ 'team.createTitle' | t }}</h2>
         <p class="stratix-muted mt-1 text-sm">{{ 'team.createHint' | t }}</p>
 
@@ -141,8 +153,8 @@
             <div>
               <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'team.role' | t }}</label>
               <select class="stratix-input w-full px-3 py-2.5 text-sm" [(ngModel)]="form.role" name="role">
-                @for (r of roleOptions; track r) {
-                  <option [value]="r">{{ r }}</option>
+                @for (r of roleOptions(); track r) {
+                  <option [value]="r">{{ roleKey(r) | t }}</option>
                 }
               </select>
             </div>
@@ -155,6 +167,9 @@
               </select>
             </div>
           </div>
+          <p class="rounded-lg bg-slate-50 px-3 py-2 text-xs stratix-muted dark:bg-slate-800/60">
+            {{ 'team.tempPasswordHint' | t }}
+          </p>
           <div>
             <label class="stratix-muted mb-2 block text-sm font-medium">{{ 'common.status' | t }}</label>
             <app-employee-status-toggle [status]="form.status" (statusChange)="form.status = $event" />
@@ -172,6 +187,40 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  </div>
+}
+
+@if (showCredentials(); as _) {
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-dark/50 p-4 backdrop-blur-sm"
+    role="dialog"
+    aria-modal="true"
+    (click)="closeCredentials()"
+  >
+    <div class="stratix-card w-full max-w-md overflow-hidden shadow-2xl" (click)="$event.stopPropagation()">
+      <div class="h-1 bg-gradient-to-r from-emerald-500 to-primary/50"></div>
+      <div class="p-6">
+        <h2 class="stratix-heading text-lg">{{ 'team.credentialsTitle' | t }}</h2>
+        <p class="stratix-muted mt-1 text-sm">{{ 'team.credentialsHint' | t }}</p>
+        @if (createdCredentials(); as creds) {
+          <dl class="mt-4 space-y-3 text-sm">
+            <div class="rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-800/60">
+              <dt class="text-xs stratix-muted">{{ 'team.email' | t }}</dt>
+              <dd class="mt-0.5 font-mono font-medium text-dark dark:text-slate-100">{{ creds.email }}</dd>
+            </div>
+            <div class="rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-800/60">
+              <dt class="text-xs stratix-muted">{{ 'module.password' | t }}</dt>
+              <dd class="mt-0.5 font-mono font-medium text-dark dark:text-slate-100">{{ creds.password }}</dd>
+            </div>
+          </dl>
+        }
+        <div class="mt-5 flex justify-end">
+          <button type="button" class="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-white" (click)="closeCredentials()">
+            {{ 'common.done' | t }}
+          </button>
+        </div>
       </div>
     </div>
   </div>

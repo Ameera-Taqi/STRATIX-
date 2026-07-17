@@ -9,6 +9,7 @@ using Stratix.Application.DTOs.Projects;
 using Stratix.Application.DTOs.Risks;
 using Stratix.Application.DTOs.Stages;
 using Stratix.Application.DTOs.Tasks;
+using Stratix.Application.DTOs.TaskComments;
 using Stratix.Application.DTOs.Users;
 using Stratix.Application.Mapping;
 using Stratix.Domain.Entities;
@@ -52,6 +53,9 @@ public static class EntityMappers
         task.Stage?.Name, task.Title, task.Assignee?.Name ?? "",
         task.AssigneeId, task.Priority.ToString(), task.DueDate,
         task.Status.ToString(), task.Description);
+
+    public static TaskCommentResponse ToResponse(TaskComment c) => new(
+        c.Id, c.TaskId, c.UserId, c.User?.Name ?? "", c.Comment, c.CreatedAt);
 
     public static MilestoneResponse ToResponse(Milestone m) => new(
         m.Id, m.ProjectId, m.Project?.Name ?? "", m.Title,

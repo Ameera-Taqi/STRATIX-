@@ -20,6 +20,7 @@ import { HorizontalBarChartComponent } from '../../shared/components/charts/hori
 import { GroupedBarChartComponent } from '../../shared/components/charts/grouped-bar-chart.component';
 
 import { ChartSegment } from '../../shared/components/charts/chart.types';
+import { UiIconComponent } from '../../shared/components/ui-icon/ui-icon.component';
 
 const LOAD_COLORS = { NORMAL: '#10b981', HIGH: '#f59e0b', OVERLOADED: '#ef4444' };
 
@@ -58,6 +59,8 @@ const PRIORITY_COLORS: Record<string, string> = {
     HorizontalBarChartComponent,
 
     GroupedBarChartComponent,
+
+    UiIconComponent,
 
   ],
 

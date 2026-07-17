@@ -10,10 +10,11 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     <button
       type="button"
       role="switch"
-      class="stratix-switch"
+      class="stratix-switch disabled:cursor-not-allowed disabled:opacity-60"
       [class.stratix-switch--compact]="compact()"
       [attr.aria-checked]="isActive()"
       [attr.aria-label]="'team.changeStatus' | t"
+      [disabled]="disabled()"
       (click)="toggle()"
     >
       <span class="stratix-switch-track" [class.stratix-switch-track--on]="isActive()">
@@ -31,6 +32,7 @@ export class EmployeeStatusToggleComponent {
   readonly status = input.required<EmployeeStatus>();
   readonly compact = input(false);
   readonly showLabel = input(true);
+  readonly disabled = input(false);
   readonly statusChange = output<EmployeeStatus>();
 
   isActive(): boolean {
@@ -38,6 +40,7 @@ export class EmployeeStatusToggleComponent {
   }
 
   toggle(): void {
+    if (this.disabled()) return;
     this.statusChange.emit(this.isActive() ? 'Inactive' : 'Active');
   }
 }

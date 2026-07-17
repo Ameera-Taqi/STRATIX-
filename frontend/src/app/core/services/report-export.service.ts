@@ -4,8 +4,8 @@ import { AuditLogStore } from './audit-log.store';
 import { ProjectsStore } from './projects.store';
 import { TasksStore } from './tasks.store';
 import { RisksStore } from './risks.store';
-import { MOCK_BUDGET_STATUS } from '../data/dashboard-insights';
 import { ProjectHealthService } from './project-health.service';
+import { computeScheduleStatus } from '../../shared/utils/dashboard-insights.util';
 
 @Injectable({ providedIn: 'root' })
 export class ReportExportService {
@@ -22,8 +22,9 @@ export class ReportExportService {
     const projectRows = this.health.all().map(
       (p) => `<tr><td>${p.projectName}</td><td>${p.score}%</td><td>${p.status}</td><td>${p.progress}%</td></tr>`,
     ).join('');
-    const budgetRows = MOCK_BUDGET_STATUS.map(
-      (b) => `<tr><td>${b.projectName}</td><td>$${(b.budget / 1000).toFixed(0)}k</td><td>$${(b.spent / 1000).toFixed(0)}k</td><td>${b.status}</td></tr>`,
+    const scheduleStatus = computeScheduleStatus(this.projects.projects());
+    const budgetRows = scheduleStatus.map(
+      (b) => `<tr><td>${b.projectName}</td><td>${Math.round(b.budget / 1000)}%</td><td>${Math.round(b.spent / 1000)}%</td><td>${b.status}</td></tr>`,
     ).join('');
     const riskStats = this.risks.stats();
     const overdue = this.tasks.getAll().filter((tk) => tk.dueDate < new Date().toISOString().slice(0, 10) && tk.status !== 'DONE').length;
@@ -49,12 +50,12 @@ export class ReportExportService {
     <span class="kpi"><strong>${this.projects.projects().length}</strong>${t('kpi.totalProjects')}</span>
     <span class="kpi"><strong>${overdue}</strong>${t('dashboard.tasksOverdue')}</span>
     <span class="kpi"><strong>${riskStats.criticalRisks}</strong>${t('risks.statCritical')}</span>
-    <span class="kpi"><strong>${MOCK_BUDGET_STATUS.filter((b) => b.status !== 'ON_TRACK').length}</strong>${t('dashboard.budgetAlerts')}</span>
+    <span class="kpi"><strong>${scheduleStatus.filter((b) => b.status !== 'ON_TRACK').length}</strong>${t('dashboard.scheduleStatus')}</span>
   </div>
   <h2>${t('dashboard.projectHealth')}</h2>
   <table><thead><tr><th>${t('common.project')}</th><th>${t('reports.score')}</th><th>${t('common.status')}</th><th>${t('common.progress')}</th></tr></thead><tbody>${projectRows}</tbody></table>
-  <h2>${t('dashboard.budgetStatus')}</h2>
-  <table><thead><tr><th>${t('common.project')}</th><th>${t('dashboard.budget')}</th><th>${t('dashboard.spent')}</th><th>${t('common.status')}</th></tr></thead><tbody>${budgetRows}</tbody></table>
+  <h2>${t('dashboard.scheduleStatus')}</h2>
+  <table><thead><tr><th>${t('common.project')}</th><th>${t('common.progress')} (${t('dashboard.plan')})</th><th>${t('common.progress')} (${t('dashboard.spent')})</th><th>${t('common.status')}</th></tr></thead><tbody>${budgetRows}</tbody></table>
   <h2>${t('dashboard.riskLevel')}</h2>
   <p>${t('risks.statTotal')}: ${riskStats.totalRisks} · ${t('risks.statOpen')}: ${riskStats.openRisks} · ${t('risks.statCritical')}: ${riskStats.criticalRisks}</p>
   <p class="meta" style="margin-top:32px">STRATIX © ${new Date().getFullYear()}</p>

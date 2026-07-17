@@ -7,11 +7,18 @@ import { TopbarComponent } from '../../layout/topbar/topbar.component';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { RisksStore } from '../../core/services/risks.store';
 import { riskLevelClass, riskStatusClass } from '../../shared/utils/risk.util';
+import {
+  riskImpactLabelKey,
+  riskLevelLabelKey,
+  riskProbabilityLabelKey,
+  riskStatusLabelKey,
+} from '../../shared/utils/enum-labels';
+import { UiIconComponent } from '../../shared/components/ui-icon/ui-icon.component';
 
 @Component({
   selector: 'app-risk-detail',
   standalone: true,
-  imports: [TopbarComponent, RouterLink, TranslatePipe, DatePipe],
+  imports: [TopbarComponent, RouterLink, TranslatePipe, DatePipe, UiIconComponent],
   templateUrl: './risk-detail.component.html',
   styles: `
     :host {
@@ -35,4 +42,8 @@ export class RiskDetailComponent {
   readonly risk = computed(() => this.store.getById(this.riskId()));
   readonly riskLevelClass = riskLevelClass;
   readonly riskStatusClass = riskStatusClass;
+  readonly riskLevelKey = riskLevelLabelKey;
+  readonly riskStatusKey = riskStatusLabelKey;
+  readonly riskImpactKey = riskImpactLabelKey;
+  readonly riskProbabilityKey = riskProbabilityLabelKey;
 }

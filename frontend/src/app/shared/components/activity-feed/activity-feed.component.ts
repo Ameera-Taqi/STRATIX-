@@ -2,11 +2,12 @@ import { Component, computed, inject, input, OnInit } from '@angular/core';
 import { AuditLogStore } from '../../../core/services/audit-log.store';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { AuditEntity } from '../../../core/models/audit.model';
+import { UiIconComponent } from '../ui-icon/ui-icon.component';
 
 @Component({
   selector: 'app-activity-feed',
   standalone: true,
-  imports: [TranslatePipe],
+  imports: [TranslatePipe, UiIconComponent],
   template: `
     @if (loading()) {
       <p class="text-sm stratix-muted">{{ 'audit.loading' | t }}</p>
@@ -18,8 +19,8 @@ import { AuditEntity } from '../../../core/models/audit.model';
       <ul class="space-y-3">
         @for (e of entries(); track e.id) {
           <li class="flex gap-3 rounded-lg border border-slate-100 px-3 py-3 dark:border-slate-700">
-            <span class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-              {{ actionIcon(e.action) }}
+            <span class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <app-ui-icon [name]="actionIcon(e.action)" size="xs" />
             </span>
             <div class="min-w-0 flex-1">
               <p class="text-sm text-dark dark:text-slate-100">
@@ -83,18 +84,18 @@ export class ActivityFeedComponent implements OnInit {
 
   actionIcon(action: string): string {
     const icons: Record<string, string> = {
-      CREATE: '+',
-      UPDATE: '✎',
-      DELETE: '×',
-      STATUS_CHANGE: '⇄',
-      ASSIGNMENT_CHANGE: '👤',
-      PRIORITY_CHANGE: '!',
-      MOVE: '⇄',
-      COMMENT: '💬',
-      UPLOAD: '📎',
-      EXPORT: '📄',
+      CREATE: 'plus',
+      UPDATE: 'pencil',
+      DELETE: 'close',
+      STATUS_CHANGE: 'swap',
+      ASSIGNMENT_CHANGE: 'user',
+      PRIORITY_CHANGE: 'alert-circle',
+      MOVE: 'swap',
+      COMMENT: 'message',
+      UPLOAD: 'paperclip',
+      EXPORT: 'file',
     };
-    return icons[action] ?? '•';
+    return icons[action] ?? 'dot';
   }
 
   formatValue(value: string): string {

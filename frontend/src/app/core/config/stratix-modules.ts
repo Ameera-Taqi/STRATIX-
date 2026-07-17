@@ -1,4 +1,5 @@
 import { UserRole } from '../models/user.model';
+import type { CmsPermissionMap } from '../services/cms-permissions.store';
 
 /** Official Stratix modules — see docs/OFFICIAL_SPEC.md */
 export type SystemModuleCode =
@@ -13,7 +14,11 @@ export type SystemModuleCode =
   | 'NOTIFICATIONS'
   | 'AUDIT'
   | 'RISKS'
-  | 'SETTINGS';
+  | 'SETTINGS'
+  | 'ORGANIZATIONS'
+  | 'PLATFORM_CMS'
+  | 'ROLES'
+  | 'BRANDING';
 
 export interface StratixModule {
   id: number;
@@ -36,6 +41,8 @@ const ALL_ROLES: UserRole[] = [
 const PM_AND_ABOVE: UserRole[] = ['ADMIN', 'PROJECT_MANAGER'];
 const LEADERS_AND_ABOVE: UserRole[] = ['ADMIN', 'PROJECT_MANAGER', 'TEAM_LEADER'];
 const READ_MOST: UserRole[] = ['ADMIN', 'PROJECT_MANAGER', 'TEAM_LEADER', 'EXECUTIVE_VIEWER'];
+
+const COMPANY_ADMIN_ROLES: UserRole[] = ['ORG_ADMIN', 'ADMIN'];
 
 /** Fixed list — order matches official spec #1–#10 */
 export const STRATIX_MODULES: readonly StratixModule[] = [
@@ -71,7 +78,7 @@ export const STRATIX_MODULES: readonly StratixModule[] = [
     code: 'STAGES',
     labelKey: 'nav.timeline',
     path: '/timeline',
-    sidebar: true,
+    sidebar: false,
     rolesRead: ALL_ROLES,
     rolesWrite: PM_AND_ABOVE,
   },
@@ -80,7 +87,7 @@ export const STRATIX_MODULES: readonly StratixModule[] = [
     code: 'TASKS',
     labelKey: 'nav.tasks',
     path: '/tasks',
-    sidebar: true,
+    sidebar: false,
     rolesRead: ALL_ROLES,
     rolesWrite: [...LEADERS_AND_ABOVE, 'EMPLOYEE'],
   },
@@ -147,6 +154,41 @@ export const STRATIX_MODULES: readonly StratixModule[] = [
     rolesRead: ALL_ROLES,
     rolesWrite: ['ADMIN'],
   },
+  {
+    id: 15,
+    code: 'ROLES',
+    labelKey: 'nav.roles',
+    path: '/roles',
+    sidebar: true,
+    rolesRead: READ_MOST,
+    rolesWrite: ['ADMIN'],
+  },
+  {
+    id: 16,
+    code: 'BRANDING',
+    labelKey: 'nav.branding',
+    sidebar: false,
+    rolesRead: ['ADMIN'],
+    rolesWrite: ['ADMIN'],
+  },
+  {
+    id: 13,
+    code: 'ORGANIZATIONS',
+    labelKey: 'nav.organizations',
+    path: '/organizations',
+    sidebar: true,
+    rolesRead: ['SUPER_ADMIN'],
+    rolesWrite: ['SUPER_ADMIN'],
+  },
+  {
+    id: 14,
+    code: 'PLATFORM_CMS',
+    labelKey: 'nav.cms',
+    path: '/cms',
+    sidebar: true,
+    rolesRead: ['SUPER_ADMIN'],
+    rolesWrite: ['SUPER_ADMIN'],
+  },
 ] as const;
 
 export const SIDEBAR_MODULES = STRATIX_MODULES.filter((m) => m.sidebar && m.path);
@@ -154,10 +196,27 @@ export const SIDEBAR_MODULES = STRATIX_MODULES.filter((m) => m.sidebar && m.path
 export function canAccessModule(
   module: StratixModule,
   role: UserRole,
-  mode: 'read' | 'write' = 'read'
+  mode: 'read' | 'write' = 'read',
+  cmsMap?: CmsPermissionMap | null,
 ): boolean {
-  // Platform and organization administrators have full access to every module.
-  if (role === 'SUPER_ADMIN' || role === 'ORG_ADMIN') return true;
+  // Platform-only surfaces.
+  if (module.code === 'ORGANIZATIONS' || module.code === 'PLATFORM_CMS') {
+    return role === 'SUPER_ADMIN';
+  }
+
+  if (role === 'SUPER_ADMIN') return true;
+
+  // Company admins: gated by Super Admin CMS settings when available.
+  if (COMPANY_ADMIN_ROLES.includes(role)) {
+    const cms = cmsMap?.[module.code];
+    if (cms) {
+      if (mode === 'read') return cms.visible;
+      return cms.visible && cms.writable;
+    }
+    // Before CMS loads (or for modules not managed in CMS), keep open for company admins.
+    return true;
+  }
+
   const list = mode === 'write' ? module.rolesWrite : module.rolesRead;
   return list.includes(role);
 }

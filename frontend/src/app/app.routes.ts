@@ -3,7 +3,6 @@ import { DashboardLayoutComponent } from './layout/dashboard-layout/dashboard-la
 import { DashboardComponent } from './pages/dashboard/dashboard.component';
 import { ProjectsComponent } from './pages/projects/projects.component';
 import { ProjectDetailComponent } from './pages/projects/project-detail.component';
-import { TasksBoardComponent } from './pages/tasks/tasks-board.component';
 import { TaskDetailComponent } from './pages/tasks/task-detail.component';
 import { TeamComponent } from './pages/team/team.component';
 import { EmployeeDetailComponent } from './pages/team/employee-detail.component';
@@ -13,13 +12,16 @@ import { SettingsComponent } from './pages/settings/settings.component';
 import { NotificationsComponent } from './pages/notifications/notifications.component';
 import { RisksComponent } from './pages/risks/risks.component';
 import { RiskDetailComponent } from './pages/risks/risk-detail.component';
-import { TimelineComponent } from './pages/timeline/timeline.component';
 import { AuditLogComponent } from './pages/audit-log/audit-log.component';
+import { OrganizationsComponent } from './pages/organizations/organizations.component';
+import { CmsComponent } from './pages/cms/cms.component';
+import { RolesComponent } from './pages/roles/roles.component';
 import { LoginComponent } from './pages/auth/login.component';
 import { RegisterComponent } from './pages/auth/register.component';
 import { ForgotPasswordComponent } from './pages/auth/forgot-password.component';
 import { ResetPasswordComponent } from './pages/auth/reset-password.component';
 import { authGuard, guestGuard } from './core/guards/auth.guard';
+import { moduleGuard } from './core/guards/role.guard';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'auth/login' },
@@ -32,21 +34,24 @@ export const routes: Routes = [
     component: DashboardLayoutComponent,
     canActivate: [authGuard],
     children: [
-      { path: 'dashboard', component: DashboardComponent },
-      { path: 'projects', component: ProjectsComponent },
-      { path: 'projects/:id', component: ProjectDetailComponent },
-      { path: 'timeline', component: TimelineComponent },
-      { path: 'tasks', component: TasksBoardComponent },
-      { path: 'tasks/:id', component: TaskDetailComponent },
-      { path: 'team', component: TeamComponent },
-      { path: 'team/:id', component: EmployeeDetailComponent },
-      { path: 'performance', component: PerformanceComponent },
-      { path: 'reports', component: ReportsComponent },
-      { path: 'risks', component: RisksComponent },
-      { path: 'risks/:id', component: RiskDetailComponent },
-      { path: 'notifications', component: NotificationsComponent },
-      { path: 'audit', component: AuditLogComponent },
-      { path: 'settings', component: SettingsComponent },
+      { path: 'dashboard', component: DashboardComponent, canActivate: [moduleGuard('DASHBOARD')] },
+      { path: 'projects', component: ProjectsComponent, canActivate: [moduleGuard('PROJECTS')] },
+      { path: 'projects/:id', component: ProjectDetailComponent, canActivate: [moduleGuard('PROJECTS')] },
+      { path: 'timeline', pathMatch: 'full', redirectTo: 'projects' },
+      { path: 'tasks', pathMatch: 'full', redirectTo: 'projects' },
+      { path: 'tasks/:id', component: TaskDetailComponent, canActivate: [moduleGuard('PROJECTS')] },
+      { path: 'team', component: TeamComponent, canActivate: [moduleGuard('EMPLOYEES')] },
+      { path: 'team/:id', component: EmployeeDetailComponent, canActivate: [moduleGuard('EMPLOYEES')] },
+      { path: 'performance', component: PerformanceComponent, canActivate: [moduleGuard('PERFORMANCE')] },
+      { path: 'reports', component: ReportsComponent, canActivate: [moduleGuard('REPORTS')] },
+      { path: 'risks', component: RisksComponent, canActivate: [moduleGuard('RISKS')] },
+      { path: 'risks/:id', component: RiskDetailComponent, canActivate: [moduleGuard('RISKS')] },
+      { path: 'notifications', component: NotificationsComponent, canActivate: [moduleGuard('NOTIFICATIONS')] },
+      { path: 'audit', component: AuditLogComponent, canActivate: [moduleGuard('AUDIT')] },
+      { path: 'organizations', component: OrganizationsComponent, canActivate: [moduleGuard('ORGANIZATIONS')] },
+      { path: 'cms', component: CmsComponent, canActivate: [moduleGuard('PLATFORM_CMS')] },
+      { path: 'roles', component: RolesComponent, canActivate: [moduleGuard('ROLES')] },
+      { path: 'settings', component: SettingsComponent, canActivate: [moduleGuard('SETTINGS')] },
     ],
   },
 ];

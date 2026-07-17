@@ -5,20 +5,28 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LanguageService } from '../../core/i18n/language.service';
 import { BarChartComponent } from '../../shared/components/charts/bar-chart.component';
 import { DonutChartComponent } from '../../shared/components/charts/donut-chart.component';
+import { KpiCardComponent } from '../../shared/components/kpi-card.component';
 import { ReportExportService } from '../../core/services/report-export.service';
 import { ProjectsStore } from '../../core/services/projects.store';
 import { TasksStore } from '../../core/services/tasks.store';
 import { EmployeesStore } from '../../core/services/employees.store';
-import { MOCK_BUDGET_STATUS } from '../../core/data/dashboard-insights';
 import { ProjectHealthService } from '../../core/services/project-health.service';
 import { TaskCard } from '../../core/data/mock-data';
+import { computeScheduleStatus } from '../../shared/utils/dashboard-insights.util';
 
 type DateRangeFilter = 'all' | '7d' | '30d' | '90d';
 
 @Component({
   selector: 'app-reports',
   standalone: true,
-  imports: [TopbarComponent, TranslatePipe, FormsModule, BarChartComponent, DonutChartComponent],
+  imports: [
+    TopbarComponent,
+    TranslatePipe,
+    FormsModule,
+    BarChartComponent,
+    DonutChartComponent,
+    KpiCardComponent,
+  ],
   templateUrl: './reports.component.html',
 })
 export class ReportsComponent implements OnInit {
@@ -97,12 +105,34 @@ export class ReportsComponent implements OnInit {
 
   readonly filteredProjectIds = computed(() => new Set(this.filteredProjects().map((p) => p.id)));
 
+  readonly summary = computed(() => {
+    const projects = this.filteredProjects();
+    const tasks = this.filteredTasks();
+    const today = new Date().toISOString().slice(0, 10);
+    const done = tasks.filter((t) => t.status === 'DONE').length;
+    const overdue = tasks.filter((t) => t.dueDate < today && t.status !== 'DONE').length;
+    const schedule = computeScheduleStatus(projects);
+    const onTrack = schedule.filter((s) => s.status === 'ON_TRACK').length;
+    const avgProgress =
+      projects.length === 0
+        ? 0
+        : Math.round(projects.reduce((sum, p) => sum + p.progress, 0) / projects.length);
+
+    return {
+      projects: projects.length,
+      avgProgress,
+      overdue,
+      onTrack,
+      completionRate: tasks.length === 0 ? 0 : Math.round((done / tasks.length) * 100),
+    };
+  });
+
   readonly projectBars = computed(() =>
     this.health
       .all()
       .filter((p) => this.filteredProjectIds().has(p.projectId))
       .map((p) => ({
-        label: p.projectName.split(' ')[0],
+        label: this.shortLabel(p.projectName),
         value: p.progress,
         color: '#3b82f6',
       })),
@@ -125,21 +155,29 @@ export class ReportsComponent implements OnInit {
     const today = new Date().toISOString().slice(0, 10);
     return this.filteredTasks()
       .filter((t) => t.dueDate < today && t.status !== 'DONE')
+      .slice(0, 8)
       .map((t) => ({
-        label: t.title.split(' ').slice(0, 2).join(' '),
+        label: this.shortLabel(t.title, 18),
         value: Math.max(1, Math.floor((Date.parse(today) - Date.parse(t.dueDate)) / 86400000)),
         color: '#ef4444',
       }));
   });
 
-  readonly budgetBars = computed(() => {
+  readonly scheduleStatus = computed(() => {
     const ids = this.filteredProjectIds();
-    return MOCK_BUDGET_STATUS.filter((b) => ids.has(b.projectId)).map((b) => ({
-      label: b.projectName.split(' ')[0],
-      value: Math.round((b.spent / b.budget) * 100),
-      color: b.status === 'OVER_BUDGET' ? '#ef4444' : b.status === 'WARNING' ? '#f59e0b' : '#10b981',
-    }));
+    return computeScheduleStatus(this.filteredProjects().filter((p) => ids.has(p.id)));
   });
+
+  readonly scheduleBars = computed(() =>
+    this.scheduleStatus().map((b) => ({
+      label: this.shortLabel(b.projectName),
+      value: Math.round(b.spent / 1000),
+      color: b.status === 'OVER_BUDGET' ? '#ef4444' : b.status === 'WARNING' ? '#f59e0b' : '#10b981',
+      sublabel: `${Math.round(b.budget / 1000)}%`,
+    })),
+  );
+
+  readonly donutCenter = computed(() => String(this.filteredTasks().length));
 
   readonly hasActiveFilters = computed(
     () =>
@@ -162,17 +200,23 @@ export class ReportsComponent implements OnInit {
 
   exportExcel(): void {
     const rows = [
-      ['Project', 'Health', 'Progress', 'Budget', 'Spent', 'Status'],
+      ['Project', 'Health', 'Progress %', 'Expected %', 'Schedule Status'],
       ...this.health
         .all()
         .filter((p) => this.filteredProjectIds().has(p.projectId))
         .map((p) => {
-          const b = MOCK_BUDGET_STATUS.find((x) => x.projectId === p.projectId);
-          return [p.projectName, p.score, p.progress, b?.budget ?? '', b?.spent ?? '', b?.status ?? ''];
+          const b = this.scheduleStatus().find((x) => x.projectId === p.projectId);
+          return [
+            p.projectName,
+            p.score,
+            p.progress,
+            b ? Math.round(b.budget / 1000) : '',
+            b?.status ?? '',
+          ];
         }),
     ];
-    const csv = rows.map((r) => r.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
+    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'stratix-executive-report.csv';
@@ -187,5 +231,11 @@ export class ReportsComponent implements OnInit {
     if (!this.employeesStore.loaded()) {
       this.employeesStore.loadFromApi();
     }
+  }
+
+  private shortLabel(text: string, max = 14): string {
+    const trimmed = text.trim();
+    if (trimmed.length <= max) return trimmed;
+    return `${trimmed.slice(0, max - 1)}…`;
   }
 }

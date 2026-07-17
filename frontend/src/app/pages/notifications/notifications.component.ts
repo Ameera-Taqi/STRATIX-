@@ -1,13 +1,13 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { TopbarComponent } from '../../layout/topbar/topbar.component';
 import { NotificationsStore } from '../../core/services/notifications.store';
-import { LanguageService } from '../../core/i18n/language.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { UiIconComponent } from '../../shared/components/ui-icon/ui-icon.component';
 
 @Component({
   selector: 'app-notifications',
   standalone: true,
-  imports: [TopbarComponent, TranslatePipe],
+  imports: [TopbarComponent, TranslatePipe, UiIconComponent],
   template: `
     <app-topbar titleKey="nav.notifications" />
     <main class="stratix-page p-6">
@@ -25,9 +25,11 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
       </div>
 
       <div class="stratix-card overflow-hidden">
-        @if (store.items().length === 0) {
+        @if (store.loading() && store.items().length === 0) {
+          <div class="px-6 py-14 text-center stratix-muted">{{ 'common.loading' | t }}</div>
+        } @else if (store.items().length === 0) {
           <div class="px-6 py-14 text-center">
-            <p class="text-3xl opacity-40">🔔</p>
+            <p class="flex justify-center opacity-40"><app-ui-icon name="bell" size="2xl" /></p>
             <p class="mt-2 stratix-muted">{{ 'notifications.empty' | t }}</p>
           </div>
         } @else {
@@ -37,15 +39,20 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
                 <span class="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" [class.bg-primary]="!n.read" [class.bg-transparent]="n.read"></span>
                 <div class="min-w-0 flex-1">
                   <div class="flex flex-wrap items-start justify-between gap-2">
-                    <strong class="text-dark dark:text-slate-100">{{ title(n) }}</strong>
+                    <strong class="text-dark dark:text-slate-100">{{ n.title }}</strong>
                     <span class="text-xs stratix-muted">{{ store.timeAgo(n.createdAt) }}</span>
                   </div>
-                  <p class="mt-1 text-sm stratix-muted">{{ body(n) }}</p>
-                  @if (!n.read) {
-                    <button type="button" class="mt-2 text-xs font-medium text-primary hover:underline" (click)="markRead(n.id)">
-                      {{ 'notifications.markRead' | t }}
+                  <p class="mt-1 text-sm stratix-muted">{{ n.body }}</p>
+                  <div class="mt-2 flex items-center gap-3">
+                    @if (!n.read) {
+                      <button type="button" class="text-xs font-medium text-primary hover:underline" (click)="markRead(n.id)">
+                        {{ 'notifications.markRead' | t }}
+                      </button>
+                    }
+                    <button type="button" class="text-xs font-medium text-danger hover:underline" (click)="remove(n.id)">
+                      {{ 'common.delete' | t }}
                     </button>
-                  }
+                  </div>
                 </div>
               </li>
             }
@@ -55,16 +62,11 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     </main>
   `,
 })
-export class NotificationsComponent {
+export class NotificationsComponent implements OnInit {
   readonly store = inject(NotificationsStore);
-  private readonly lang = inject(LanguageService);
 
-  title(n: Parameters<NotificationsStore['displayTitle']>[0]): string {
-    return this.store.displayTitle(n, (k) => this.lang.t(k));
-  }
-
-  body(n: Parameters<NotificationsStore['displayBody']>[0]): string {
-    return this.store.displayBody(n, (k) => this.lang.t(k));
+  ngOnInit(): void {
+    this.store.loadFromApi();
   }
 
   markRead(id: number): void {
@@ -73,5 +75,9 @@ export class NotificationsComponent {
 
   markAllRead(): void {
     this.store.markAllRead();
+  }
+
+  remove(id: number): void {
+    this.store.remove(id);
   }
 }

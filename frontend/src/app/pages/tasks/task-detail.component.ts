@@ -7,6 +7,7 @@ import { AttachmentsPanelComponent } from '../../shared/components/attachments-p
 import { ActivityFeedComponent } from '../../shared/components/activity-feed/activity-feed.component';
 import { priorityClass } from '../../shared/utils/status.util';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { UiIconComponent } from '../../shared/components/ui-icon/ui-icon.component';
 
 @Component({
   selector: 'app-task-detail',
@@ -15,6 +16,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     TopbarComponent,
     RouterLink,
     TranslatePipe,
+    UiIconComponent,
     CommentsPanelComponent,
     AttachmentsPanelComponent,
     ActivityFeedComponent,

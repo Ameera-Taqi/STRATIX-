@@ -4,12 +4,12 @@
     routerLink="/team"
     class="mb-5 inline-flex items-center gap-1 rounded-lg border border-transparent px-2 py-1 text-sm text-primary transition hover:border-primary/20 hover:bg-primary/5"
   >
-    ← {{ 'team.back' | t }}
+    <span class="stratix-chevron-flip"><app-ui-icon name="chevron-left" size="xs" /></span> {{ 'team.back' | t }}
   </a>
 
   @if (!employee()) {
     <div class="stratix-card flex flex-col items-center px-8 py-16 text-center">
-      <span class="text-4xl opacity-30">👤</span>
+      <span class="opacity-30"><app-ui-icon name="user" size="2xl" /></span>
       <p class="mt-3 stratix-muted">{{ 'team.notFound' | t }}</p>
       <a routerLink="/team" class="stratix-btn-ghost mt-4">{{ 'team.back' | t }}</a>
     </div>
@@ -23,7 +23,7 @@
             </span>
             <div>
               <h1 class="text-xl font-bold text-dark dark:text-slate-100">{{ employee()!.name }}</h1>
-              <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">{{ employee()!.role }}</p>
+              <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">{{ roleKey(employee()!.role) | t }}</p>
               <span class="stratix-badge mt-2" [class]="departmentBadge(employee()!.department)">
                 {{ employee()!.department }}
               </span>
@@ -40,21 +40,25 @@
               </button>
             }
             <span class="text-xs font-medium uppercase tracking-wide stratix-muted">{{ 'common.status' | t }}</span>
-            <app-employee-status-toggle [status]="employee()!.status" (statusChange)="setStatus($event)" />
+            <app-employee-status-toggle
+              [status]="employee()!.status"
+              [disabled]="!canEdit()"
+              (statusChange)="setStatus($event)"
+            />
           </div>
         </div>
       </div>
-      <div class="grid divide-x divide-slate-100 dark:divide-slate-700 sm:grid-cols-3">
-        <div class="stratix-metric-cell">
+      <div class="grid sm:grid-cols-3">
+        <div class="stratix-metric-cell sm:border-e sm:border-slate-100 sm:last:border-e-0 dark:sm:border-slate-700">
           <p class="text-2xl font-bold text-primary">{{ employee()!.projects }}</p>
           <p class="mt-0.5 text-xs stratix-muted">{{ 'team.assignedProjects' | t }}</p>
         </div>
-        <div class="stratix-metric-cell">
+        <div class="stratix-metric-cell sm:border-e sm:border-slate-100 sm:last:border-e-0 dark:sm:border-slate-700">
           <p class="text-2xl font-bold text-dark dark:text-slate-100">{{ employee()!.completedTasks }}</p>
           <p class="mt-0.5 text-xs stratix-muted">{{ 'team.completedTasks' | t }}</p>
         </div>
         <div class="stratix-metric-cell">
-          <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{{ employee()!.kpiScore ?? 0 }}</p>
+          <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{{ latestApiKpi()?.score ?? employee()!.kpiScore }}</p>
           <p class="mt-0.5 text-xs stratix-muted">{{ 'performance.kpiScore' | t }}</p>
         </div>
       </div>
@@ -69,14 +73,14 @@
           <div class="p-5">
             @if (assignedTasks().length === 0) {
               <div class="rounded-lg border border-dashed border-slate-200 px-6 py-10 text-center dark:border-slate-600">
-                <p class="text-2xl opacity-30">📋</p>
+                <p class="flex justify-center opacity-30"><app-ui-icon name="clipboard" size="xl" /></p>
                 <p class="mt-2 text-sm stratix-muted">{{ 'team.noTasks' | t }}</p>
               </div>
             } @else {
               <ul class="space-y-2">
                 @for (task of assignedTasks(); track task.id) {
                   <li class="stratix-task-row">
-                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm">📌</div>
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><app-ui-icon name="pin" size="sm" /></div>
                     <div class="min-w-0 flex-1">
                       <a [routerLink]="['/tasks', task.id]" class="font-medium text-primary hover:underline">
                         {{ task.title }}
@@ -105,14 +109,14 @@
             <div
               class="flex h-24 w-24 flex-col items-center justify-center rounded-full border-4 border-primary/20 bg-primary/5 dark:border-primary/30 dark:bg-primary/10"
             >
-              <span class="text-2xl font-bold text-primary">{{ employee()!.kpiScore ?? 0 }}</span>
+              <span class="text-2xl font-bold text-primary">{{ latestApiKpi()?.score ?? employee()!.kpiScore }}</span>
               <span class="text-[10px] uppercase tracking-wide stratix-muted">KPI</span>
             </div>
           </div>
           <dl class="space-y-3 text-sm">
             <div class="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-800/60">
               <dt class="stratix-muted">{{ 'performance.tasksCompleted' | t }}</dt>
-              <dd class="font-semibold">{{ employee()!.tasksCompleted ?? 0 }}</dd>
+              <dd class="font-semibold">{{ latestApiKpi()?.tasksCompleted ?? employee()!.tasksCompleted }}</dd>
             </div>
             <div class="flex items-center justify-between rounded-lg bg-red-50 px-3 py-2 dark:bg-red-900/20">
               <dt class="stratix-muted">{{ 'performance.delayed' | t }}</dt>
@@ -123,11 +127,25 @@
               <dd class="font-semibold">{{ employee()!.onTimePct ?? 0 }}%</dd>
             </div>
           </dl>
+
+          @if (apiKpis().length > 0) {
+            <div class="mt-4 border-t border-slate-100 pt-4 dark:border-slate-700">
+              <h4 class="mb-2 text-xs font-semibold uppercase tracking-wide stratix-muted">{{ 'performance.recentKpis' | t }}</h4>
+              <ul class="space-y-1.5">
+                @for (kpi of apiKpis().slice(0, 3); track kpi.id) {
+                  <li class="flex items-center justify-between text-xs">
+                    <span class="stratix-muted">{{ kpi.period }}</span>
+                    <span class="font-semibold text-dark dark:text-slate-100">{{ kpi.score }}</span>
+                  </li>
+                }
+              </ul>
+            </div>
+          }
           <a
             routerLink="/performance"
             class="mt-5 flex w-full items-center justify-center gap-1 rounded-lg border border-primary/20 bg-primary/5 py-2.5 text-sm font-medium text-primary transition hover:bg-primary/10"
           >
-            {{ 'team.openPerformance' | t }} →
+            {{ 'team.openPerformance' | t }} <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span>
           </a>
         </div>
       </div>
@@ -145,7 +163,7 @@
     <div class="stratix-card w-full max-w-lg overflow-hidden shadow-2xl" (click)="$event.stopPropagation()">
       <div class="h-1 bg-gradient-to-r from-primary to-primary/50"></div>
       <div class="p-6">
-        <div class="mb-1 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-xl">✏️</div>
+        <div class="mb-1 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><app-ui-icon name="pencil" size="lg" /></div>
         <h2 class="mt-3 stratix-heading text-lg">{{ 'team.editTitle' | t }}</h2>
         <p class="stratix-muted mt-1 text-sm">{{ 'team.editHint' | t }}</p>
 
@@ -168,8 +186,8 @@
             <div>
               <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'team.role' | t }}</label>
               <select class="stratix-input w-full px-3 py-2.5 text-sm" [(ngModel)]="form.role" name="role">
-                @for (r of roleOptions; track r) {
-                  <option [value]="r">{{ r }}</option>
+                @for (r of roleOptions(); track r) {
+                  <option [value]="r">{{ roleKey(r) | t }}</option>
                 }
               </select>
             </div>

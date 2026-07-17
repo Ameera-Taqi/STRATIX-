@@ -9,7 +9,7 @@ export type { EmployeeStatus };
 
 export interface NewEmployeeForm {
   name: string;
-  role: string;
+  role: UserRole;
   department: string;
   status: EmployeeStatus;
   email?: string;
@@ -18,12 +18,12 @@ export interface NewEmployeeForm {
 export interface EditEmployeeForm {
   name: string;
   email: string;
-  role: string;
+  role: UserRole;
   department: string;
   status: EmployeeStatus;
 }
 
-const DEFAULT_PASSWORD = 'stratix123';
+export const DEFAULT_EMPLOYEE_PASSWORD = 'stratix123';
 
 @Injectable({ providedIn: 'root' })
 export class EmployeesStore {
@@ -44,6 +44,18 @@ export class EmployeesStore {
       : ['IT', 'Product', 'Operations', 'HR', 'Finance'];
   });
 
+  /** Call after departments CRUD so employee forms stay in sync. */
+  reloadDepartments(): void {
+    this.api.getDepartments().subscribe({
+      next: (departments) => {
+        const map: Record<string, number> = {};
+        for (const dept of departments) {
+          map[dept.name] = dept.id;
+        }
+        this._departmentsByName.set(map);
+      },
+    });
+  }
   loadFromApi(onReady?: () => void): void {
     this.api.getDepartments().subscribe({
       next: (departments) => {
@@ -109,7 +121,7 @@ export class EmployeesStore {
     const body = {
       name: form.name.trim(),
       email,
-      password: DEFAULT_PASSWORD,
+      password: DEFAULT_EMPLOYEE_PASSWORD,
       role: this.toRoleCode(form.role),
       jobTitle: form.role,
       status: this.toUserStatus(form.status),
@@ -138,7 +150,7 @@ export class EmployeesStore {
     return this.updateEmployee(id, {
       name: employee.name,
       email: employee.email ?? this.suggestEmail(employee.name),
-      role: employee.role,
+      role: this.normalizeRoleCode(employee.role),
       department: employee.department,
       status,
     });
@@ -216,7 +228,7 @@ export class EmployeesStore {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: this.roleLabel(user.role),
+      role: this.normalizeRoleCode(user.role),
       department: user.departmentName ?? '',
       projects: 0,
       completedTasks: 0,
@@ -257,9 +269,26 @@ export class EmployeesStore {
   }
 
   private toRoleCode(role: string): UserRole {
+    return this.normalizeRoleCode(role);
+  }
+
+  private normalizeRoleCode(role: string): UserRole {
+    const upper = role.trim().toUpperCase().replace(/\s+/g, '_');
+    const codes: UserRole[] = [
+      'SUPER_ADMIN',
+      'ORG_ADMIN',
+      'ADMIN',
+      'PROJECT_MANAGER',
+      'TEAM_LEADER',
+      'EMPLOYEE',
+      'EXECUTIVE_VIEWER',
+    ];
+    if (codes.includes(upper as UserRole)) return upper as UserRole;
+
     const map: Record<string, UserRole> = {
       'Super Admin': 'SUPER_ADMIN',
       'Org Admin': 'ORG_ADMIN',
+      'Organization Admin': 'ORG_ADMIN',
       Admin: 'ADMIN',
       'Project Manager': 'PROJECT_MANAGER',
       'Team Leader': 'TEAM_LEADER',
@@ -271,18 +300,5 @@ export class EmployeesStore {
 
   private toUserStatus(status: EmployeeStatus): UserStatus {
     return status === 'Active' ? 'ACTIVE' : 'INACTIVE';
-  }
-
-  private roleLabel(role: UserRole): string {
-    const map: Record<UserRole, string> = {
-      SUPER_ADMIN: 'Super Admin',
-      ORG_ADMIN: 'Org Admin',
-      ADMIN: 'Admin',
-      PROJECT_MANAGER: 'Project Manager',
-      TEAM_LEADER: 'Team Leader',
-      EMPLOYEE: 'Employee',
-      EXECUTIVE_VIEWER: 'Executive Viewer',
-    };
-    return map[role] ?? role;
   }
 }

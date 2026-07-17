@@ -7,11 +7,12 @@ import { EmployeesStore } from '../../../core/services/employees.store';
 import { ProjectsStore } from '../../../core/services/projects.store';
 import { priorityClass } from '../../utils/status.util';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
+import { UiIconComponent } from '../ui-icon/ui-icon.component';
 
 @Component({
   selector: 'app-task-board',
   standalone: true,
-  imports: [RouterLink, TranslatePipe, FormsModule],
+  imports: [RouterLink, TranslatePipe, FormsModule, UiIconComponent],
   templateUrl: './task-board.component.html',
 })
 export class TaskBoardComponent {

@@ -32,9 +32,61 @@ import { ProjectRow, StageRow, TaskCard } from '../data/mock-data';
 
 import { AuditLogApiRow, AuditLogPage } from '../models/audit.model';
 
+import {
+  CreateOrganizationRequest,
+  OrganizationRow,
+  PlanRow,
+  UpdateOrganizationRequest,
+} from '../models/organization.model';
+
 import { mapAuditLogRow } from '../../shared/utils/audit-log.util';
 
 import { map } from 'rxjs';
+
+import {
+  CreateNotificationRequest,
+  NotificationApiResponse,
+} from '../models/notification.model';
+
+import {
+  CreateProjectFileRequest,
+  ProjectFileResponse,
+} from '../models/project-file.model';
+
+import {
+  CreateMilestoneRequest,
+  MilestoneResponse,
+  UpdateMilestoneRequest,
+} from '../models/milestone.model';
+
+import {
+  ChangeRequestResponse,
+  CreateChangeRequestRequest,
+  UpdateChangeRequestRequest,
+} from '../models/change-request.model';
+
+import { EmployeeKpiResponse } from '../models/employee-kpi.model';
+
+import {
+  CreateTaskCommentRequest,
+  TaskCommentResponse,
+} from '../models/task-comment.model';
+
+import {
+  CompanyAdminModulePermission,
+  UpdateCompanyAdminPermissionsRequest,
+} from '../models/cms.model';
+
+import {
+  CreateDepartmentRequest,
+  DepartmentRow,
+  UpdateDepartmentRequest,
+} from '../models/department.model';
+
+import {
+  OrganizationBranding,
+  OrganizationLogoUploadResult,
+} from '../models/branding.model';
 
 
 
@@ -94,10 +146,20 @@ export class ApiService {
 
   }
 
-  getDepartments(): Observable<{ id: number; name: string }[]> {
+  getDepartments(): Observable<DepartmentRow[]> {
+    return this.http.get<DepartmentRow[]>(`${this.base}/departments`);
+  }
 
-    return this.http.get<{ id: number; name: string }[]>(`${this.base}/departments`);
+  createDepartment(body: CreateDepartmentRequest): Observable<DepartmentRow> {
+    return this.http.post<DepartmentRow>(`${this.base}/departments`, body);
+  }
 
+  updateDepartment(id: number, body: UpdateDepartmentRequest): Observable<DepartmentRow> {
+    return this.http.put<DepartmentRow>(`${this.base}/departments/${id}`, body);
+  }
+
+  deleteDepartment(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/departments/${id}`);
   }
 
   getUser(id: number): Observable<User> {
@@ -386,6 +448,142 @@ export class ApiService {
 
     return this.http.post<ProjectHealthAnalysisResponse>(`${this.base}/ai/project-health-analysis`, body);
 
+  }
+
+  getOrganizations(): Observable<OrganizationRow[]> {
+    return this.http.get<OrganizationRow[]>(`${this.base}/organizations`);
+  }
+
+  createOrganization(body: CreateOrganizationRequest): Observable<OrganizationRow> {
+    return this.http.post<OrganizationRow>(`${this.base}/organizations`, body);
+  }
+
+  updateOrganization(id: number, body: UpdateOrganizationRequest): Observable<OrganizationRow> {
+    return this.http.patch<OrganizationRow>(`${this.base}/organizations/${id}`, body);
+  }
+
+  getPlans(): Observable<PlanRow[]> {
+    return this.http.get<PlanRow[]>(`${this.base}/plans`);
+  }
+
+  deleteOrganization(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/organizations/${id}`);
+  }
+
+  getNotifications(): Observable<NotificationApiResponse[]> {
+    return this.http.get<NotificationApiResponse[]>(`${this.base}/notifications`);
+  }
+
+  createNotification(body: CreateNotificationRequest): Observable<NotificationApiResponse> {
+    return this.http.post<NotificationApiResponse>(`${this.base}/notifications`, body);
+  }
+
+  markNotificationRead(id: number): Observable<void> {
+    return this.http.patch<void>(`${this.base}/notifications/${id}/read`, {});
+  }
+
+  markAllNotificationsRead(): Observable<void> {
+    return this.http.patch<void>(`${this.base}/notifications/read-all`, {});
+  }
+
+  deleteNotification(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/notifications/${id}`);
+  }
+
+  getProjectFiles(projectId: number): Observable<ProjectFileResponse[]> {
+    return this.http.get<ProjectFileResponse[]>(`${this.base}/projects/${projectId}/files`);
+  }
+
+  createProjectFile(body: CreateProjectFileRequest): Observable<ProjectFileResponse> {
+    return this.http.post<ProjectFileResponse>(`${this.base}/project-files`, body);
+  }
+
+  deleteProjectFile(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/project-files/${id}`);
+  }
+
+  getTaskComments(taskId: number): Observable<TaskCommentResponse[]> {
+    return this.http.get<TaskCommentResponse[]>(`${this.base}/tasks/${taskId}/comments`);
+  }
+
+  createTaskComment(body: CreateTaskCommentRequest): Observable<TaskCommentResponse> {
+    return this.http.post<TaskCommentResponse>(`${this.base}/task-comments`, body);
+  }
+
+  deleteTaskComment(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/task-comments/${id}`);
+  }
+
+  getMilestones(projectId?: number): Observable<MilestoneResponse[]> {
+    const url =
+      projectId != null
+        ? `${this.base}/projects/${projectId}/milestones`
+        : `${this.base}/milestones`;
+    return this.http.get<MilestoneResponse[]>(url);
+  }
+
+  createMilestone(body: CreateMilestoneRequest): Observable<MilestoneResponse> {
+    return this.http.post<MilestoneResponse>(`${this.base}/milestones`, body);
+  }
+
+  updateMilestone(id: number, body: UpdateMilestoneRequest): Observable<MilestoneResponse> {
+    return this.http.put<MilestoneResponse>(`${this.base}/milestones/${id}`, body);
+  }
+
+  deleteMilestone(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/milestones/${id}`);
+  }
+
+  getChangeRequests(projectId?: number): Observable<ChangeRequestResponse[]> {
+    const url =
+      projectId != null
+        ? `${this.base}/change-requests?projectId=${projectId}`
+        : `${this.base}/change-requests`;
+    return this.http.get<ChangeRequestResponse[]>(url);
+  }
+
+  createChangeRequest(body: CreateChangeRequestRequest): Observable<ChangeRequestResponse> {
+    return this.http.post<ChangeRequestResponse>(`${this.base}/change-requests`, body);
+  }
+
+  updateChangeRequest(id: number, body: UpdateChangeRequestRequest): Observable<ChangeRequestResponse> {
+    return this.http.put<ChangeRequestResponse>(`${this.base}/change-requests/${id}`, body);
+  }
+
+  deleteChangeRequest(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/change-requests/${id}`);
+  }
+
+  getEmployeeKpis(userId?: number): Observable<EmployeeKpiResponse[]> {
+    const url =
+      userId != null
+        ? `${this.base}/employee-kpis?userId=${userId}`
+        : `${this.base}/employee-kpis`;
+    return this.http.get<EmployeeKpiResponse[]>(url);
+  }
+
+  getCompanyAdminPermissions(): Observable<CompanyAdminModulePermission[]> {
+    return this.http.get<CompanyAdminModulePermission[]>(`${this.base}/cms/company-admin-permissions`);
+  }
+
+  updateCompanyAdminPermissions(
+    body: UpdateCompanyAdminPermissionsRequest,
+  ): Observable<CompanyAdminModulePermission[]> {
+    return this.http.put<CompanyAdminModulePermission[]>(`${this.base}/cms/company-admin-permissions`, body);
+  }
+
+  getOrganizationBranding(): Observable<OrganizationBranding> {
+    return this.http.get<OrganizationBranding>(`${this.base}/organization/branding`);
+  }
+
+  uploadOrganizationLogo(file: File): Observable<OrganizationLogoUploadResult> {
+    const form = new FormData();
+    form.append('file', file, file.name);
+    return this.http.post<OrganizationLogoUploadResult>(`${this.base}/organization/logo`, form);
+  }
+
+  clearOrganizationLogo(): Observable<void> {
+    return this.http.delete<void>(`${this.base}/organization/logo`);
   }
 
 }

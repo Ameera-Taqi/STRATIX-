@@ -5,11 +5,12 @@ import { TopbarComponent } from '../../layout/topbar/topbar.component';
 import { AuditLogStore } from '../../core/services/audit-log.store';
 import { AuditEntity } from '../../core/models/audit.model';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { UiIconComponent } from '../../shared/components/ui-icon/ui-icon.component';
 
 @Component({
   selector: 'app-audit-log',
   standalone: true,
-  imports: [TopbarComponent, RouterLink, TranslatePipe, FormsModule],
+  imports: [TopbarComponent, RouterLink, TranslatePipe, FormsModule, UiIconComponent],
   templateUrl: './audit-log.component.html',
   styles: `
     :host {

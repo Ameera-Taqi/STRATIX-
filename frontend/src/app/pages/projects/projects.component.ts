@@ -1,5 +1,5 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { TopbarComponent } from '../../layout/topbar/topbar.component';
 import { StatusBadgeComponent } from '../../shared/components/status-badge.component';
@@ -10,6 +10,7 @@ import { ProjectHealthScoreComponent } from '../../shared/components/project-hea
 import { RoleAccessService } from '../../core/services/role-access.service';
 import { LanguageService } from '../../core/i18n/language.service';
 import { ProjectRow } from '../../core/data/mock-data';
+import { priorityLabelKey, projectStatusLabelKey } from '../../shared/utils/enum-labels';
 
 @Component({
   selector: 'app-projects',
@@ -21,6 +22,7 @@ export class ProjectsComponent implements OnInit {
   private readonly store = inject(ProjectsStore);
   private readonly healthService = inject(ProjectHealthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly roleAccess = inject(RoleAccessService);
   private readonly lang = inject(LanguageService);
 
@@ -31,11 +33,15 @@ export class ProjectsComponent implements OnInit {
   readonly formError = signal<string | null>(null);
   readonly submitting = signal(false);
   readonly deletingId = signal<number | null>(null);
+  readonly statusLabelKey = projectStatusLabelKey;
+  readonly priorityLabelKeyFn = priorityLabelKey;
 
   readonly canDelete = computed(() => {
     const role = this.roleAccess.role();
     return role === 'ADMIN' || role === 'PROJECT_MANAGER';
   });
+
+  readonly canCreate = computed(() => this.roleAccess.canWrite('PROJECTS'));
 
   readonly departments = ['IT', 'Product', 'Operations', 'HR', 'Finance'];
   readonly statusOptions = ['Planned', 'Active', 'On Hold'];
@@ -76,6 +82,10 @@ export class ProjectsComponent implements OnInit {
   ngOnInit(): void {
     if (!this.store.loaded()) {
       this.store.loadFromApi();
+    }
+    const q = this.route.snapshot.queryParamMap.get('q');
+    if (q) {
+      this.search.set(q);
     }
   }
 

@@ -10,11 +10,13 @@ public class ProjectFileService : IProjectFileService
 {
     private readonly IApplicationDbContext _db;
     private readonly ICurrentUserService _currentUser;
+    private readonly IPlanLimitService _planLimits;
 
-    public ProjectFileService(IApplicationDbContext db, ICurrentUserService currentUser)
+    public ProjectFileService(IApplicationDbContext db, ICurrentUserService currentUser, IPlanLimitService planLimits)
     {
         _db = db;
         _currentUser = currentUser;
+        _planLimits = planLimits;
     }
 
     private IQueryable<ProjectFile> Query() => _db.ProjectFiles.Include(f => f.Project).Include(f => f.UploadedBy);
@@ -30,6 +32,7 @@ public class ProjectFileService : IProjectFileService
     {
         if (!await _db.Projects.AnyAsync(p => p.Id == request.ProjectId, ct)) throw new ArgumentException("Project not found");
         if (_currentUser.UserId is not long userId) throw new UnauthorizedAccessException("Not authenticated");
+        await _planLimits.EnsureStorageAvailableAsync(request.SizeBytes, ct);
         var entity = new ProjectFile
         {
             ProjectId = request.ProjectId,

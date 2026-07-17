@@ -28,6 +28,51 @@ public class OrganizationsController : ControllerBase
     public async Task<IReadOnlyList<OrganizationResponse>> All(CancellationToken ct) =>
         await _organizations.GetAllAsync(ct);
 
+    // Create company + org admin — super-admins only.
+    [HttpPost("organizations")]
+    [Authorize(Roles = "SUPER_ADMIN")]
+    public async Task<ActionResult<OrganizationResponse>> Create([FromBody] CreateOrganizationRequest request, CancellationToken ct)
+    {
+        try
+        {
+            var org = await _organizations.CreateAsync(request, ct);
+            return CreatedAtAction(nameof(All), org);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
+    // Update status / plan — super-admins only.
+    [HttpPatch("organizations/{id:long}")]
+    [Authorize(Roles = "SUPER_ADMIN")]
+    public async Task<ActionResult<OrganizationResponse>> Update(long id, [FromBody] UpdateOrganizationRequest request, CancellationToken ct)
+    {
+        try
+        {
+            var org = await _organizations.UpdateAsync(id, request, ct);
+            return org == null ? NotFound() : Ok(org);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    // Cancel (soft-delete) an organization — super-admins only.
+    [HttpDelete("organizations/{id:long}")]
+    [Authorize(Roles = "SUPER_ADMIN")]
+    public async Task<IActionResult> Delete(long id, CancellationToken ct)
+    {
+        await _organizations.DeleteAsync(id, ct);
+        return NoContent();
+    }
+
     // The caller's current subscription (plan, status, trial end).
     [HttpGet("organizations/current/subscription")]
     public async Task<ActionResult<SubscriptionResponse>> Subscription(CancellationToken ct)

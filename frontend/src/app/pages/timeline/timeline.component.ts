@@ -6,13 +6,14 @@ import { TasksStore } from '../../core/services/tasks.store';
 import { GanttChartComponent } from '../../shared/components/gantt/gantt-chart.component';
 import { GanttRow, GanttTaskMarker } from '../../shared/components/gantt/gantt.types';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { UiIconComponent } from '../../shared/components/ui-icon/ui-icon.component';
 
 const STAGE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'];
 
 @Component({
   selector: 'app-timeline',
   standalone: true,
-  imports: [TopbarComponent, RouterLink, GanttChartComponent, TranslatePipe],
+  imports: [TopbarComponent, RouterLink, GanttChartComponent, TranslatePipe, UiIconComponent],
   template: `
     <app-topbar titleKey="page.timeline" />
     <main class="stratix-page p-6">
@@ -29,7 +30,7 @@ const STAGE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'];
                 {{ block.start }} → {{ block.end }} · {{ block.progress }}%
               </p>
             </div>
-            <a [routerLink]="['/projects', block.projectId]" class="text-xs text-primary hover:underline">{{ 'common.view' | t }} →</a>
+            <a [routerLink]="['/projects', block.projectId]" class="inline-flex items-center gap-1 text-xs text-primary hover:underline">{{ 'common.view' | t }} <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span></a>
           </div>
           <div class="p-5">
             <p class="mb-3 text-xs font-medium stratix-muted">{{ 'timeline.stages' | t }}</p>

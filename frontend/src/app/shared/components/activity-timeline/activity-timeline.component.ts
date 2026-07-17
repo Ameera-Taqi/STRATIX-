@@ -3,11 +3,12 @@ import { AuditLogStore } from '../../../core/services/audit-log.store';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { AuditEntry } from '../../../core/models/audit.model';
 import { activityEventMeta } from '../../utils/activity-event.util';
+import { UiIconComponent } from '../ui-icon/ui-icon.component';
 
 @Component({
   selector: 'app-activity-timeline',
   standalone: true,
-  imports: [TranslatePipe],
+  imports: [TranslatePipe, UiIconComponent],
   template: `
     @if (loading()) {
       <p class="text-sm stratix-muted">{{ 'audit.loading' | t }}</p>
@@ -26,10 +27,10 @@ import { activityEventMeta } from '../../utils/activity-event.util';
               ></span>
             }
             <span
-              class="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm ring-4"
+              class="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-4"
               [class]="meta(e).iconClass"
             >
-              {{ meta(e).icon }}
+              <app-ui-icon [name]="meta(e).icon" size="sm" />
             </span>
             <div class="min-w-0 flex-1 pt-0.5">
               <p class="text-sm font-semibold text-dark dark:text-slate-100">

@@ -12,6 +12,7 @@ public interface IApplicationDbContext
     IQueryable<Project> Projects { get; }
     IQueryable<ProjectStage> ProjectStages { get; }
     IQueryable<TaskItem> Tasks { get; }
+    IQueryable<TaskComment> TaskComments { get; }
     IQueryable<ProjectRisk> ProjectRisks { get; }
     IQueryable<Milestone> Milestones { get; }
     IQueryable<ChangeRequest> ChangeRequests { get; }
@@ -21,6 +22,7 @@ public interface IApplicationDbContext
     IQueryable<AuditLog> AuditLogs { get; }
     IQueryable<PasswordResetToken> PasswordResetTokens { get; }
     IQueryable<RefreshToken> RefreshTokens { get; }
+    IQueryable<PlatformModulePermission> PlatformModulePermissions { get; }
 
     void Add<T>(T entity) where T : class;
     void Remove<T>(T entity) where T : class;

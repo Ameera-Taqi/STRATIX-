@@ -161,6 +161,10 @@ body {
     @apply inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-primary transition hover:border-primary/40 hover:bg-primary/5 dark:border-slate-600 dark:bg-slate-800 dark:hover:bg-primary/10;
   }
 
+  .stratix-btn-primary {
+    @apply inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
   .stratix-search-wrap {
     @apply relative flex items-center;
   }
@@ -208,6 +212,43 @@ body {
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile nav drawer — slides from inline-start; desktop is static in flow. */
+.stratix-nav-backdrop {
+  @apply fixed inset-0 z-40 bg-dark/50 backdrop-blur-[1px] lg:hidden;
+}
+
+.stratix-sidebar-drawer {
+  @apply fixed inset-y-0 start-0 z-50 block h-full w-64 shrink-0 overflow-hidden transition-transform duration-200 ease-out;
+}
+
+.stratix-sidebar-drawer[data-open='false'] {
+  transform: translateX(-100%);
+}
+
+[dir='rtl'] .stratix-sidebar-drawer[data-open='false'] {
+  transform: translateX(100%);
+}
+
+.stratix-sidebar-drawer[data-open='true'] {
+  transform: translateX(0);
+}
+
+@media (min-width: 1024px) {
+  .stratix-sidebar-drawer {
+    @apply static z-auto translate-x-0;
+    transform: none !important;
+  }
+}
+
+/* Directional chevrons flip automatically in RTL */
+.stratix-chevron-flip {
+  @apply inline-flex shrink-0;
+}
+
+[dir='rtl'] .stratix-chevron-flip {
+  transform: scaleX(-1);
 }
 
 [dir='rtl'] {

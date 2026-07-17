@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommentsStore } from '../../../core/services/comments.store';
 import { TasksStore } from '../../../core/services/tasks.store';
@@ -26,7 +26,9 @@ import { TranslatePipe } from '../../../core/i18n/translate.pipe';
       @if (error()) {
         <p class="text-xs text-danger">{{ error()! | t }}</p>
       }
-      @if (list().length === 0) {
+      @if (store.loading() && list().length === 0) {
+        <p class="text-sm stratix-muted">{{ 'common.loading' | t }}</p>
+      } @else if (list().length === 0) {
         <p class="text-sm stratix-muted">{{ 'comments.empty' | t }}</p>
       } @else {
         <ul class="space-y-3">
@@ -34,7 +36,12 @@ import { TranslatePipe } from '../../../core/i18n/translate.pipe';
             <li class="rounded-lg bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
               <div class="flex items-center justify-between gap-2">
                 <span class="text-sm font-medium text-dark dark:text-slate-100">{{ c.author }}</span>
-                <span class="text-[10px] stratix-muted">{{ formatAt(c.createdAt) }}</span>
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] stratix-muted">{{ formatAt(c.createdAt) }}</span>
+                  <button type="button" class="text-[10px] text-danger hover:underline" (click)="remove(c.id)">
+                    {{ 'common.delete' | t }}
+                  </button>
+                </div>
               </div>
               <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">{{ c.text }}</p>
             </li>
@@ -45,7 +52,7 @@ import { TranslatePipe } from '../../../core/i18n/translate.pipe';
   `,
 })
 export class CommentsPanelComponent {
-  private readonly store = inject(CommentsStore);
+  readonly store = inject(CommentsStore);
   private readonly tasks = inject(TasksStore);
 
   readonly taskId = input.required<number>();
@@ -59,21 +66,23 @@ export class CommentsPanelComponent {
     return this.store.forTask(this.taskId());
   });
 
+  constructor() {
+    effect(() => this.store.loadForTask(this.taskId()));
+  }
+
   submit(): void {
     if (!this.text.trim()) {
       this.error.set('comments.errorEmpty');
       return;
     }
     const task = this.tasks.getById(this.taskId());
-    this.store.add(
-      this.taskId(),
-      this.taskTitle(),
-      this.text,
-      task?.projectId,
-      task?.projectName,
-    );
+    this.store.add(this.taskId(), this.taskTitle(), this.text, task?.projectId, task?.projectName);
     this.text = '';
     this.error.set(null);
+  }
+
+  remove(id: number): void {
+    this.store.remove(id);
   }
 
   formatAt(iso: string): string {

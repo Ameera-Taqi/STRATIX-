@@ -4,11 +4,6 @@
     {{ 'tasks.forProject' | t }}: <strong class="text-dark dark:text-slate-100">{{ project()?.name }}</strong>
   </p>
   <div class="flex gap-2">
-    @if (!embedded()) {
-      <a [routerLink]="['/tasks']" [queryParams]="{ project: projectId() }" class="text-sm text-primary hover:underline">
-        {{ 'tasks.openBoard' | t }}
-      </a>
-    }
     <button type="button" class="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-white" (click)="openAddTask()">
       + {{ 'tasks.add' | t }}
     </button>
@@ -87,7 +82,7 @@
                 @if (task.stageName) {
                   <p class="mt-0.5 text-xs stratix-muted">{{ 'module.stages' | t }}: {{ task.stageName }}</p>
                 }
-                <p class="mt-2 text-xs text-slate-600 dark:text-slate-400">👤 {{ task.assignee }}</p>
+                <p class="mt-2 flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400"><app-ui-icon name="user" size="xs" /> {{ task.assignee }}</p>
                 <div class="mt-3 flex items-center justify-between">
                   <span class="rounded px-1.5 py-0.5 text-[10px] font-medium" [class]="priorityClass(task.priority)">
                     {{ task.priority }}

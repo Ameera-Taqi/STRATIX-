@@ -33,7 +33,7 @@
     <section class="stratix-card overflow-hidden">
       <div class="stratix-card-header flex items-center justify-between">
         <h3 class="stratix-heading text-sm">{{ 'dashboard.projectHealth' | t }}</h3>
-        <a routerLink="/projects" class="text-xs font-medium text-primary hover:underline">{{ 'common.view' | t }} →</a>
+        <a routerLink="/projects" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">{{ 'common.view' | t }} <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span></a>
       </div>
       <div class="grid gap-4 p-5 md:grid-cols-[minmax(0,1fr)_auto]">
         @if (projectHealth().length === 0) {
@@ -56,7 +56,7 @@
     <section class="stratix-card overflow-hidden">
       <div class="stratix-card-header flex items-center justify-between">
         <h3 class="stratix-heading text-sm">{{ 'dashboard.tasksOverdue' | t }}</h3>
-        <a routerLink="/tasks" class="text-xs font-medium text-primary hover:underline">{{ 'common.view' | t }} →</a>
+        <a routerLink="/projects" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">{{ 'common.view' | t }} <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span></a>
       </div>
       <div class="p-5">
         <p class="mb-3 text-xs stratix-muted">{{ 'dashboard.chartOverdueDays' | t }}</p>
@@ -74,7 +74,7 @@
     <section class="stratix-card overflow-hidden">
       <div class="stratix-card-header flex items-center justify-between">
         <h3 class="stratix-heading text-sm">{{ 'dashboard.employeeLoad' | t }}</h3>
-        <a routerLink="/team" class="text-xs font-medium text-primary hover:underline">{{ 'common.view' | t }} →</a>
+        <a routerLink="/team" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">{{ 'common.view' | t }} <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span></a>
       </div>
       <div class="p-5">
         @if (employeeLoad().length === 0) {
@@ -91,7 +91,7 @@
     <section class="stratix-card overflow-hidden">
       <div class="stratix-card-header flex items-center justify-between">
         <h3 class="stratix-heading text-sm">{{ 'dashboard.departmentPerformance' | t }}</h3>
-        <a routerLink="/performance" class="text-xs font-medium text-primary hover:underline">{{ 'common.view' | t }} →</a>
+        <a routerLink="/performance" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">{{ 'common.view' | t }} <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span></a>
       </div>
       <div class="p-5">
         @if (departmentPerformance().length === 0) {
@@ -108,7 +108,7 @@
     <section class="stratix-card overflow-hidden">
       <div class="stratix-card-header flex items-center justify-between">
         <h3 class="stratix-heading text-sm">{{ 'dashboard.riskLevel' | t }}</h3>
-        <a routerLink="/risks" class="text-xs font-medium text-primary hover:underline">{{ 'common.view' | t }} →</a>
+        <a routerLink="/risks" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">{{ 'common.view' | t }} <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span></a>
       </div>
       <div class="grid gap-4 p-5 md:grid-cols-2">
         <app-donut-chart
@@ -135,7 +135,7 @@
     <!-- 7. Schedule / progress vs plan -->
     <section class="stratix-card overflow-hidden xl:col-span-2">
       <div class="stratix-card-header flex items-center justify-between">
-        <h3 class="stratix-heading text-sm">{{ 'dashboard.budgetStatus' | t }}</h3>
+        <h3 class="stratix-heading text-sm">{{ 'dashboard.scheduleStatus' | t }}</h3>
         <span class="text-xs stratix-muted">{{ 'dashboard.chartScheduleHint' | t }}</span>
       </div>
       <div class="p-5">
@@ -157,7 +157,7 @@
                     {{ b.projectName }}
                   </a>
                   <span class="stratix-badge shrink-0" [class]="budgetStatusClass(b.status)">
-                    {{ 'dashboard.budget.' + b.status | t }}
+                    {{ 'dashboard.schedule.' + b.status | t }}
                   </span>
                 </div>
                 <p class="mt-2 text-xs stratix-muted">

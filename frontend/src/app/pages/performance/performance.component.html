@@ -1,5 +1,10 @@
 <app-topbar titleKey="page.performance" />
 <main class="stratix-page p-6">
+  <div class="mb-6 max-w-3xl">
+    <h2 class="text-lg font-semibold text-dark dark:text-slate-100">{{ 'page.performance' | t }}</h2>
+    <p class="mt-1 text-sm stratix-muted">{{ 'performance.hint' | t }}</p>
+  </div>
+
   @if (loading()) {
     <div class="stratix-card mb-6 px-6 py-14 text-center stratix-muted">
       {{ 'performance.loading' | t }}
@@ -12,7 +17,7 @@
       </button>
     </div>
   } @else {
-    <div class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div class="mb-6 grid items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <app-kpi-card
         [label]="'kpi.taskCompletion' | t"
         [value]="metrics().completionRate + '%'"
@@ -53,7 +58,8 @@
     } @else if (employees().length === 0) {
       <p class="px-5 py-10 text-center text-sm stratix-muted">{{ 'performance.noEmployees' | t }}</p>
     } @else {
-      <table class="w-full text-start text-sm">
+      <div class="overflow-x-auto">
+      <table class="w-full min-w-[640px] text-start text-sm">
         <thead class="stratix-table-head">
           <tr>
             <th class="px-5 py-3">{{ 'performance.employee' | t }}</th>
@@ -75,6 +81,7 @@
           }
         </tbody>
       </table>
+      </div>
     }
   </div>
 </main>

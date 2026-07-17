@@ -1,0 +1,200 @@
+<app-topbar titleKey="page.settings" />
+<main class="stratix-page p-6">
+  <div class="mx-auto max-w-4xl space-y-6">
+    <div class="max-w-2xl">
+      <h2 class="text-lg font-semibold text-dark dark:text-slate-100">{{ 'settings.pageTitle' | t }}</h2>
+      <p class="mt-1 text-sm stratix-muted">{{ 'settings.pageHint' | t }}</p>
+    </div>
+
+    <!-- Profile -->
+    <section class="stratix-card overflow-hidden">
+      <div class="stratix-profile-hero">
+        <div class="flex flex-wrap items-center gap-4">
+          <span class="stratix-avatar stratix-avatar-lg ring-4 ring-white dark:ring-slate-800">
+            {{ initials(profile().name) }}
+          </span>
+          <div class="min-w-0">
+            <p class="text-xs font-medium uppercase tracking-wide stratix-muted">{{ 'settings.profile' | t }}</p>
+            <h3 class="truncate text-xl font-bold text-dark dark:text-slate-100">{{ profile().name }}</h3>
+            <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">{{ roleKey(profile().roleCode) | t }}</p>
+            @if (profile().department) {
+              <span class="stratix-badge mt-2 bg-primary/10 text-primary">{{ profile().department }}</span>
+            }
+          </div>
+        </div>
+      </div>
+
+      <form class="p-6" (ngSubmit)="saveProfile()">
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div class="sm:col-span-2">
+            <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'common.name' | t }}</label>
+            <input type="text" class="stratix-input w-full px-3 py-2.5 text-sm" [(ngModel)]="form.name" name="name" required />
+          </div>
+          <div>
+            <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'settings.email' | t }}</label>
+            <input type="email" class="stratix-input w-full px-3 py-2.5 text-sm" [(ngModel)]="form.email" name="email" required />
+          </div>
+          <div>
+            <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'common.department' | t }}</label>
+            <select class="stratix-input w-full px-3 py-2.5 text-sm" [(ngModel)]="form.department" name="department" required>
+              @for (dept of departments(); track dept) {
+                <option [value]="dept">{{ dept }}</option>
+              }
+            </select>
+          </div>
+          <div class="sm:col-span-2">
+            <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'team.role' | t }}</label>
+            <input
+              type="text"
+              class="stratix-input w-full bg-slate-50 px-3 py-2.5 text-sm dark:bg-slate-800/60"
+              [value]="roleKey(profile().roleCode) | t"
+              readonly
+            />
+          </div>
+        </div>
+
+        @if (error()) {
+          <p class="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-danger dark:bg-red-900/30 dark:text-red-300">
+            {{ error()! | t }}
+          </p>
+        } @else if (saved()) {
+          <p class="mt-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+            {{ 'settings.saved' | t }}
+          </p>
+        }
+
+        <div class="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4 dark:border-slate-700">
+          <a [routerLink]="['/team', profile().employeeId]" class="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+            {{ 'settings.viewTeamProfile' | t }} <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span>
+          </a>
+          <button
+            type="submit"
+            class="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+            [disabled]="saving()"
+          >
+            @if (saving()) {
+              {{ 'common.loading' | t }}
+            } @else {
+              {{ 'settings.saveProfile' | t }}
+            }
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Logo -->
+    @if (canUploadLogo()) {
+      <section class="stratix-card overflow-hidden">
+        <div class="stratix-card-header">
+          <h3 class="stratix-heading text-sm">{{ 'settings.logoTitle' | t }}</h3>
+          <p class="mt-1 text-xs stratix-muted">{{ 'settings.logoHint' | t }}</p>
+        </div>
+        <div class="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div class="flex items-center gap-4">
+            <div class="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60">
+              @if (logoUrl(); as logo) {
+                <img [src]="logo" alt="" class="h-full w-full object-contain p-2" />
+              } @else {
+                <span class="px-2 text-center text-[11px] leading-tight stratix-muted">{{ 'settings.logoNone' | t }}</span>
+              }
+            </div>
+            <div class="min-w-0">
+              <p class="text-sm font-medium text-dark dark:text-slate-100">{{ 'settings.logoPreview' | t }}</p>
+              <p class="mt-0.5 text-xs stratix-muted">PNG · JPEG · WebP · SVG · 2 MB</p>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <label
+              class="inline-flex cursor-pointer items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition hover:bg-primary/90"
+              [class.pointer-events-none]="logoSaving()"
+              [class.opacity-60]="logoSaving()"
+            >
+              {{ logoSaving() ? ('common.loading' | t) : ('settings.logoUpload' | t) }}
+              <input
+                type="file"
+                class="hidden"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                [disabled]="logoSaving()"
+                (change)="onLogoSelected($event)"
+              />
+            </label>
+            @if (logoUrl()) {
+              <button
+                type="button"
+                class="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+                [disabled]="logoSaving()"
+                (click)="clearLogo()"
+              >
+                {{ 'settings.logoClear' | t }}
+              </button>
+            }
+          </div>
+        </div>
+        @if (logoError(); as err) {
+          <p class="border-t border-slate-100 px-6 py-3 text-sm text-danger dark:border-slate-700 dark:text-red-300">{{ err | t }}</p>
+        } @else if (logoSaved()) {
+          <p class="border-t border-slate-100 px-6 py-3 text-xs text-emerald-600 dark:border-slate-700 dark:text-emerald-400">
+            {{ 'settings.logoSaved' | t }}
+          </p>
+        }
+      </section>
+    }
+
+    <!-- Notifications -->
+    <section class="stratix-card overflow-hidden">
+      <div class="stratix-card-header">
+        <h3 class="stratix-heading text-sm">{{ 'settings.title' | t }}</h3>
+        <p class="mt-1 text-xs stratix-muted">{{ 'settings.notificationsHint' | t }}</p>
+      </div>
+      <div class="divide-y divide-slate-100 dark:divide-slate-700">
+        <div class="flex items-start justify-between gap-4 px-6 py-4">
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-medium text-dark dark:text-slate-100">{{ 'settings.emailAlerts' | t }}</p>
+            <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{{ 'settings.emailAlertsHint' | t }}</p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            [attr.aria-checked]="prefs().emailAlerts"
+            class="relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition"
+            [class.bg-primary]="prefs().emailAlerts"
+            [class.bg-slate-200]="!prefs().emailAlerts"
+            [class.dark:bg-slate-600]="!prefs().emailAlerts"
+            (click)="togglePref('emailAlerts')"
+          >
+            <span
+              class="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all"
+              [style.inset-inline-start.rem]="prefs().emailAlerts ? 1.25 : 0.125"
+            ></span>
+          </button>
+        </div>
+        <div class="flex items-start justify-between gap-4 px-6 py-4">
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-medium text-dark dark:text-slate-100">{{ 'settings.inAppAlerts' | t }}</p>
+            <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{{ 'settings.inAppAlertsHint' | t }}</p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            [attr.aria-checked]="prefs().inAppAlerts"
+            class="relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition"
+            [class.bg-primary]="prefs().inAppAlerts"
+            [class.bg-slate-200]="!prefs().inAppAlerts"
+            [class.dark:bg-slate-600]="!prefs().inAppAlerts"
+            (click)="togglePref('inAppAlerts')"
+          >
+            <span
+              class="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all"
+              [style.inset-inline-start.rem]="prefs().inAppAlerts ? 1.25 : 0.125"
+            ></span>
+          </button>
+        </div>
+      </div>
+      @if (prefsSaved()) {
+        <p class="border-t border-slate-100 px-6 py-3 text-xs text-emerald-600 dark:border-slate-700 dark:text-emerald-400">
+          {{ 'settings.preferencesSaved' | t }}
+        </p>
+      }
+    </section>
+  </div>
+</main>

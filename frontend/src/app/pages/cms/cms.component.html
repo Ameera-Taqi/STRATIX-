@@ -1,0 +1,104 @@
+<app-topbar titleKey="page.cms" />
+<main class="stratix-page p-6">
+  @if (!isSuperAdmin()) {
+    <div class="stratix-card mx-auto max-w-lg px-6 py-12 text-center">
+      <p class="text-sm stratix-muted">{{ 'cms.forbidden' | t }}</p>
+      <a routerLink="/dashboard" class="stratix-btn-primary mt-5 inline-flex">{{ 'common.backToDashboard' | t }}</a>
+    </div>
+  } @else {
+    <div class="mb-6 max-w-3xl">
+      <h2 class="text-lg font-semibold text-dark dark:text-slate-100">{{ 'cms.title' | t }}</h2>
+      <p class="mt-1 text-sm stratix-muted">{{ 'cms.hint' | t }}</p>
+    </div>
+
+    <div class="mb-6 grid gap-4 sm:grid-cols-2 max-w-xl">
+      <div class="stratix-stat-card">
+        <div class="stratix-stat-icon bg-primary/10 text-primary"><app-ui-icon name="sliders" size="md" /></div>
+        <div>
+          <p class="text-2xl font-bold text-dark dark:text-slate-100">{{ draftVisibleCount() }}/{{ totalCount() }}</p>
+          <p class="text-xs stratix-muted">{{ 'cms.statVisible' | t }}</p>
+        </div>
+      </div>
+      <div class="stratix-stat-card">
+        <div class="stratix-stat-icon bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400">
+          <app-ui-icon name="users" size="md" />
+        </div>
+        <div>
+          <p class="text-sm font-semibold text-dark dark:text-slate-100">{{ 'cms.audience' | t }}</p>
+          <p class="text-xs stratix-muted">{{ 'cms.audienceHint' | t }}</p>
+        </div>
+      </div>
+    </div>
+
+    @if (error(); as errKey) {
+      <p class="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
+        {{ errKey | t }}
+      </p>
+    }
+
+    @if (savedFlash()) {
+      <p class="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+        {{ 'cms.saved' | t }}
+      </p>
+    }
+
+    @if (loading()) {
+      <p class="stratix-muted">{{ 'cms.loading' | t }}</p>
+    } @else {
+      <div class="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+        <div class="grid grid-cols-[1fr_auto_auto] gap-4 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
+          <span>{{ 'cms.colModule' | t }}</span>
+          <span class="w-24 text-center">{{ 'cms.colVisible' | t }}</span>
+          <span class="w-24 text-center">{{ 'cms.colWritable' | t }}</span>
+        </div>
+
+        <ul class="divide-y divide-slate-100 dark:divide-slate-800">
+          @for (row of draft(); track row.moduleCode) {
+            <li class="grid grid-cols-[1fr_auto_auto] items-center gap-4 px-4 py-3.5">
+              <div>
+                <p class="text-sm font-medium text-dark dark:text-slate-100">{{ moduleLabelKey(row.moduleCode) | t }}</p>
+                <p class="text-xs stratix-muted font-mono">{{ row.moduleCode }}</p>
+              </div>
+              <label class="flex w-24 justify-center">
+                <input
+                  type="checkbox"
+                  class="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                  [checked]="row.visibleToCompanyAdmin"
+                  (change)="toggleVisible(row.moduleCode, $any($event.target).checked)"
+                />
+              </label>
+              <label class="flex w-24 justify-center">
+                <input
+                  type="checkbox"
+                  class="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary disabled:opacity-40"
+                  [checked]="row.writableByCompanyAdmin"
+                  [disabled]="!row.visibleToCompanyAdmin"
+                  (change)="toggleWritable(row.moduleCode, $any($event.target).checked)"
+                />
+              </label>
+            </li>
+          }
+        </ul>
+      </div>
+
+      <div class="mt-6 flex flex-wrap gap-3">
+        <button
+          type="button"
+          class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary/90 disabled:opacity-60"
+          [disabled]="saving()"
+          (click)="save()"
+        >
+          {{ saving() ? ('cms.saving' | t) : ('cms.save' | t) }}
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+          [disabled]="saving()"
+          (click)="resetDraft()"
+        >
+          {{ 'cms.reset' | t }}
+        </button>
+      </div>
+    }
+  }
+</main>

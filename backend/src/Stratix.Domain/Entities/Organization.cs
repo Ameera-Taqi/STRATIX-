@@ -13,6 +13,8 @@ public class Organization
     public string Slug { get; set; } = string.Empty;
     public OrganizationStatus Status { get; set; } = OrganizationStatus.ACTIVE;
     public SubscriptionPlan SubscriptionPlan { get; set; } = SubscriptionPlan.FREE;
+    /// <summary>Relative storage key for the tenant logo file (e.g. "org-12.png"), or null for default branding.</summary>
+    public string? LogoFileName { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 }

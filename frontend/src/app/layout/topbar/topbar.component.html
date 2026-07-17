@@ -1,12 +1,25 @@
 <header class="stratix-topbar relative z-20 shrink-0">
-  <h1 class="text-xl font-semibold text-dark dark:text-slate-100">{{ titleKey() | t }}</h1>
-  <div class="flex items-center gap-3">
+  <div class="flex min-w-0 items-center gap-2">
+    <button
+      type="button"
+      class="rounded-lg p-2 text-slate-500 transition hover:bg-surface dark:text-slate-400 dark:hover:bg-slate-800 lg:hidden"
+      [attr.aria-label]="'nav.openMenu' | t"
+      [attr.aria-expanded]="shellNav.open()"
+      (click)="toggleNav($event)"
+    >
+      <app-ui-icon name="menu" size="md" />
+    </button>
+    <h1 class="truncate text-xl font-semibold text-dark dark:text-slate-100">{{ titleKey() | t }}</h1>
+  </div>
+  <div class="flex shrink-0 items-center gap-2 sm:gap-3">
     <div class="stratix-input hidden items-center gap-2 px-3 py-2 sm:flex">
-      <span class="text-slate-400">⌕</span>
+      <app-ui-icon name="search" size="sm" className="text-slate-400" />
       <input
         type="search"
         [placeholder]="'common.search' | t"
         class="w-40 border-0 bg-transparent p-0 text-sm ring-0 focus:ring-0 lg:w-48"
+        [(ngModel)]="searchTerm"
+        (keydown.enter)="onSearch()"
       />
     </div>
     <app-theme-toggle />
@@ -19,7 +32,7 @@
       [attr.aria-expanded]="panel.open()"
       (click)="onBellClick($event)"
     >
-      🔔
+      <app-ui-icon name="bell" size="md" />
       @if (unreadCount() > 0) {
         <span
           class="absolute end-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white"
@@ -41,7 +54,9 @@
           {{ initials() }}
         </span>
         <span class="hidden text-sm font-medium text-dark dark:text-slate-200 sm:inline">{{ profile().name }}</span>
-        <span class="text-xs text-slate-400 transition" [class.rotate-180]="menuOpen()">▾</span>
+        <span class="text-slate-400 transition" [class.rotate-180]="menuOpen()">
+          <app-ui-icon name="chevron-down" size="xs" />
+        </span>
       </button>
 
       @if (menuOpen()) {
@@ -51,7 +66,7 @@
         >
           <div class="border-b border-slate-100 px-4 py-3 dark:border-slate-700">
             <p class="truncate text-sm font-semibold text-dark dark:text-slate-100">{{ profile().name }}</p>
-            <p class="truncate text-xs text-slate-500 dark:text-slate-400">{{ profile().role }}</p>
+            <p class="truncate text-xs text-slate-500 dark:text-slate-400">{{ roleKey(profile().roleCode) | t }}</p>
             <p class="truncate text-xs text-slate-400">{{ profile().email }}</p>
           </div>
 
@@ -62,7 +77,7 @@
               role="menuitem"
               (click)="navigateAndClose('/settings')"
             >
-              <span class="w-4 text-center">👤</span>
+              <app-ui-icon name="user" size="sm" />
               {{ 'userMenu.profile' | t }}
             </button>
             <button
@@ -71,7 +86,7 @@
               role="menuitem"
               (click)="navigateAndClose(['/team', profile().employeeId])"
             >
-              <span class="w-4 text-center">🪪</span>
+              <app-ui-icon name="id-card" size="sm" />
               {{ 'userMenu.teamProfile' | t }}
             </button>
             <button
@@ -80,7 +95,7 @@
               role="menuitem"
               (click)="navigateAndClose('/notifications')"
             >
-              <span class="w-4 text-center">🔔</span>
+              <app-ui-icon name="bell" size="sm" />
               {{ 'userMenu.notifications' | t }}
             </button>
             <button
@@ -89,7 +104,7 @@
               role="menuitem"
               (click)="navigateAndClose('/settings')"
             >
-              <span class="w-4 text-center">⚙</span>
+              <app-ui-icon name="settings" size="sm" />
               {{ 'userMenu.settings' | t }}
             </button>
           </div>
@@ -101,7 +116,7 @@
               role="menuitem"
               (click)="logout()"
             >
-              <span class="w-4 text-center">⎋</span>
+              <app-ui-icon name="logout" size="sm" />
               {{ 'module.signOut' | t }}
             </button>
           </div>

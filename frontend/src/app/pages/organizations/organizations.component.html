@@ -1,0 +1,319 @@
+<app-topbar titleKey="page.organizations" />
+<main class="stratix-page p-6">
+  @if (!isSuperAdmin()) {
+    <div class="stratix-card mx-auto max-w-lg px-6 py-12 text-center">
+      <p class="text-sm stratix-muted">{{ 'orgs.forbidden' | t }}</p>
+      <a routerLink="/dashboard" class="stratix-btn-primary mt-5 inline-flex">{{ 'common.backToDashboard' | t }}</a>
+    </div>
+  } @else {
+    <div class="mb-6 max-w-3xl">
+      <h2 class="text-lg font-semibold text-dark dark:text-slate-100">{{ 'page.organizations' | t }}</h2>
+      <p class="mt-1 text-sm stratix-muted">{{ 'orgs.hint' | t }}</p>
+    </div>
+
+    <div class="mb-6 grid gap-4 sm:grid-cols-3">
+      <div class="stratix-stat-card">
+        <div class="stratix-stat-icon bg-primary/10 text-primary"><app-ui-icon name="building" size="md" /></div>
+        <div>
+          <p class="text-2xl font-bold text-dark dark:text-slate-100">{{ stats().total }}</p>
+          <p class="text-xs stratix-muted">{{ 'orgs.statTotal' | t }}</p>
+        </div>
+      </div>
+      <div class="stratix-stat-card">
+        <div class="stratix-stat-icon bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400"><app-ui-icon name="check" size="md" /></div>
+        <div>
+          <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{{ stats().active }}</p>
+          <p class="text-xs stratix-muted">{{ 'orgs.statActive' | t }}</p>
+        </div>
+      </div>
+      <div class="stratix-stat-card">
+        <div class="stratix-stat-icon bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"><app-ui-icon name="pause" size="md" /></div>
+        <div>
+          <p class="text-2xl font-bold text-amber-700 dark:text-amber-300">{{ stats().suspended }}</p>
+          <p class="text-xs stratix-muted">{{ 'orgs.statSuspended' | t }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-6 flex flex-wrap gap-2 border-b border-slate-200 dark:border-slate-700">
+      <button
+        type="button"
+        class="border-b-2 px-4 py-2.5 text-sm font-medium transition"
+        [class.border-primary]="tab() === 'organizations'"
+        [class.text-primary]="tab() === 'organizations'"
+        [class.border-transparent]="tab() !== 'organizations'"
+        [class.text-slate-500]="tab() !== 'organizations'"
+        (click)="setTab('organizations')"
+      >
+        {{ 'orgs.tabOrganizations' | t }}
+      </button>
+      <button
+        type="button"
+        class="border-b-2 px-4 py-2.5 text-sm font-medium transition"
+        [class.border-primary]="tab() === 'plans'"
+        [class.text-primary]="tab() === 'plans'"
+        [class.border-transparent]="tab() !== 'plans'"
+        [class.text-slate-500]="tab() !== 'plans'"
+        (click)="setTab('plans')"
+      >
+        {{ 'orgs.tabPlans' | t }}
+      </button>
+    </div>
+
+    @if (actionError(); as errKey) {
+      <p class="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
+        {{ errKey | t }}
+      </p>
+    }
+
+    @if (tab() === 'organizations') {
+      <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="stratix-search-wrap max-w-sm flex-1">
+          <span class="stratix-search-icon" aria-hidden="true"><app-ui-icon name="search" size="sm" /></span>
+          <input
+            type="search"
+            [placeholder]="'orgs.search' | t"
+            class="stratix-input w-full py-2.5 text-sm"
+            (input)="search.set($any($event.target).value)"
+          />
+        </div>
+        <button
+          type="button"
+          class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary/90 hover:shadow active:scale-[0.98]"
+          (click)="openAddModal()"
+        >
+          <span class="text-lg leading-none">+</span>
+          {{ 'orgs.add' | t }}
+        </button>
+      </div>
+
+      <div class="stratix-card overflow-hidden">
+        <div class="stratix-card-header flex items-center justify-between">
+          <h2 class="stratix-heading text-sm">{{ 'orgs.tabOrganizations' | t }}</h2>
+          <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+            {{ filtered().length }} / {{ stats().total }}
+          </span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[960px] text-start text-sm">
+            <thead class="stratix-table-head">
+              <tr>
+                <th class="px-5 py-3.5 font-medium">{{ 'common.name' | t }}</th>
+                <th class="px-5 py-3.5 font-medium">{{ 'orgs.slug' | t }}</th>
+                <th class="px-5 py-3.5 text-center font-medium">{{ 'orgs.users' | t }}</th>
+                <th class="px-5 py-3.5 text-center font-medium">{{ 'orgs.projects' | t }}</th>
+                <th class="px-5 py-3.5 font-medium">{{ 'common.status' | t }}</th>
+                <th class="px-5 py-3.5 font-medium">{{ 'orgs.plan' | t }}</th>
+                <th class="px-5 py-3.5 font-medium">{{ 'common.actions' | t }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (loading()) {
+                <tr>
+                  <td colspan="7" class="px-5 py-14 text-center stratix-muted">{{ 'common.loading' | t }}</td>
+                </tr>
+              } @else if (filtered().length === 0) {
+                <tr>
+                  <td colspan="7" class="px-5 py-14 text-center">
+                    <p class="flex justify-center opacity-40"><app-ui-icon name="building" size="2xl" /></p>
+                    <p class="mt-2 stratix-muted">{{ 'orgs.empty' | t }}</p>
+                  </td>
+                </tr>
+              } @else {
+                @for (o of filtered(); track o.id) {
+                  <tr class="stratix-table-row">
+                    <td class="px-5 py-3.5 font-medium text-dark dark:text-slate-100">{{ o.name }}</td>
+                    <td class="px-5 py-3.5 stratix-muted">{{ o.slug }}</td>
+                    <td class="px-5 py-3.5 text-center">{{ o.userCount }}</td>
+                    <td class="px-5 py-3.5 text-center">{{ o.projectCount }}</td>
+                    <td class="px-5 py-3.5">
+                      <div
+                        class="inline-flex rounded-lg border border-slate-200 bg-slate-50/80 p-0.5 dark:border-slate-700 dark:bg-slate-800/60"
+                        role="group"
+                        [attr.aria-label]="'common.status' | t"
+                      >
+                        @for (s of statusOptions; track s) {
+                          <button
+                            type="button"
+                            class="rounded-md border px-2.5 py-1 text-[11px] font-semibold tracking-wide transition disabled:opacity-50"
+                            [class]="statusSegClass(o.status, s)"
+                            [disabled]="savingId() === o.id"
+                            (click)="onStatusChange(o.id, s, o.status)"
+                          >
+                            {{ statusLabelKey(s) | t }}
+                          </button>
+                        }
+                      </div>
+                    </td>
+                    <td class="px-5 py-3.5">
+                      <select
+                        class="stratix-input max-w-[10rem] py-1.5 text-xs"
+                        [disabled]="savingId() === o.id"
+                        [ngModel]="o.subscriptionPlan"
+                        (ngModelChange)="onPlanChange(o.id, $event)"
+                      >
+                        @for (p of planOptions; track p) {
+                          <option [value]="p">{{ p }}</option>
+                        }
+                      </select>
+                    </td>
+                    <td class="px-5 py-3.5">
+                      <button
+                        type="button"
+                        class="text-sm text-danger hover:underline disabled:opacity-50"
+                        [disabled]="savingId() === o.id"
+                        (click)="deleteOrganization(o)"
+                      >
+                        {{ 'common.delete' | t }}
+                      </button>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    } @else {
+      <div class="stratix-card overflow-hidden">
+        <div class="stratix-card-header">
+          <h2 class="stratix-heading text-sm">{{ 'orgs.tabPlans' | t }}</h2>
+          <p class="mt-1 text-xs stratix-muted">{{ 'orgs.plansHint' | t }}</p>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[720px] text-start text-sm">
+            <thead class="stratix-table-head">
+              <tr>
+                <th class="px-5 py-3.5 font-medium">{{ 'common.name' | t }}</th>
+                <th class="px-5 py-3.5 text-center font-medium">{{ 'orgs.maxUsers' | t }}</th>
+                <th class="px-5 py-3.5 text-center font-medium">{{ 'orgs.maxProjects' | t }}</th>
+                <th class="px-5 py-3.5 text-center font-medium">{{ 'orgs.ai' | t }}</th>
+                <th class="px-5 py-3.5 text-center font-medium">{{ 'orgs.storage' | t }}</th>
+                <th class="px-5 py-3.5 text-end font-medium">{{ 'orgs.price' | t }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (plans().length === 0) {
+                <tr>
+                  <td colspan="6" class="px-5 py-14 text-center stratix-muted">{{ 'orgs.noPlans' | t }}</td>
+                </tr>
+              } @else {
+                @for (p of plans(); track p.id) {
+                  <tr class="stratix-table-row">
+                    <td class="px-5 py-3.5 font-medium text-dark dark:text-slate-100">{{ p.name }}</td>
+                    <td class="px-5 py-3.5 text-center">{{ p.maxUsers }}</td>
+                    <td class="px-5 py-3.5 text-center">{{ p.maxProjects }}</td>
+                    <td class="px-5 py-3.5 text-center">{{ p.aiEnabled ? ('common.yes' | t) : ('common.no' | t) }}</td>
+                    <td class="px-5 py-3.5 text-center">{{ p.storageLimitMb }} MB</td>
+                    <td class="px-5 py-3.5 text-end">${{ p.price }}</td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+  }
+</main>
+
+@if (showAddModal()) {
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-dark/50 p-4 backdrop-blur-sm"
+    role="dialog"
+    aria-modal="true"
+    (click)="closeAddModal()"
+  >
+    <div class="stratix-card w-full max-w-lg overflow-hidden shadow-2xl" (click)="$event.stopPropagation()">
+      <div class="h-1 bg-gradient-to-r from-primary to-primary/50"></div>
+      <div class="p-6">
+        <div class="mb-1 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><app-ui-icon name="building" size="lg" /></div>
+        <h2 class="mt-3 stratix-heading text-lg">{{ 'orgs.createTitle' | t }}</h2>
+        <p class="stratix-muted mt-1 text-sm">{{ 'orgs.createHint' | t }}</p>
+
+        @if (formError()) {
+          <p class="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-danger dark:bg-red-900/30 dark:text-red-300">
+            {{ formError()! | t }}
+          </p>
+        }
+
+        <form class="mt-5 space-y-4" (ngSubmit)="saveOrganization()">
+          <div>
+            <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'auth.orgName' | t }} *</label>
+            <input
+              type="text"
+              class="stratix-input w-full px-3 py-2.5 text-sm"
+              [(ngModel)]="form.organizationName"
+              name="organizationName"
+              required
+            />
+          </div>
+          <div>
+            <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'orgs.slug' | t }}</label>
+            <input
+              type="text"
+              class="stratix-input w-full px-3 py-2.5 text-sm"
+              [(ngModel)]="form.slug"
+              name="slug"
+              [placeholder]="'orgs.slugHint' | t"
+            />
+          </div>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'auth.adminName' | t }} *</label>
+              <input
+                type="text"
+                class="stratix-input w-full px-3 py-2.5 text-sm"
+                [(ngModel)]="form.adminName"
+                name="adminName"
+                required
+              />
+            </div>
+            <div>
+              <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'orgs.plan' | t }}</label>
+              <select class="stratix-input w-full px-3 py-2.5 text-sm" [(ngModel)]="form.subscriptionPlan" name="subscriptionPlan">
+                @for (p of planOptions; track p) {
+                  <option [value]="p">{{ p }}</option>
+                }
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'auth.email' | t }} *</label>
+            <input
+              type="email"
+              class="stratix-input w-full px-3 py-2.5 text-sm"
+              [(ngModel)]="form.adminEmail"
+              name="adminEmail"
+              required
+            />
+          </div>
+          <div>
+            <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'module.password' | t }} *</label>
+            <input
+              type="password"
+              class="stratix-input w-full px-3 py-2.5 text-sm"
+              [(ngModel)]="form.password"
+              name="password"
+              required
+              minlength="8"
+            />
+            <p class="mt-1 text-xs stratix-muted">{{ 'auth.passwordRules' | t }}</p>
+          </div>
+          <div class="flex justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-700">
+            <button type="button" class="stratix-btn-ghost px-4 py-2" (click)="closeAddModal()">
+              {{ 'projects.cancel' | t }}
+            </button>
+            <button
+              type="submit"
+              class="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary/90 disabled:opacity-60"
+              [disabled]="submitting()"
+            >
+              {{ 'orgs.save' | t }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+}

@@ -1,9 +1,12 @@
 using Stratix.Application.DTOs.Auth;
+using Stratix.Application.DTOs.Branding;
+using Stratix.Application.DTOs.Cms;
 using Stratix.Application.DTOs.Departments;
 using Stratix.Application.DTOs.Projects;
 using Stratix.Application.DTOs.Risks;
 using Stratix.Application.DTOs.Stages;
 using Stratix.Application.DTOs.Tasks;
+using Stratix.Application.DTOs.TaskComments;
 using Stratix.Application.DTOs.Users;
 using Stratix.Application.DTOs.Audit;
 using Stratix.Application.DTOs.Ai;
@@ -61,6 +64,9 @@ public interface IOrganizationService
 {
     Task<Stratix.Application.DTOs.Organizations.OrganizationResponse?> GetCurrentAsync(CancellationToken ct = default);
     Task<IReadOnlyList<Stratix.Application.DTOs.Organizations.OrganizationResponse>> GetAllAsync(CancellationToken ct = default);
+    Task<Stratix.Application.DTOs.Organizations.OrganizationResponse> CreateAsync(Stratix.Application.DTOs.Organizations.CreateOrganizationRequest request, CancellationToken ct = default);
+    Task<Stratix.Application.DTOs.Organizations.OrganizationResponse?> UpdateAsync(long id, Stratix.Application.DTOs.Organizations.UpdateOrganizationRequest request, CancellationToken ct = default);
+    Task DeleteAsync(long id, CancellationToken ct = default);
     Task<IReadOnlyList<Stratix.Application.DTOs.Organizations.PlanResponse>> GetPlansAsync(CancellationToken ct = default);
     Task<Stratix.Application.DTOs.Organizations.SubscriptionResponse?> GetCurrentSubscriptionAsync(CancellationToken ct = default);
 }
@@ -117,6 +123,14 @@ public interface ITaskService
     Task<TaskResponse> CreateAsync(CreateTaskRequest request, CancellationToken ct = default);
     Task<TaskResponse> UpdateAsync(long id, UpdateTaskRequest request, CancellationToken ct = default);
     Task<TaskResponse> UpdateStatusAsync(long id, UpdateTaskStatusRequest request, CancellationToken ct = default);
+    Task DeleteAsync(long id, CancellationToken ct = default);
+}
+
+public interface ITaskCommentService
+{
+    Task<IReadOnlyList<TaskCommentResponse>> GetByTaskAsync(long taskId, CancellationToken ct = default);
+    Task<TaskCommentResponse> CreateAsync(CreateTaskCommentRequest request, CancellationToken ct = default);
+    Task DeleteAsync(long id, CancellationToken ct = default);
 }
 
 public interface IRiskService
@@ -148,6 +162,9 @@ public record AuditLogQuery(
 public interface IDepartmentService
 {
     Task<IReadOnlyList<DepartmentResponse>> GetAllAsync(CancellationToken ct = default);
+    Task<DepartmentResponse> CreateAsync(CreateDepartmentRequest request, CancellationToken ct = default);
+    Task<DepartmentResponse> UpdateAsync(long id, UpdateDepartmentRequest request, CancellationToken ct = default);
+    Task DeleteAsync(long id, CancellationToken ct = default);
 }
 
 public interface IHealthService
@@ -158,4 +175,24 @@ public interface IHealthService
 public interface IProjectHealthAnalysisService
 {
     Task<ProjectHealthAnalysisResponse> AnalyzeAsync(ProjectHealthAnalysisRequest request, CancellationToken ct = default);
+}
+
+public interface IPlatformCmsService
+{
+    Task<IReadOnlyList<CompanyAdminModulePermissionResponse>> GetAllAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<CompanyAdminModulePermissionResponse>> UpdateAsync(UpdateCompanyAdminPermissionsRequest request, CancellationToken ct = default);
+    Task EnsureDefaultsAsync(CancellationToken ct = default);
+}
+
+public interface IOrganizationBrandingService
+{
+    Task<OrganizationBrandingResponse> GetAsync(CancellationToken ct = default);
+    Task<(Stream Stream, string ContentType, string FileName)?> OpenLogoAsync(CancellationToken ct = default);
+    Task<OrganizationLogoUploadResult> UploadAsync(
+        Stream content,
+        string contentType,
+        string originalFileName,
+        long length,
+        CancellationToken ct = default);
+    Task ClearAsync(CancellationToken ct = default);
 }

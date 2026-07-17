@@ -12,6 +12,8 @@ public interface IPlanLimitService
 {
     Task EnsureCanAddUserAsync(CancellationToken ct = default);
     Task EnsureCanAddProjectAsync(CancellationToken ct = default);
+    Task EnsureAiEnabledAsync(CancellationToken ct = default);
+    Task EnsureStorageAvailableAsync(long additionalBytes, CancellationToken ct = default);
 }
 
 public class PlanLimitService : IPlanLimitService
@@ -41,6 +43,25 @@ public class PlanLimitService : IPlanLimitService
         var count = await _db.Projects.CountAsync(ct);
         if (count >= plan.MaxProjects)
             throw new PlanLimitExceededException($"Your plan ({plan.Name}) allows up to {plan.MaxProjects} projects. Upgrade to add more.");
+    }
+
+    public async Task EnsureAiEnabledAsync(CancellationToken ct = default)
+    {
+        var plan = await ResolvePlanAsync(ct);
+        if (plan is null) return;
+        if (!plan.AiEnabled)
+            throw new PlanLimitExceededException($"Your plan ({plan.Name}) does not include AI features. Upgrade to enable them.");
+    }
+
+    public async Task EnsureStorageAvailableAsync(long additionalBytes, CancellationToken ct = default)
+    {
+        var plan = await ResolvePlanAsync(ct);
+        if (plan is null) return;
+
+        var usedBytes = await _db.ProjectFiles.SumAsync(f => (long?)f.SizeBytes, ct) ?? 0;
+        var limitBytes = plan.StorageLimitMb * 1024 * 1024;
+        if (usedBytes + additionalBytes > limitBytes)
+            throw new PlanLimitExceededException($"Your plan ({plan.Name}) allows up to {plan.StorageLimitMb} MB of storage. Upgrade to add more.");
     }
 
     // Resolves the tier (and its quotas) for the caller's organization. Returns null when

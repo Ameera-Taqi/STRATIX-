@@ -15,11 +15,18 @@ import {
   RiskStatus,
 } from '../../core/models/risk.model';
 import { riskLevelClass, riskStatusClass } from '../../shared/utils/risk.util';
+import {
+  riskImpactLabelKey,
+  riskLevelLabelKey,
+  riskProbabilityLabelKey,
+  riskStatusLabelKey,
+} from '../../shared/utils/enum-labels';
+import { UiIconComponent } from '../../shared/components/ui-icon/ui-icon.component';
 
 @Component({
   selector: 'app-risks',
   standalone: true,
-  imports: [TopbarComponent, RouterLink, TranslatePipe, FormsModule],
+  imports: [TopbarComponent, RouterLink, TranslatePipe, FormsModule, UiIconComponent],
   templateUrl: './risks.component.html',
   styles: `
     :host {
@@ -43,7 +50,10 @@ export class RisksComponent implements OnInit {
   readonly stats = this.store.stats;
   readonly heatMap = this.store.heatMap;
   readonly canWrite = computed(() => this.roleAccess.canWrite('RISKS'));
-  readonly canDelete = computed(() => this.roleAccess.role() === 'ADMIN');
+  readonly canDelete = computed(() => {
+    const role = this.roleAccess.role();
+    return role === 'ADMIN' || role === 'ORG_ADMIN' || role === 'SUPER_ADMIN';
+  });
 
   readonly search = signal('');
   readonly statusFilter = signal<'ALL' | RiskStatus>('ALL');
@@ -54,10 +64,15 @@ export class RisksComponent implements OnInit {
 
   readonly riskLevelClass = riskLevelClass;
   readonly riskStatusClass = riskStatusClass;
+  readonly riskLevelKey = riskLevelLabelKey;
+  readonly riskStatusKey = riskStatusLabelKey;
+  readonly riskImpactKey = riskImpactLabelKey;
+  readonly riskProbabilityKey = riskProbabilityLabelKey;
 
   readonly impactOptions: RiskImpact[] = ['LOW', 'MEDIUM', 'HIGH'];
   readonly probabilityOptions: RiskProbability[] = ['LOW', 'MEDIUM', 'HIGH'];
   readonly statusOptions: RiskStatus[] = ['OPEN', 'MITIGATING', 'CLOSED'];
+  readonly levelOptions = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as const;
 
   readonly projects = this.projectsStore.projects;
   readonly employees = this.employeesStore.employees;

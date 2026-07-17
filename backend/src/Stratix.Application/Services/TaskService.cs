@@ -12,11 +12,13 @@ public class TaskService : ITaskService
 {
     private readonly IApplicationDbContext _db;
     private readonly IAuditTrailService _audit;
+    private readonly ICurrentUserService _currentUser;
 
-    public TaskService(IApplicationDbContext db, IAuditTrailService audit)
+    public TaskService(IApplicationDbContext db, IAuditTrailService audit, ICurrentUserService currentUser)
     {
         _db = db;
         _audit = audit;
+        _currentUser = currentUser;
     }
 
     public async Task<IReadOnlyList<TaskResponse>> GetAllAsync(long? projectId, CancellationToken ct = default)
@@ -99,11 +101,27 @@ public class TaskService : ITaskService
     public async Task<TaskResponse> UpdateStatusAsync(long id, UpdateTaskStatusRequest request, CancellationToken ct = default)
     {
         var task = await FindAsync(id, ct);
+
+        // An EMPLOYEE may only move the status of tasks assigned to them.
+        if (_currentUser.Role == UserRole.EMPLOYEE && task.AssigneeId != _currentUser.UserId)
+            throw new UnauthorizedAccessException("You can only update the status of tasks assigned to you.");
+
         task.Status = request.Status;
         task.UpdatedAt = DateTimeOffset.UtcNow;
         ApplyCompletion(task, request.Status);
         await _db.SaveChangesAsync(ct);
         return EntityMappers.ToResponse(task);
+    }
+
+    public async Task DeleteAsync(long id, CancellationToken ct = default)
+    {
+        var task = await FindAsync(id, ct);
+        var title = task.Title;
+        var projectId = task.ProjectId;
+        var projectName = task.Project.Name;
+        _db.Remove(task);
+        await _db.SaveChangesAsync(ct);
+        await _audit.RecordDeleteAsync(AuditEntityType.TASK, id, title, null, $"Task deleted: {title}", projectId, projectName, ct);
     }
 
     private static void ApplyCompletion(TaskItem task, DomainTaskStatus status)

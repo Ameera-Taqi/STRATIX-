@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Stratix.Application.DTOs.Ai;
 using Stratix.Application.Interfaces;
+using Stratix.Application.Services;
 
 namespace Stratix.Api.Controllers;
 
@@ -10,11 +11,19 @@ namespace Stratix.Api.Controllers;
 public class AiController : ControllerBase
 {
     private readonly IProjectHealthAnalysisService _analysis;
+    private readonly IPlanLimitService _planLimits;
 
-    public AiController(IProjectHealthAnalysisService analysis) => _analysis = analysis;
+    public AiController(IProjectHealthAnalysisService analysis, IPlanLimitService planLimits)
+    {
+        _analysis = analysis;
+        _planLimits = planLimits;
+    }
 
     [HttpPost("project-health-analysis")]
     [Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN,PROJECT_MANAGER,EXECUTIVE_VIEWER,TEAM_LEADER")]
-    public async Task<ProjectHealthAnalysisResponse> Analyze([FromBody] ProjectHealthAnalysisRequest request, CancellationToken ct) =>
-        await _analysis.AnalyzeAsync(request, ct);
+    public async Task<ProjectHealthAnalysisResponse> Analyze([FromBody] ProjectHealthAnalysisRequest request, CancellationToken ct)
+    {
+        await _planLimits.EnsureAiEnabledAsync(ct);
+        return await _analysis.AnalyzeAsync(request, ct);
+    }
 }

@@ -35,6 +35,7 @@ API listens on **http://localhost:8080**. The Angular frontend proxies `/api` to
 
 | Login | Password |
 |-------|----------|
+| `superadmin` or `superadmin@stratix.local` | `1234` |
 | `admin` or `admin@stratix.local` | `1234` |
 | `sara` or `sara.ali@stratix.local` | `1234` |
 | `employee` or `lina.noor@stratix.local` | `1234` |

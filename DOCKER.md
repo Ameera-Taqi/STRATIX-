@@ -47,7 +47,7 @@ curl -s -X POST http://localhost:8080/api/auth/login \
 | Component | User | Password |
 |-----------|------|----------|
 | SQL Server SA | `sa` | `YourStrong!Passw0rd` (override via `MSSQL_SA_PASSWORD`) |
-| App login (seed) | `admin` | `1234` |
+| App login (seed) | `superadmin` / `admin` | `1234` |
 
 > SQL Server requires a strong SA password (8+ chars, upper, lower, digit, symbol).
 

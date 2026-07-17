@@ -24,7 +24,11 @@ public static class DataSeeder
         var org = await EnsureDefaultOrganizationAsync(db, ct);
         await EnsurePlansAsync(db, ct);
 
+        var cms = scope.ServiceProvider.GetRequiredService<IPlatformCmsService>();
+        await cms.EnsureDefaultsAsync(ct);
+
         await EnsureDepartmentsAsync(db, org.Id, ct);
+        await EnsureSuperAdminAsync(db, hasher, org.Id, ct);
 
         if (syncPasswords)
             await SyncSeedPasswordsAsync(db, hasher, ct);
@@ -123,10 +127,47 @@ public static class DataSeeder
         }
     }
 
+    /// <summary>
+    /// Platform owner account — always ensured (even when demo data already exists).
+    /// Attached to the default org for FK integrity; tenant filters are bypassed by role.
+    /// </summary>
+    private static async Task EnsureSuperAdminAsync(StratixDbContext db, IPasswordHasher hasher, long organizationId, CancellationToken ct)
+    {
+        const string email = "superadmin@stratix.local";
+        var existing = await db.UserSet.FirstOrDefaultAsync(u => u.Email == email, ct);
+        if (existing != null)
+        {
+            if (existing.Role != UserRole.SUPER_ADMIN)
+            {
+                existing.Role = UserRole.SUPER_ADMIN;
+                existing.UpdatedAt = DateTimeOffset.UtcNow;
+                await db.SaveChangesAsync(ct);
+            }
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        db.UserSet.Add(new User
+        {
+            OrganizationId = organizationId,
+            Name = "Super Admin",
+            Email = email,
+            Password = hasher.Hash("1234"),
+            Role = UserRole.SUPER_ADMIN,
+            JobTitle = "Platform Owner",
+            Status = UserStatus.ACTIVE,
+            DepartmentId = null,
+            CreatedAt = now,
+            UpdatedAt = now
+        });
+        await db.SaveChangesAsync(ct);
+    }
+
     private static async Task SyncSeedPasswordsAsync(StratixDbContext db, IPasswordHasher hasher, CancellationToken ct)
     {
         var seeds = new Dictionary<string, string>
         {
+            ["superadmin@stratix.local"] = "1234",
             ["admin@stratix.local"] = "1234",
             ["sara.ali@stratix.local"] = "1234",
             ["omar.hassan@stratix.local"] = "1234",

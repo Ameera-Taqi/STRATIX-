@@ -4,28 +4,28 @@
 
   <div class="mb-6 grid gap-3 sm:grid-cols-4">
     <div class="stratix-stat-card">
-      <div class="stratix-stat-icon bg-primary/10 text-primary">📋</div>
+      <div class="stratix-stat-icon bg-primary/10 text-primary"><app-ui-icon name="clipboard" size="md" /></div>
       <div>
         <p class="text-xl font-bold text-dark dark:text-slate-100">{{ stats().total }}</p>
         <p class="text-xs stratix-muted">{{ 'audit.statTotal' | t }}</p>
       </div>
     </div>
     <div class="stratix-stat-card">
-      <div class="stratix-stat-icon bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30">+</div>
+      <div class="stratix-stat-icon bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30"><app-ui-icon name="plus" size="md" /></div>
       <div>
         <p class="text-xl font-bold text-dark dark:text-slate-100">{{ stats().creates }}</p>
         <p class="text-xs stratix-muted">{{ 'audit.statCreates' | t }}</p>
       </div>
     </div>
     <div class="stratix-stat-card">
-      <div class="stratix-stat-icon bg-amber-50 text-amber-600 dark:bg-amber-900/30">✎</div>
+      <div class="stratix-stat-icon bg-amber-50 text-amber-600 dark:bg-amber-900/30"><app-ui-icon name="pencil" size="md" /></div>
       <div>
         <p class="text-xl font-bold text-dark dark:text-slate-100">{{ stats().updates }}</p>
         <p class="text-xs stratix-muted">{{ 'audit.statUpdates' | t }}</p>
       </div>
     </div>
     <div class="stratix-stat-card">
-      <div class="stratix-stat-icon bg-slate-100 text-slate-600 dark:bg-slate-700">⏱</div>
+      <div class="stratix-stat-icon bg-slate-100 text-slate-600 dark:bg-slate-700"><app-ui-icon name="clock" size="md" /></div>
       <div>
         <p class="text-xl font-bold text-dark dark:text-slate-100">{{ stats().today }}</p>
         <p class="text-xs stratix-muted">{{ 'audit.statToday' | t }}</p>

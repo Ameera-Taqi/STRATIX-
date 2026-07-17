@@ -44,6 +44,7 @@ public class StratixDbContext : DbContext, IApplicationDbContext
     public DbSet<Project> ProjectSet => Set<Project>();
     public DbSet<ProjectStage> ProjectStageSet => Set<ProjectStage>();
     public DbSet<TaskItem> TaskSet => Set<TaskItem>();
+    public DbSet<TaskComment> TaskCommentSet => Set<TaskComment>();
     public DbSet<ProjectRisk> ProjectRiskSet => Set<ProjectRisk>();
     public DbSet<Milestone> MilestoneSet => Set<Milestone>();
     public DbSet<ChangeRequest> ChangeRequestSet => Set<ChangeRequest>();
@@ -53,6 +54,7 @@ public class StratixDbContext : DbContext, IApplicationDbContext
     public DbSet<AuditLog> AuditLogSet => Set<AuditLog>();
     public DbSet<PasswordResetToken> PasswordResetTokenSet => Set<PasswordResetToken>();
     public DbSet<RefreshToken> RefreshTokenSet => Set<RefreshToken>();
+    public DbSet<PlatformModulePermission> PlatformModulePermissionSet => Set<PlatformModulePermission>();
 
     IQueryable<Organization> IApplicationDbContext.Organizations => OrganizationSet;
     IQueryable<Subscription> IApplicationDbContext.Subscriptions => SubscriptionSet;
@@ -62,6 +64,7 @@ public class StratixDbContext : DbContext, IApplicationDbContext
     IQueryable<Project> IApplicationDbContext.Projects => ProjectSet;
     IQueryable<ProjectStage> IApplicationDbContext.ProjectStages => ProjectStageSet;
     IQueryable<TaskItem> IApplicationDbContext.Tasks => TaskSet;
+    IQueryable<TaskComment> IApplicationDbContext.TaskComments => TaskCommentSet;
     IQueryable<ProjectRisk> IApplicationDbContext.ProjectRisks => ProjectRiskSet;
     IQueryable<Milestone> IApplicationDbContext.Milestones => MilestoneSet;
     IQueryable<ChangeRequest> IApplicationDbContext.ChangeRequests => ChangeRequestSet;
@@ -71,6 +74,7 @@ public class StratixDbContext : DbContext, IApplicationDbContext
     IQueryable<AuditLog> IApplicationDbContext.AuditLogs => AuditLogSet;
     IQueryable<PasswordResetToken> IApplicationDbContext.PasswordResetTokens => PasswordResetTokenSet;
     IQueryable<RefreshToken> IApplicationDbContext.RefreshTokens => RefreshTokenSet;
+    IQueryable<PlatformModulePermission> IApplicationDbContext.PlatformModulePermissions => PlatformModulePermissionSet;
 
     void IApplicationDbContext.Add<T>(T entity) => Set<T>().Add(entity);
     void IApplicationDbContext.Remove<T>(T entity) => Set<T>().Remove(entity);
@@ -132,6 +136,7 @@ public class StratixDbContext : DbContext, IApplicationDbContext
             e.HasIndex(x => x.Slug).IsUnique();
             e.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.SubscriptionPlan).HasColumnName("subscription_plan").HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.LogoFileName).HasColumnName("logo_file_name").HasMaxLength(255);
             e.Property(x => x.CreatedAt).HasColumnName("created_at");
             e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
         });
@@ -266,6 +271,22 @@ public class StratixDbContext : DbContext, IApplicationDbContext
             e.HasOne(x => x.Project).WithMany(p => p.Tasks).HasForeignKey(x => x.ProjectId);
             e.HasOne(x => x.Stage).WithMany().HasForeignKey(x => x.StageId);
             e.HasOne(x => x.Assignee).WithMany().HasForeignKey(x => x.AssigneeId);
+        });
+
+        modelBuilder.Entity<TaskComment>(e =>
+        {
+            e.ToTable("task_comments");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.OrganizationId).HasColumnName("organization_id");
+            e.HasQueryFilter(x => !_filterByTenant || x.OrganizationId == _tenantId);
+            e.Property(x => x.TaskId).HasColumnName("task_id");
+            e.Property(x => x.UserId).HasColumnName("user_id");
+            e.Property(x => x.Comment).HasColumnName("comment").IsRequired();
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+            e.HasOne(x => x.Task).WithMany().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.NoAction);
+            e.HasIndex(x => x.TaskId);
         });
 
         modelBuilder.Entity<ProjectRisk>(e =>
@@ -431,6 +452,19 @@ public class StratixDbContext : DbContext, IApplicationDbContext
             e.Property(x => x.RequestIp).HasColumnName("request_ip").HasMaxLength(45);
             e.Property(x => x.CreatedAt).HasColumnName("created_at");
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId);
+        });
+
+        modelBuilder.Entity<PlatformModulePermission>(e =>
+        {
+            e.ToTable("platform_module_permissions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.ModuleCode).HasColumnName("module_code").HasMaxLength(50).IsRequired();
+            e.HasIndex(x => x.ModuleCode).IsUnique();
+            e.Property(x => x.VisibleToCompanyAdmin).HasColumnName("visible_to_company_admin");
+            e.Property(x => x.WritableByCompanyAdmin).HasColumnName("writable_by_company_admin");
+            e.Property(x => x.SortOrder).HasColumnName("sort_order");
+            e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
         });
 
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())

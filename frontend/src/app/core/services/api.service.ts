@@ -84,6 +84,12 @@ import {
 } from '../models/department.model';
 
 import {
+  CreateOrganizationRoleRequest,
+  OrganizationRoleRow,
+  UpdateOrganizationRoleRequest,
+} from '../models/organization-role.model';
+
+import {
   OrganizationBranding,
   OrganizationLogoUploadResult,
 } from '../models/branding.model';
@@ -160,6 +166,22 @@ export class ApiService {
 
   deleteDepartment(id: number): Observable<void> {
     return this.http.delete<void>(`${this.base}/departments/${id}`);
+  }
+
+  getOrganizationRoles(): Observable<OrganizationRoleRow[]> {
+    return this.http.get<OrganizationRoleRow[]>(`${this.base}/roles`);
+  }
+
+  createOrganizationRole(body: CreateOrganizationRoleRequest): Observable<OrganizationRoleRow> {
+    return this.http.post<OrganizationRoleRow>(`${this.base}/roles`, body);
+  }
+
+  updateOrganizationRole(id: number, body: UpdateOrganizationRoleRequest): Observable<OrganizationRoleRow> {
+    return this.http.put<OrganizationRoleRow>(`${this.base}/roles/${id}`, body);
+  }
+
+  deleteOrganizationRole(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/roles/${id}`);
   }
 
   getUser(id: number): Observable<User> {

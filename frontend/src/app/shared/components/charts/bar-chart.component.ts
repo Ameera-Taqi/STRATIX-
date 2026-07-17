@@ -30,7 +30,7 @@ import { chartBarFill, chartSeriesColor } from './chart-palette';
                 {{ bar.label }}
               </span>
               @if (bar.sublabel) {
-                <span class="w-full truncate text-center text-[9px] text-slate-400">{{ bar.sublabel }}</span>
+                <span class="w-full truncate text-center text-[9px] text-slate-400 dark:text-slate-500">{{ bar.sublabel }}</span>
               }
             </div>
           }

@@ -40,6 +40,7 @@ public class StratixDbContext : DbContext, IApplicationDbContext
     public DbSet<Subscription> SubscriptionSet => Set<Subscription>();
     public DbSet<PlanTier> PlanSet => Set<PlanTier>();
     public DbSet<Department> DepartmentSet => Set<Department>();
+    public DbSet<OrganizationRole> OrganizationRoleSet => Set<OrganizationRole>();
     public DbSet<User> UserSet => Set<User>();
     public DbSet<Project> ProjectSet => Set<Project>();
     public DbSet<ProjectStage> ProjectStageSet => Set<ProjectStage>();
@@ -60,6 +61,7 @@ public class StratixDbContext : DbContext, IApplicationDbContext
     IQueryable<Subscription> IApplicationDbContext.Subscriptions => SubscriptionSet;
     IQueryable<PlanTier> IApplicationDbContext.Plans => PlanSet;
     IQueryable<Department> IApplicationDbContext.Departments => DepartmentSet;
+    IQueryable<OrganizationRole> IApplicationDbContext.OrganizationRoles => OrganizationRoleSet;
     IQueryable<User> IApplicationDbContext.Users => UserSet;
     IQueryable<Project> IApplicationDbContext.Projects => ProjectSet;
     IQueryable<ProjectStage> IApplicationDbContext.ProjectStages => ProjectStageSet;
@@ -185,6 +187,22 @@ public class StratixDbContext : DbContext, IApplicationDbContext
             e.Property(x => x.CreatedAt).HasColumnName("created_at");
         });
 
+        modelBuilder.Entity<OrganizationRole>(e =>
+        {
+            e.ToTable("organization_roles");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.OrganizationId).HasColumnName("organization_id");
+            e.HasQueryFilter(x => !_filterByTenant || x.OrganizationId == _tenantId);
+            e.Property(x => x.Code).HasColumnName("code").HasMaxLength(80).IsRequired();
+            e.Property(x => x.Name).HasColumnName("name").HasMaxLength(150).IsRequired();
+            e.HasIndex(x => new { x.OrganizationId, x.Code }).IsUnique();
+            e.Property(x => x.Description).HasColumnName("description").HasMaxLength(500);
+            e.Property(x => x.BaseRole).HasColumnName("base_role").HasMaxLength(50).IsRequired();
+            e.Property(x => x.IsSystem).HasColumnName("is_system");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+        });
+
         modelBuilder.Entity<User>(e =>
         {
             e.ToTable("users");
@@ -200,11 +218,13 @@ public class StratixDbContext : DbContext, IApplicationDbContext
             e.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(30);
             e.Property(x => x.JobTitle).HasColumnName("job_title").HasMaxLength(150);
             e.Property(x => x.DepartmentId).HasColumnName("department_id");
+            e.Property(x => x.OrganizationRoleId).HasColumnName("organization_role_id");
             e.Property(x => x.FailedLoginAttempts).HasColumnName("failed_login_attempts");
             e.Property(x => x.LockoutUntil).HasColumnName("lockout_until");
             e.Property(x => x.CreatedAt).HasColumnName("created_at");
             e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
             e.HasOne(x => x.Department).WithMany(d => d.Users).HasForeignKey(x => x.DepartmentId);
+            e.HasOne(x => x.OrganizationRole).WithMany().HasForeignKey(x => x.OrganizationRoleId);
         });
 
         modelBuilder.Entity<Project>(e =>

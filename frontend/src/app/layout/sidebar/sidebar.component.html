@@ -1,7 +1,7 @@
-<aside class="flex h-full min-h-0 w-full flex-col border-e border-white/[0.06] bg-slate-950 text-slate-300">
+<aside class="flex h-full min-h-0 w-full flex-col border-e border-slate-200 bg-white text-slate-600 dark:border-white/[0.06] dark:bg-slate-950 dark:text-slate-300">
   <div class="flex shrink-0 items-center gap-3 px-5 py-5">
     @if (logoUrl(); as logo) {
-      <img [src]="logo" alt="" class="h-8 w-8 shrink-0 rounded-lg object-contain bg-white/10 p-0.5" />
+      <img [src]="logo" alt="" class="h-8 w-8 shrink-0 rounded-lg object-contain bg-slate-100 p-0.5 dark:bg-white/10" />
     } @else {
       <svg viewBox="0 0 48 48" class="h-8 w-8 shrink-0" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <defs>
@@ -15,14 +15,14 @@
       </svg>
     }
     <div class="min-w-0 flex-1 leading-tight">
-      <p class="truncate text-sm font-bold tracking-[0.18em] text-white">
+      <p class="truncate text-sm font-bold tracking-[0.18em] text-dark dark:text-white">
         {{ orgName() || 'STRATIX' }}
       </p>
-      <p class="truncate text-[8.5px] uppercase tracking-[0.2em] text-white/40">{{ 'app.tagline' | t }}</p>
+      <p class="truncate text-[8.5px] uppercase tracking-[0.2em] text-slate-400 dark:text-white/40">{{ 'app.tagline' | t }}</p>
     </div>
     <button
       type="button"
-      class="rounded-lg p-1.5 text-slate-400 transition hover:bg-white/[0.06] hover:text-white lg:hidden"
+      class="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-dark dark:hover:bg-white/[0.06] dark:hover:text-white lg:hidden"
       [attr.aria-label]="'nav.closeMenu' | t"
       (click)="closeNav()"
     >
@@ -33,9 +33,9 @@
     @for (item of nav(); track item.path) {
       <a
         [routerLink]="item.path"
-        routerLinkActive="bg-primary/15 text-white ring-1 ring-inset ring-primary/25"
+        routerLinkActive="bg-primary/10 text-primary ring-1 ring-inset ring-primary/20 dark:bg-primary/15 dark:text-white dark:ring-primary/25"
         [routerLinkActiveOptions]="{ exact: item.path === '/dashboard' }"
-        class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 transition hover:bg-white/[0.04] hover:text-white"
+        class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-dark dark:text-slate-400 dark:hover:bg-white/[0.04] dark:hover:text-white"
         (click)="closeNav()"
       >
         <span class="flex w-5 shrink-0 items-center justify-center" [innerHTML]="item.icon"></span>
@@ -43,5 +43,5 @@
       </a>
     }
   </nav>
-  <p class="shrink-0 border-t border-white/[0.06] p-4 text-center text-[10px] text-white/40">{{ 'app.platform' | t }}</p>
+  <p class="shrink-0 border-t border-slate-100 p-4 text-center text-[10px] text-slate-400 dark:border-white/[0.06] dark:text-white/40">{{ 'app.platform' | t }}</p>
 </aside>

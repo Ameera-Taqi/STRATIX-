@@ -1,24 +1,22 @@
 /**
- * Exact chart palette sampled from the reference dashboards.
- * Blue + periwinkle lavender + muted teal (not generic Tailwind defaults).
+ * Chart palette sampled from reference dashboards.
+ * Purple is slightly deeper than the screenshot swatch so it stays readable on light backgrounds.
  */
 export const CHART_COLORS = {
-  /** Comments / primary series — royal blue from bar chart */
   blue: '#3060D0',
-  /** Posts series — soft periwinkle (R≈B), not violet */
-  purple: '#ACACF4',
-  /** Total / success series — muted teal from area chart */
+  /** Periwinkle — readable on white, still soft on dark navy */
+  purple: '#8B8BE8',
   teal: '#4E9B92',
-  /** Soft semantic accents that still fit the dark dashboard */
   amber: '#E0B45C',
   coral: '#E07A7A',
   orange: '#D4925A',
   slate: '#8B95A8',
+  /** Dark-mode donut track */
   track: '#2A3344',
+  /** Light-mode donut track */
   trackLight: '#D8DEE8',
 } as const;
 
-/** Default multi-series cycle matching the reference triad. */
 export const CHART_SERIES = [
   CHART_COLORS.blue,
   CHART_COLORS.purple,
@@ -31,7 +29,10 @@ export function chartSeriesColor(index: number): string {
   return CHART_SERIES[index % CHART_SERIES.length];
 }
 
-/** Solid fills like the reference bars (slight top highlight only). */
+export function chartTrackColor(isDark: boolean): string {
+  return isDark ? CHART_COLORS.track : CHART_COLORS.trackLight;
+}
+
 export function chartBarFill(color: string): string {
   return `linear-gradient(180deg, color-mix(in srgb, ${color} 92%, white) 0%, ${color} 38%, color-mix(in srgb, ${color} 82%, black) 100%)`;
 }

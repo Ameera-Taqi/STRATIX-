@@ -8,6 +8,7 @@ public interface IApplicationDbContext
     IQueryable<Subscription> Subscriptions { get; }
     IQueryable<PlanTier> Plans { get; }
     IQueryable<Department> Departments { get; }
+    IQueryable<OrganizationRole> OrganizationRoles { get; }
     IQueryable<User> Users { get; }
     IQueryable<Project> Projects { get; }
     IQueryable<ProjectStage> ProjectStages { get; }

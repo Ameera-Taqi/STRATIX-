@@ -12,10 +12,10 @@ import { environment } from '../../../environments/environment';
   standalone: true,
   imports: [TranslatePipe, LangSwitcherComponent, ThemeToggleComponent, FormsModule, RouterLink],
   template: `
-    <div class="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-950 p-6">
-      <div class="pointer-events-none absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-950 to-black"></div>
-      <div class="pointer-events-none absolute inset-0 opacity-60" style="background-image: radial-gradient(rgba(148,163,184,0.10) 1px, transparent 1px); background-size: 24px 24px;"></div>
-      <div class="pointer-events-none absolute -top-32 left-1/2 h-[28rem] w-[28rem] -translate-x-1/2 rounded-full bg-primary/20 blur-[120px]"></div>
+    <div class="stratix-auth-page">
+      <div class="stratix-auth-wash"></div>
+      <div class="stratix-auth-grid"></div>
+      <div class="stratix-auth-glow"></div>
 
       <div class="absolute end-6 top-6 z-20 flex gap-2">
         <app-theme-toggle />
@@ -24,21 +24,21 @@ import { environment } from '../../../environments/environment';
 
       <div class="relative z-10 w-full max-w-md">
         <div class="mb-8 flex flex-col items-center text-center">
-          <img src="/stratix-logo.svg" alt="STRATIX" class="h-16 w-16 rounded-2xl shadow-xl shadow-primary/20 ring-1 ring-white/10" />
-          <h1 class="mt-5 text-2xl font-bold tracking-tight text-white">{{ 'auth.forgotTitle' | t }}</h1>
-          <p class="mt-1.5 text-sm text-slate-400">{{ 'auth.forgotHint' | t }}</p>
+          <img src="/stratix-logo.svg" alt="STRATIX" class="h-16 w-16 rounded-2xl shadow-xl shadow-primary/20 ring-1 ring-slate-200 dark:ring-white/10" />
+          <h1 class="stratix-auth-title">{{ 'auth.forgotTitle' | t }}</h1>
+          <p class="stratix-auth-subtitle">{{ 'auth.forgotHint' | t }}</p>
         </div>
 
-        <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-8 shadow-2xl shadow-black/50 backdrop-blur-xl">
+        <div class="stratix-auth-card">
           @if (success()) {
-            <p class="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+            <p class="stratix-auth-success">
               {{ success()! | t }}
             </p>
-            <p class="mt-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-slate-300">
+            <p class="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-white/10 dark:bg-white/[0.03] dark:text-slate-300">
               {{ 'auth.forgotEmailHint' | t }}
             </p>
             @if (devMailInboxUrl) {
-              <p class="mt-3 rounded-lg border border-primary/20 bg-primary/10 px-3 py-2 text-xs text-slate-200">
+              <p class="mt-3 rounded-lg border border-primary/20 bg-primary/10 px-3 py-2 text-xs text-slate-700 dark:text-slate-200">
                 {{ 'auth.forgotDevMailHint' | t }}
                 <a
                   [href]="devMailInboxUrl"
@@ -51,7 +51,7 @@ import { environment } from '../../../environments/environment';
               </p>
             }
           } @else if (error()) {
-            <p class="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+            <p class="stratix-auth-error mb-0">
               {{ error()! | t }}
             </p>
           }
@@ -59,10 +59,10 @@ import { environment } from '../../../environments/environment';
           @if (!submitted()) {
             <form class="space-y-5" [class.mt-5]="error()" (ngSubmit)="onSubmit()">
               <div>
-                <label class="mb-1.5 block text-sm font-medium text-slate-300">{{ 'auth.email' | t }}</label>
+                <label class="stratix-auth-label">{{ 'auth.email' | t }}</label>
                 <input
                   type="email"
-                  class="w-full rounded-lg border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-primary/60 focus:bg-white/[0.07] focus:ring-2 focus:ring-primary/20"
+                  class="stratix-auth-input"
                   [placeholder]="'auth.emailPlaceholder' | t"
                   [(ngModel)]="email"
                   name="email"
@@ -85,7 +85,7 @@ import { environment } from '../../../environments/environment';
           </p>
         </div>
 
-        <p class="mt-6 text-center text-xs text-slate-500">{{ 'auth.footer' | t }}</p>
+        <p class="stratix-auth-footer">{{ 'auth.footer' | t }}</p>
       </div>
     </div>
   `,

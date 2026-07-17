@@ -2,6 +2,7 @@ using Stratix.Application.DTOs.Auth;
 using Stratix.Application.DTOs.Branding;
 using Stratix.Application.DTOs.Cms;
 using Stratix.Application.DTOs.Departments;
+using Stratix.Application.DTOs.Roles;
 using Stratix.Application.DTOs.Projects;
 using Stratix.Application.DTOs.Risks;
 using Stratix.Application.DTOs.Stages;
@@ -164,6 +165,14 @@ public interface IDepartmentService
     Task<IReadOnlyList<DepartmentResponse>> GetAllAsync(CancellationToken ct = default);
     Task<DepartmentResponse> CreateAsync(CreateDepartmentRequest request, CancellationToken ct = default);
     Task<DepartmentResponse> UpdateAsync(long id, UpdateDepartmentRequest request, CancellationToken ct = default);
+    Task DeleteAsync(long id, CancellationToken ct = default);
+}
+
+public interface IOrganizationRoleService
+{
+    Task<IReadOnlyList<OrganizationRoleResponse>> GetAllAsync(CancellationToken ct = default);
+    Task<OrganizationRoleResponse> CreateAsync(CreateOrganizationRoleRequest request, CancellationToken ct = default);
+    Task<OrganizationRoleResponse> UpdateAsync(long id, UpdateOrganizationRoleRequest request, CancellationToken ct = default);
     Task DeleteAsync(long id, CancellationToken ct = default);
 }
 

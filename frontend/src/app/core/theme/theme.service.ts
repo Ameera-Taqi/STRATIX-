@@ -2,7 +2,9 @@ import { computed, Injectable, signal } from '@angular/core';
 
 export type ThemeMode = 'light' | 'dark';
 
-const STORAGE_KEY = 'stratix-theme';
+/** Current storage key — bumped so legacy `stratix-theme=light` no longer blocks dark default. */
+const STORAGE_KEY = 'stratix-theme-mode';
+const LEGACY_KEY = 'stratix-theme';
 
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
@@ -16,6 +18,7 @@ export class ThemeService {
   setMode(mode: ThemeMode): void {
     this.mode.set(mode);
     localStorage.setItem(STORAGE_KEY, mode);
+    localStorage.removeItem(LEGACY_KEY);
     this.apply(mode);
   }
 
@@ -24,12 +27,26 @@ export class ThemeService {
   }
 
   private loadStored(): ThemeMode {
-    const v = localStorage.getItem(STORAGE_KEY);
-    if (v === 'dark' || v === 'light') return v;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    // Drop the old key so a previous "light" choice cannot override the new default.
+    try {
+      localStorage.removeItem(LEGACY_KEY);
+    } catch {
+      /* ignore */
+    }
+
+    try {
+      const v = localStorage.getItem(STORAGE_KEY);
+      if (v === 'dark' || v === 'light') return v;
+      localStorage.setItem(STORAGE_KEY, 'dark');
+    } catch {
+      /* ignore */
+    }
+    return 'dark';
   }
 
   private apply(mode: ThemeMode): void {
-    document.documentElement.classList.toggle('dark', mode === 'dark');
+    const root = document.documentElement;
+    root.classList.toggle('dark', mode === 'dark');
+    root.style.colorScheme = mode;
   }
 }

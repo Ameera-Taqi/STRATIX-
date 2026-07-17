@@ -1,11 +1,30 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
   <meta charset="utf-8">
   <title>STRATIX — Project Management</title>
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
   <link rel="icon" type="image/svg+xml" href="stratix-logo.svg">
+  <script>
+    (function () {
+      try {
+        // Ignore legacy key that kept many sessions stuck on light.
+        localStorage.removeItem('stratix-theme');
+        var stored = localStorage.getItem('stratix-theme-mode');
+        var dark = stored !== 'light';
+        if (!stored) {
+          localStorage.setItem('stratix-theme-mode', 'dark');
+        }
+        document.documentElement.classList.toggle('dark', dark);
+        document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+      } catch (e) {
+        document.documentElement.classList.add('dark');
+        document.documentElement.style.colorScheme = 'dark';
+      }
+    })();
+  </script>
 </head>
 <body>
   <app-root></app-root>

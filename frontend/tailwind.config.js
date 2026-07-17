@@ -13,7 +13,7 @@ module.exports = {
         danger: '#E07A7A',
         chart: {
           blue: '#3060D0',
-          purple: '#ACACF4',
+          purple: '#8B8BE8',
           teal: '#4E9B92',
           amber: '#E0B45C',
           coral: '#E07A7A',

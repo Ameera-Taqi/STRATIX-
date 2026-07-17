@@ -24,6 +24,7 @@ public static class DependencyInjection
         services.AddScoped<IProjectFileService, ProjectFileService>();
         services.AddScoped<IAuditTrailService, AuditTrailService>();
         services.AddScoped<IDepartmentService, DepartmentService>();
+        services.AddScoped<IOrganizationRoleService, OrganizationRoleService>();
         services.AddScoped<IHealthService, HealthService>();
         services.AddScoped<IPasswordResetService, PasswordResetService>();
         services.AddScoped<IProjectHealthAnalysisService, ProjectHealthAnalysisService>();

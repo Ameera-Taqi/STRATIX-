@@ -16,3 +16,4 @@
 :r 022_task_comments_org.sql
 :r 023_platform_module_permissions.sql
 :r 024_organization_logo.sql
+:r 025_organization_roles.sql

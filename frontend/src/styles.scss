@@ -18,7 +18,7 @@ body {
   @apply bg-surface text-dark antialiased dark:bg-slate-950 dark:text-slate-100;
   /* Chart palette — exact samples from reference screenshots */
   --chart-blue: #3060d0;
-  --chart-purple: #acacf4;
+  --chart-purple: #8b8be8;
   --chart-teal: #4e9b92;
   --chart-amber: #e0b45c;
   --chart-coral: #e07a7a;
@@ -191,15 +191,15 @@ body {
   }
 
   .stratix-card-header {
-    @apply border-b border-slate-100 px-5 py-4 dark:border-slate-700;
+    @apply border-b border-slate-100 px-5 py-4 dark:border-white/[0.06];
   }
 
   .stratix-profile-hero {
-    @apply border-b border-slate-100 bg-gradient-to-br from-primary/10 via-transparent to-transparent px-6 py-6 dark:border-slate-700 dark:from-primary/15;
+    @apply border-b border-slate-100 bg-gradient-to-br from-primary/10 via-transparent to-transparent px-6 py-6 dark:border-white/[0.06] dark:from-primary/15;
   }
 
   .stratix-metric-cell {
-    @apply border-slate-100 px-5 py-4 text-center dark:border-slate-700;
+    @apply border-slate-100 px-5 py-4 text-center dark:border-white/[0.06];
   }
 
   .stratix-task-row {
@@ -207,7 +207,66 @@ body {
   }
 
   .stratix-notification-unread {
-    @apply bg-primary/5;
+    @apply bg-primary/10 dark:bg-primary/20;
+  }
+
+  /* Auth screens — theme-aware (light card on surface / dark glass on navy) */
+  .stratix-auth-page {
+    @apply relative flex min-h-screen items-center justify-center overflow-hidden bg-surface p-6 dark:bg-slate-950;
+  }
+
+  .stratix-auth-wash {
+    @apply pointer-events-none absolute inset-0 bg-gradient-to-b from-slate-100 via-surface to-white dark:from-slate-900 dark:via-slate-950 dark:to-black;
+  }
+
+  .stratix-auth-grid {
+    @apply pointer-events-none absolute inset-0 opacity-40 dark:opacity-60;
+    background-image: radial-gradient(rgba(148, 163, 184, 0.18) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  .dark .stratix-auth-grid {
+    background-image: radial-gradient(rgba(148, 163, 184, 0.1) 1px, transparent 1px);
+  }
+
+  .stratix-auth-glow {
+    @apply pointer-events-none absolute -top-32 left-1/2 h-[28rem] w-[28rem] -translate-x-1/2 rounded-full bg-primary/15 blur-[120px] dark:bg-primary/20;
+  }
+
+  .stratix-auth-card {
+    @apply rounded-2xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/60 dark:border-white/10 dark:bg-white/[0.03] dark:shadow-2xl dark:shadow-black/50 dark:backdrop-blur-xl;
+  }
+
+  .stratix-auth-title {
+    @apply mt-5 text-2xl font-bold tracking-tight text-dark dark:text-white;
+  }
+
+  .stratix-auth-subtitle {
+    @apply mt-1.5 text-sm text-slate-500 dark:text-slate-400;
+  }
+
+  .stratix-auth-label {
+    @apply mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300;
+  }
+
+  .stratix-auth-input {
+    @apply w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-dark outline-none transition placeholder:text-slate-400 focus:border-primary/60 focus:bg-white focus:ring-2 focus:ring-primary/20 dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-slate-500 dark:focus:bg-white/[0.07];
+  }
+
+  .stratix-auth-muted {
+    @apply text-sm text-slate-500 dark:text-slate-400;
+  }
+
+  .stratix-auth-footer {
+    @apply mt-6 text-center text-xs text-slate-400 dark:text-slate-500;
+  }
+
+  .stratix-auth-error {
+    @apply mb-5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300;
+  }
+
+  .stratix-auth-success {
+    @apply rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300;
   }
 }
 

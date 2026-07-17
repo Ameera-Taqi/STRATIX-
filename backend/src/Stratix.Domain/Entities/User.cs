@@ -14,6 +14,8 @@ public class User : ITenantScoped
     public UserStatus Status { get; set; } = UserStatus.ACTIVE;
     public long? DepartmentId { get; set; }
     public Department? Department { get; set; }
+    public long? OrganizationRoleId { get; set; }
+    public OrganizationRole? OrganizationRole { get; set; }
     public int FailedLoginAttempts { get; set; }
     public DateTimeOffset? LockoutUntil { get; set; }
     public DateTimeOffset CreatedAt { get; set; }

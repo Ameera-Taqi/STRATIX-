@@ -27,7 +27,9 @@ import {
   CHART_PRIORITY,
   CHART_RISK,
   chartSeriesColor,
+  chartTrackColor,
 } from '../../shared/components/charts/chart-palette';
+import { ThemeService } from '../../core/theme/theme.service';
 
 const LOAD_COLORS = CHART_LOAD;
 const PRIORITY_COLORS: Record<string, string> = { ...CHART_PRIORITY };
@@ -89,6 +91,7 @@ export class DashboardComponent implements OnInit {
   private readonly insights = inject(DashboardInsightsService);
   private readonly lang = inject(LanguageService);
   private readonly projectHealthService = inject(ProjectHealthService);
+  private readonly theme = inject(ThemeService);
 
   readonly apiConnected = signal(false);
   readonly projectHealth = this.projectHealthService.all;
@@ -153,7 +156,7 @@ export class DashboardComponent implements OnInit {
 
       { label: this.lang.t('dashboard.health.' + h.status), value: h.score, color: HEALTH_COLORS[h.status] },
 
-      { label: this.lang.t('dashboard.chartRemaining'), value: 100 - h.score, color: CHART_COLORS.trackLight },
+      { label: this.lang.t('dashboard.chartRemaining'), value: 100 - h.score, color: chartTrackColor(this.theme.isDark()) },
 
     ];
 
@@ -273,7 +276,7 @@ export class DashboardComponent implements OnInit {
 
     return segments.length > 0
       ? segments
-      : [{ label: this.lang.t('risks.statTotal'), value: 1, color: CHART_COLORS.trackLight }];
+      : [{ label: this.lang.t('risks.statTotal'), value: 1, color: chartTrackColor(this.theme.isDark()) }];
 
   });
 

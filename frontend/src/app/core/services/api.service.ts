@@ -6,7 +6,7 @@ import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 
-import { LoginRequest, LoginResponse, AuthUserProfile, ForgotPasswordRequest, ResetPasswordRequest, MessageResponse, UpdateMyProfileRequest } from '../models/auth.model';
+import { LoginRequest, LoginResponse, RegisterOrganizationRequest, AuthUserProfile, ForgotPasswordRequest, ResetPasswordRequest, MessageResponse, UpdateMyProfileRequest } from '../models/auth.model';
 
 import {
 
@@ -60,6 +60,10 @@ export class ApiService {
 
     return this.http.post<LoginResponse>(`${this.base}/auth/login`, body);
 
+  }
+
+  registerOrganization(body: RegisterOrganizationRequest): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${this.base}/auth/register`, body);
   }
 
   forgotPassword(body: ForgotPasswordRequest): Observable<MessageResponse> {

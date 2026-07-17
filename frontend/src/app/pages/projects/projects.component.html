@@ -56,17 +56,24 @@
         } @else {
           @for (p of filtered(); track p.id) {
             <tr class="stratix-table-row">
-              <td class="px-5 py-3 font-medium">{{ p.name }}</td>
-              <td class="px-5 py-3 text-slate-600 dark:text-slate-300">{{ p.department }}</td>
-              <td class="px-5 py-3">{{ p.manager }}</td>
-              <td class="px-5 py-3 text-slate-600 dark:text-slate-300">{{ p.startDate }}</td>
-              <td class="px-5 py-3 text-slate-600 dark:text-slate-300">{{ p.endDate }}</td>
-              <td class="px-5 py-3">
+              <td class="px-5 py-4 font-semibold text-dark dark:text-slate-100">{{ p.name }}</td>
+              <td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ p.department }}</td>
+              <td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ p.manager }}</td>
+              <td class="px-5 py-4 text-slate-500 dark:text-slate-400 tabular-nums">{{ p.startDate }}</td>
+              <td class="px-5 py-4 text-slate-500 dark:text-slate-400 tabular-nums">{{ p.endDate }}</td>
+              <td class="px-5 py-4">
                 <app-project-health-score [health]="healthFor(p.id)" [compact]="true" />
               </td>
-              <td class="px-5 py-3">{{ p.progress }}%</td>
-              <td class="px-5 py-3"><app-status-badge [status]="p.status" /></td>
-              <td class="px-5 py-3">
+              <td class="px-5 py-4">
+                <div class="flex items-center gap-2">
+                  <div class="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                    <div class="h-full rounded-full bg-primary" [style.width.%]="p.progress"></div>
+                  </div>
+                  <span class="text-xs font-medium tabular-nums text-slate-600 dark:text-slate-300">{{ p.progress }}%</span>
+                </div>
+              </td>
+              <td class="px-5 py-4"><app-status-badge [status]="p.status" /></td>
+              <td class="px-5 py-4">
                 <div class="flex flex-wrap items-center gap-3">
                   <a [routerLink]="['/projects', p.id]" class="text-primary hover:underline">{{ 'common.view' | t }}</a>
                   @if (canDelete()) {

@@ -12,17 +12,30 @@ public class UserService : IUserService
     private readonly IApplicationDbContext _db;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IAuditTrailService _audit;
+    private readonly IPlanLimitService _planLimits;
 
-    public UserService(IApplicationDbContext db, IPasswordHasher passwordHasher, IAuditTrailService audit)
+    public UserService(IApplicationDbContext db, IPasswordHasher passwordHasher, IAuditTrailService audit, IPlanLimitService planLimits)
     {
         _db = db;
         _passwordHasher = passwordHasher;
         _audit = audit;
+        _planLimits = planLimits;
     }
 
     public async Task<IReadOnlyList<UserResponse>> GetAllAsync(CancellationToken ct = default) =>
         await _db.Users.Include(u => u.Department).OrderBy(u => u.Name)
             .Select(u => EntityMappers.ToResponse(u)).ToListAsync(ct);
+
+    public async Task<Common.PagedResult<UserResponse>> GetPagedAsync(int page, int pageSize, CancellationToken ct = default)
+    {
+        var (p, size) = Common.PageQuery.Normalize(page, pageSize);
+        var query = _db.Users.Include(u => u.Department);
+        var total = await query.CountAsync(ct);
+        var items = await query.OrderBy(u => u.Name)
+            .Skip((p - 1) * size).Take(size)
+            .Select(u => EntityMappers.ToResponse(u)).ToListAsync(ct);
+        return new Common.PagedResult<UserResponse>(items, total, p, size);
+    }
 
     public async Task<UserResponse> GetByIdAsync(long id, CancellationToken ct = default)
     {
@@ -32,6 +45,7 @@ public class UserService : IUserService
 
     public async Task<UserResponse> CreateAsync(CreateUserRequest request, CancellationToken ct = default)
     {
+        await _planLimits.EnsureCanAddUserAsync(ct);
         if (await _db.Users.AnyAsync(u => u.Email == request.Email.Trim().ToLowerInvariant(), ct))
             throw new InvalidOperationException("Email already in use");
 

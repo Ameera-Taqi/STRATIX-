@@ -28,6 +28,8 @@ public static class EnumDisplayMapper
 
     public static string UserRoleDisplay(UserRole role) => role switch
     {
+        UserRole.SUPER_ADMIN => "Super Admin",
+        UserRole.ORG_ADMIN => "Organization Admin",
         UserRole.ADMIN => "Admin",
         UserRole.PROJECT_MANAGER => "Project Manager",
         UserRole.TEAM_LEADER => "Team Leader",

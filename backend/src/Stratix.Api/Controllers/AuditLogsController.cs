@@ -7,7 +7,7 @@ namespace Stratix.Api.Controllers;
 
 [ApiController]
 [Route("api/audit-logs")]
-[Authorize(Roles = "ADMIN,PROJECT_MANAGER,TEAM_LEADER,EXECUTIVE_VIEWER")]
+[Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN,PROJECT_MANAGER,TEAM_LEADER,EXECUTIVE_VIEWER")]
 public class AuditLogsController : ControllerBase
 {
     private readonly IAuditTrailService _audit;

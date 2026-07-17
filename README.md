@@ -26,7 +26,7 @@ Satrtix/
 ├── START_HERE.md      ← roadmap & current phase
 ├── docs/              ← Modules, roles, ERD
 ├── database/schema/   ← SQL Server scripts (run in SSMS)
-├── backend/           ← Spring Boot API
+├── backend/           ← ASP.NET Core 8 API (Clean Architecture, EF Core)
 └── frontend/          ← Angular dashboard
 ```
 

@@ -7,7 +7,7 @@ namespace Stratix.Api.Controllers;
 
 [ApiController]
 [Route("api/projects")]
-[Authorize(Roles = "ADMIN,PROJECT_MANAGER,EMPLOYEE,TEAM_LEADER,EXECUTIVE_VIEWER")]
+[Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN,PROJECT_MANAGER,EMPLOYEE,TEAM_LEADER,EXECUTIVE_VIEWER")]
 public class ProjectsController : ControllerBase
 {
     private readonly IProjectService _projects;
@@ -15,13 +15,22 @@ public class ProjectsController : ControllerBase
     public ProjectsController(IProjectService projects) => _projects = projects;
 
     [HttpGet]
-    public async Task<IReadOnlyList<ProjectResponse>> GetAll(CancellationToken ct) => await _projects.GetAllAsync(ct);
+    public async Task<IReadOnlyList<ProjectResponse>> GetAll([FromQuery] int? page, [FromQuery] int? pageSize, CancellationToken ct)
+    {
+        if (pageSize is > 0)
+        {
+            var paged = await _projects.GetPagedAsync(page ?? 1, pageSize.Value, ct);
+            PagingHeaders.Apply(Response, paged.Total, paged.Page, paged.PageSize, paged.TotalPages);
+            return paged.Items;
+        }
+        return await _projects.GetAllAsync(ct);
+    }
 
     [HttpGet("{id:long}")]
     public async Task<ProjectResponse> Get(long id, CancellationToken ct) => await _projects.GetByIdAsync(id, ct);
 
     [HttpPost]
-    [Authorize(Roles = "ADMIN,PROJECT_MANAGER")]
+    [Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN,PROJECT_MANAGER")]
     public async Task<ActionResult<ProjectResponse>> Create([FromBody] CreateProjectRequest request, CancellationToken ct)
     {
         var project = await _projects.CreateAsync(request, ct);
@@ -29,12 +38,12 @@ public class ProjectsController : ControllerBase
     }
 
     [HttpPut("{id:long}")]
-    [Authorize(Roles = "ADMIN,PROJECT_MANAGER")]
+    [Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN,PROJECT_MANAGER")]
     public async Task<ProjectResponse> Update(long id, [FromBody] UpdateProjectRequest request, CancellationToken ct) =>
         await _projects.UpdateAsync(id, request, ct);
 
     [HttpDelete("{id:long}")]
-    [Authorize(Roles = "ADMIN,PROJECT_MANAGER")]
+    [Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN,PROJECT_MANAGER")]
     public async Task<IActionResult> Delete(long id, CancellationToken ct)
     {
         await _projects.DeleteAsync(id, ct);

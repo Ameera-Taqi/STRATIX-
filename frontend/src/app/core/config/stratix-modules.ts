@@ -156,6 +156,8 @@ export function canAccessModule(
   role: UserRole,
   mode: 'read' | 'write' = 'read'
 ): boolean {
+  // Platform and organization administrators have full access to every module.
+  if (role === 'SUPER_ADMIN' || role === 'ORG_ADMIN') return true;
   const list = mode === 'write' ? module.rolesWrite : module.rolesRead;
   return list.includes(role);
 }

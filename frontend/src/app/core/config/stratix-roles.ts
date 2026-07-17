@@ -8,6 +8,8 @@ export interface StratixRole {
 }
 
 export const STRATIX_ROLES: readonly StratixRole[] = [
+  { id: 6, code: 'SUPER_ADMIN', labelKey: 'role.superAdmin' },
+  { id: 7, code: 'ORG_ADMIN', labelKey: 'role.orgAdmin' },
   { id: 1, code: 'ADMIN', labelKey: 'role.admin' },
   { id: 2, code: 'PROJECT_MANAGER', labelKey: 'role.projectManager' },
   { id: 3, code: 'TEAM_LEADER', labelKey: 'role.teamLeader' },

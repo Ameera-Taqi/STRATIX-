@@ -2,9 +2,10 @@ using Stratix.Domain.Enums;
 
 namespace Stratix.Domain.Entities;
 
-public class Project
+public class Project : ITenantScoped
 {
     public long Id { get; set; }
+    public long OrganizationId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public ProjectStatus Status { get; set; } = ProjectStatus.PLANNED;

@@ -14,7 +14,7 @@ public class AiController : ControllerBase
     public AiController(IProjectHealthAnalysisService analysis) => _analysis = analysis;
 
     [HttpPost("project-health-analysis")]
-    [Authorize(Roles = "ADMIN,PROJECT_MANAGER,EXECUTIVE_VIEWER,TEAM_LEADER")]
+    [Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN,PROJECT_MANAGER,EXECUTIVE_VIEWER,TEAM_LEADER")]
     public async Task<ProjectHealthAnalysisResponse> Analyze([FromBody] ProjectHealthAnalysisRequest request, CancellationToken ct) =>
         await _analysis.AnalyzeAsync(request, ct);
 }

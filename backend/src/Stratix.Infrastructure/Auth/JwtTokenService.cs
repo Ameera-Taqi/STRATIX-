@@ -28,6 +28,7 @@ public class JwtTokenService : IJwtTokenService
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new Claim("userId", user.Id.ToString()),
+            new Claim("orgId", user.OrganizationId.ToString()),
             new Claim("email", user.Email),
             new Claim("role", user.Role.ToString()),
             new Claim("name", user.Name),

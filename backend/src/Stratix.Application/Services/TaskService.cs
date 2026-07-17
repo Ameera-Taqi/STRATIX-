@@ -32,6 +32,23 @@ public class TaskService : ITaskService
             .Select(t => EntityMappers.ToResponse(t)).ToListAsync(ct);
     }
 
+    public async Task<Common.PagedResult<TaskResponse>> GetPagedAsync(long? projectId, int page, int pageSize, CancellationToken ct = default)
+    {
+        var (p, size) = Common.PageQuery.Normalize(page, pageSize);
+        var query = Query();
+        if (projectId.HasValue)
+        {
+            if (!await _db.Projects.AnyAsync(x => x.Id == projectId, ct))
+                throw new KeyNotFoundException("Project not found");
+            query = query.Where(t => t.ProjectId == projectId);
+        }
+        var total = await query.CountAsync(ct);
+        var items = await query.OrderBy(t => t.DueDate).ThenBy(t => t.Title)
+            .Skip((p - 1) * size).Take(size)
+            .Select(t => EntityMappers.ToResponse(t)).ToListAsync(ct);
+        return new Common.PagedResult<TaskResponse>(items, total, p, size);
+    }
+
     public async Task<TaskResponse> GetByIdAsync(long id, CancellationToken ct = default) =>
         EntityMappers.ToResponse(await FindAsync(id, ct));
 

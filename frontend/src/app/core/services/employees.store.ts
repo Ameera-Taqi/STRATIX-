@@ -258,6 +258,8 @@ export class EmployeesStore {
 
   private toRoleCode(role: string): UserRole {
     const map: Record<string, UserRole> = {
+      'Super Admin': 'SUPER_ADMIN',
+      'Org Admin': 'ORG_ADMIN',
       Admin: 'ADMIN',
       'Project Manager': 'PROJECT_MANAGER',
       'Team Leader': 'TEAM_LEADER',
@@ -273,6 +275,8 @@ export class EmployeesStore {
 
   private roleLabel(role: UserRole): string {
     const map: Record<UserRole, string> = {
+      SUPER_ADMIN: 'Super Admin',
+      ORG_ADMIN: 'Org Admin',
       ADMIN: 'Admin',
       PROJECT_MANAGER: 'Project Manager',
       TEAM_LEADER: 'Team Leader',

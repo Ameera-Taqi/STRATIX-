@@ -2,9 +2,10 @@ using Stratix.Domain.Enums;
 
 namespace Stratix.Domain.Entities;
 
-public class AuditLog
+public class AuditLog : ITenantScoped
 {
     public long Id { get; set; }
+    public long OrganizationId { get; set; }
     public long? UserId { get; set; }
     public string? UserName { get; set; }
     public AuditAction Action { get; set; }

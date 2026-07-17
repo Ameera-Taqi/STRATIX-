@@ -1,7 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Observable, catchError, map, of, tap } from 'rxjs';
-import { AuthUserProfile, UpdateMyProfileRequest } from '../models/auth.model';
+import { AuthUserProfile, RegisterOrganizationRequest, UpdateMyProfileRequest } from '../models/auth.model';
 import { UserRole } from '../models/user.model';
 import { ApiService } from './api.service';
 import { CurrentUserProfile, CurrentUserService } from './current-user.service';
@@ -27,6 +27,18 @@ export class AuthService {
       }),
       map(() => true),
       catchError(() => of(false)),
+    );
+  }
+
+  register(body: RegisterOrganizationRequest, remember = false): Observable<{ ok: boolean; error?: string }> {
+    return this.api.registerOrganization(body).pipe(
+      tap((response) => {
+        setAuthToken(response.token, remember);
+        this._token.set(response.token);
+        this.currentUser.setProfile(this.toCurrentProfile(response.user));
+      }),
+      map(() => ({ ok: true })),
+      catchError((err) => of({ ok: false, error: err?.error?.message ?? 'auth.registerError' })),
     );
   }
 

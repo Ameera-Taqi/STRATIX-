@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Stratix.Application.DTOs.Auth;
 using Stratix.Application.Interfaces;
 
@@ -7,6 +8,7 @@ namespace Stratix.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
+[EnableRateLimiting("auth")]
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _auth;
@@ -18,12 +20,37 @@ public class AuthController : ControllerBase
         _passwordReset = passwordReset;
     }
 
+    [HttpPost("register")]
+    [AllowAnonymous]
+    public async Task<ActionResult<LoginResponse>> Register([FromBody] RegisterOrganizationRequest request, CancellationToken ct)
+    {
+        try { return Ok(await _auth.RegisterOrganizationAsync(request, ct)); }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
+    }
+
     [HttpPost("login")]
     [AllowAnonymous]
     public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest request, CancellationToken ct)
     {
         try { return Ok(await _auth.LoginAsync(request.Username, request.Password, ct)); }
         catch (UnauthorizedAccessException) { return Unauthorized(new { message = "Invalid credentials" }); }
+    }
+
+    [HttpPost("refresh")]
+    [AllowAnonymous]
+    public async Task<ActionResult<LoginResponse>> Refresh([FromBody] RefreshTokenRequest request, CancellationToken ct)
+    {
+        try { return Ok(await _auth.RefreshAsync(request.RefreshToken, ct)); }
+        catch (UnauthorizedAccessException) { return Unauthorized(new { message = "Invalid refresh token" }); }
+    }
+
+    [HttpPost("logout")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest request, CancellationToken ct)
+    {
+        await _auth.LogoutAsync(request.RefreshToken, ct);
+        return NoContent();
     }
 
     [HttpGet("me")]

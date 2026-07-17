@@ -31,10 +31,14 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function statusFromScore(score: number): HealthStatus {
+function statusFromScore(score: number, factors: ProjectHealthFactors): HealthStatus {
   if (score >= 70) return 'HEALTHY';
   if (score >= 45) return 'WARNING';
-  return 'CRITICAL';
+  // A low score alone doesn't mean trouble — a brand-new, not-yet-started project
+  // scores low simply because there's nothing to measure. Reserve CRITICAL (red) for
+  // projects with real warning signals: overdue tasks or open critical risks.
+  const hasRealTrouble = factors.delayedTasks > 0 || factors.criticalRisks > 0;
+  return hasRealTrouble ? 'CRITICAL' : 'WARNING';
 }
 
 function noteKeyFromFactors(factors: ProjectHealthFactors): string {
@@ -69,7 +73,7 @@ export function computeProjectHealth(input: HealthComputeInput): ProjectHealthRe
     projectId: input.project.id,
     projectName: input.project.name,
     score,
-    status: statusFromScore(score),
+    status: statusFromScore(score, factors),
     progress: input.project.progress,
     trend: trendFromScore(score, factors),
     noteKey: noteKeyFromFactors(factors),

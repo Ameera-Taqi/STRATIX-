@@ -11,21 +11,35 @@ public class ProjectService : IProjectService
 {
     private readonly IApplicationDbContext _db;
     private readonly IAuditTrailService _audit;
+    private readonly IPlanLimitService _planLimits;
 
-    public ProjectService(IApplicationDbContext db, IAuditTrailService audit)
+    public ProjectService(IApplicationDbContext db, IAuditTrailService audit, IPlanLimitService planLimits)
     {
         _db = db;
         _audit = audit;
+        _planLimits = planLimits;
     }
 
     public async Task<IReadOnlyList<ProjectResponse>> GetAllAsync(CancellationToken ct = default) =>
         await Query().OrderBy(p => p.Name).Select(p => EntityMappers.ToResponse(p)).ToListAsync(ct);
+
+    public async Task<Common.PagedResult<ProjectResponse>> GetPagedAsync(int page, int pageSize, CancellationToken ct = default)
+    {
+        var (p, size) = Common.PageQuery.Normalize(page, pageSize);
+        var query = Query();
+        var total = await query.CountAsync(ct);
+        var items = await query.OrderBy(x => x.Name)
+            .Skip((p - 1) * size).Take(size)
+            .Select(x => EntityMappers.ToResponse(x)).ToListAsync(ct);
+        return new Common.PagedResult<ProjectResponse>(items, total, p, size);
+    }
 
     public async Task<ProjectResponse> GetByIdAsync(long id, CancellationToken ct = default) =>
         EntityMappers.ToResponse(await FindAsync(id, ct));
 
     public async Task<ProjectResponse> CreateAsync(CreateProjectRequest request, CancellationToken ct = default)
     {
+        await _planLimits.EnsureCanAddProjectAsync(ct);
         var project = new Project
         {
             Name = request.Name.Trim(),

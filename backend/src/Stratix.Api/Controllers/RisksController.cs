@@ -7,7 +7,7 @@ namespace Stratix.Api.Controllers;
 
 [ApiController]
 [Route("api/risks")]
-[Authorize(Roles = "ADMIN,PROJECT_MANAGER,EMPLOYEE,TEAM_LEADER,EXECUTIVE_VIEWER")]
+[Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN,PROJECT_MANAGER,EMPLOYEE,TEAM_LEADER,EXECUTIVE_VIEWER")]
 public class RisksController : ControllerBase
 {
     private readonly IRiskService _risks;
@@ -42,7 +42,7 @@ public class RisksController : ControllerBase
     public async Task<RiskResponse> Get(long id, CancellationToken ct) => await _risks.GetByIdAsync(id, ct);
 
     [HttpPost]
-    [Authorize(Roles = "ADMIN,PROJECT_MANAGER")]
+    [Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN,PROJECT_MANAGER")]
     public async Task<ActionResult<RiskResponse>> Create([FromBody] CreateRiskRequest request, CancellationToken ct)
     {
         var risk = await _risks.CreateAsync(request, ct);
@@ -50,12 +50,12 @@ public class RisksController : ControllerBase
     }
 
     [HttpPut("{id:long}")]
-    [Authorize(Roles = "ADMIN,PROJECT_MANAGER")]
+    [Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN,PROJECT_MANAGER")]
     public async Task<RiskResponse> Update(long id, [FromBody] UpdateRiskRequest request, CancellationToken ct) =>
         await _risks.UpdateAsync(id, request, ct);
 
     [HttpDelete("{id:long}")]
-    [Authorize(Roles = "ADMIN")]
+    [Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN")]
     public async Task<IActionResult> Delete(long id, CancellationToken ct)
     {
         await _risks.DeleteAsync(id, ct);

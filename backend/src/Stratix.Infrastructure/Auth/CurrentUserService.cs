@@ -21,6 +21,15 @@ public class CurrentUserService : ICurrentUserService
         }
     }
 
+    public long? OrganizationId
+    {
+        get
+        {
+            var orgId = _http.HttpContext?.User.FindFirst("orgId")?.Value;
+            return long.TryParse(orgId, out var id) ? id : null;
+        }
+    }
+
     public string? UserName => _http.HttpContext?.User.FindFirst("name")?.Value
         ?? _http.HttpContext?.User.FindFirst(ClaimTypes.Name)?.Value;
 

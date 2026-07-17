@@ -17,6 +17,15 @@ export interface LoginResponse {
   token: string;
   expiresIn: number;
   user: AuthUserProfile;
+  refreshToken?: string;
+}
+
+export interface RegisterOrganizationRequest {
+  organizationName: string;
+  adminName: string;
+  adminEmail: string;
+  password: string;
+  slug?: string;
 }
 
 export interface ForgotPasswordRequest {

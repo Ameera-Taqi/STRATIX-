@@ -1,4 +1,7 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Stratix.Application.DTOs.Auth;
 using Stratix.Application.Interfaces;
 using Stratix.Application.Mapping;
@@ -9,6 +12,9 @@ namespace Stratix.Application.Services;
 
 public class AuthService : IAuthService
 {
+    private const int MaxFailedAttempts = 5;
+    private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
+
     private static readonly Dictionary<string, string> LoginAliases = new(StringComparer.OrdinalIgnoreCase)
     {
         ["admin"] = "admin@stratix.local",
@@ -29,16 +35,166 @@ public class AuthService : IAuthService
         _currentUser = currentUser;
     }
 
+    public async Task<LoginResponse> RegisterOrganizationAsync(RegisterOrganizationRequest request, CancellationToken ct = default)
+    {
+        var name = request.OrganizationName?.Trim() ?? "";
+        var adminName = request.AdminName?.Trim() ?? "";
+        var email = request.AdminEmail?.Trim().ToLowerInvariant() ?? "";
+
+        if (name.Length == 0 || adminName.Length == 0 || email.Length == 0 || string.IsNullOrWhiteSpace(request.Password))
+            throw new ArgumentException("Organization name, admin name, email and password are required.");
+        if (await _db.Users.AnyAsync(u => u.Email == email, ct))
+            throw new InvalidOperationException("Email already in use.");
+
+        var now = DateTimeOffset.UtcNow;
+
+        // Organization + first ORG_ADMIN + trial subscription are created atomically:
+        // if any part fails, nothing is persisted (no half-registered tenant).
+        await using var tx = await _db.BeginTransactionAsync(ct);
+        try
+        {
+            var org = new Organization
+            {
+                Name = name,
+                Slug = await GenerateUniqueSlugAsync(request.Slug, name, ct),
+                Status = OrganizationStatus.ACTIVE,
+                SubscriptionPlan = SubscriptionPlan.FREE,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            _db.Add(org);
+            await _db.SaveChangesAsync(ct);
+
+            var admin = new User
+            {
+                OrganizationId = org.Id,
+                Name = adminName,
+                Email = email,
+                Password = _passwordHasher.Hash(request.Password),
+                Role = UserRole.ORG_ADMIN,
+                JobTitle = "Organization Administrator",
+                Status = UserStatus.ACTIVE,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            _db.Add(admin);
+
+            var subscription = new Subscription
+            {
+                OrganizationId = org.Id,
+                PlanCode = "TRIAL",
+                Status = SubscriptionStatus.TRIALING,
+                StartedAt = now,
+                TrialEndsAt = now.AddDays(14),
+                CreatedAt = now
+            };
+            _db.Add(subscription);
+            await _db.SaveChangesAsync(ct);
+
+            var refresh = await IssueRefreshTokenAsync(admin.Id, ct);
+            await tx.CommitAsync(ct);
+            return new LoginResponse(_jwt.GenerateToken(admin), _jwt.GetExpirationSeconds(), EntityMappers.ToProfile(admin), refresh);
+        }
+        catch
+        {
+            await tx.RollbackAsync(ct);
+            throw;
+        }
+    }
+
+    private async Task<string> GenerateUniqueSlugAsync(string? requestedSlug, string name, CancellationToken ct)
+    {
+        var source = !string.IsNullOrWhiteSpace(requestedSlug) ? requestedSlug! : name;
+        var baseSlug = new string(source.ToLowerInvariant().Select(c => char.IsLetterOrDigit(c) ? c : '-').ToArray())
+            .Trim('-');
+        while (baseSlug.Contains("--")) baseSlug = baseSlug.Replace("--", "-");
+        if (baseSlug.Length == 0) baseSlug = "org";
+
+        var slug = baseSlug;
+        var suffix = 1;
+        while (await _db.Organizations.AnyAsync(o => o.Slug == slug, ct))
+            slug = $"{baseSlug}-{++suffix}";
+        return slug;
+    }
+
     public async Task<LoginResponse> LoginAsync(string username, string password, CancellationToken ct = default)
     {
         var user = await ResolveUserAsync(username, ct)
             ?? throw new UnauthorizedAccessException("Invalid credentials");
 
-        if (user.Status != UserStatus.ACTIVE || !_passwordHasher.Verify(password, user.Password))
-            throw new UnauthorizedAccessException("Invalid credentials");
+        if (user.LockoutUntil is { } until && until > DateTimeOffset.UtcNow)
+            throw new UnauthorizedAccessException("Account temporarily locked due to repeated failed attempts. Try again later.");
 
-        return new LoginResponse(_jwt.GenerateToken(user), _jwt.GetExpirationSeconds(), EntityMappers.ToProfile(user));
+        if (user.Status != UserStatus.ACTIVE || !_passwordHasher.Verify(password, user.Password))
+        {
+            user.FailedLoginAttempts += 1;
+            if (user.FailedLoginAttempts >= MaxFailedAttempts)
+            {
+                user.LockoutUntil = DateTimeOffset.UtcNow.Add(LockoutDuration);
+                user.FailedLoginAttempts = 0;
+            }
+            user.UpdatedAt = DateTimeOffset.UtcNow;
+            await _db.SaveChangesAsync(ct);
+            throw new UnauthorizedAccessException("Invalid credentials");
+        }
+
+        if (user.FailedLoginAttempts != 0 || user.LockoutUntil != null)
+        {
+            user.FailedLoginAttempts = 0;
+            user.LockoutUntil = null;
+            await _db.SaveChangesAsync(ct);
+        }
+
+        var refresh = await IssueRefreshTokenAsync(user.Id, ct);
+        return new LoginResponse(_jwt.GenerateToken(user), _jwt.GetExpirationSeconds(), EntityMappers.ToProfile(user), refresh);
     }
+
+    public async Task<LoginResponse> RefreshAsync(string refreshToken, CancellationToken ct = default)
+    {
+        var hash = HashToken(refreshToken ?? "");
+        var token = await _db.RefreshTokens.Include(t => t.User).ThenInclude(u => u.Department)
+            .FirstOrDefaultAsync(t => t.TokenHash == hash && t.RevokedAt == null && t.ExpiresAt > DateTimeOffset.UtcNow, ct)
+            ?? throw new UnauthorizedAccessException("Invalid refresh token");
+
+        if (token.User.Status != UserStatus.ACTIVE)
+            throw new UnauthorizedAccessException("Invalid refresh token");
+
+        // Rotate: the presented token is single-use.
+        token.RevokedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        var newRefresh = await IssueRefreshTokenAsync(token.User.Id, ct);
+        return new LoginResponse(_jwt.GenerateToken(token.User), _jwt.GetExpirationSeconds(), EntityMappers.ToProfile(token.User), newRefresh);
+    }
+
+    public async Task LogoutAsync(string refreshToken, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(refreshToken)) return;
+        var hash = HashToken(refreshToken);
+        var token = await _db.RefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == hash && t.RevokedAt == null, ct);
+        if (token != null)
+        {
+            token.RevokedAt = DateTimeOffset.UtcNow;
+            await _db.SaveChangesAsync(ct);
+        }
+    }
+
+    private async Task<string> IssueRefreshTokenAsync(long userId, CancellationToken ct)
+    {
+        var raw = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+        _db.Add(new RefreshToken
+        {
+            UserId = userId,
+            TokenHash = HashToken(raw),
+            ExpiresAt = DateTimeOffset.UtcNow.AddDays(30),
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+        await _db.SaveChangesAsync(ct);
+        return raw;
+    }
+
+    private static string HashToken(string raw) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
 
     public async Task<AuthUserProfile> GetCurrentUserAsync(CancellationToken ct = default)
     {

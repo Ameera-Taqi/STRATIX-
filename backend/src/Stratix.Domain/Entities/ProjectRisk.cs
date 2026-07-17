@@ -2,9 +2,10 @@ using Stratix.Domain.Enums;
 
 namespace Stratix.Domain.Entities;
 
-public class ProjectRisk
+public class ProjectRisk : ITenantScoped
 {
     public long Id { get; set; }
+    public long OrganizationId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public RiskImpact Impact { get; set; }

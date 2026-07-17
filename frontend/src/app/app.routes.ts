@@ -16,6 +16,7 @@ import { RiskDetailComponent } from './pages/risks/risk-detail.component';
 import { TimelineComponent } from './pages/timeline/timeline.component';
 import { AuditLogComponent } from './pages/audit-log/audit-log.component';
 import { LoginComponent } from './pages/auth/login.component';
+import { RegisterComponent } from './pages/auth/register.component';
 import { ForgotPasswordComponent } from './pages/auth/forgot-password.component';
 import { ResetPasswordComponent } from './pages/auth/reset-password.component';
 import { authGuard, guestGuard } from './core/guards/auth.guard';
@@ -23,6 +24,7 @@ import { authGuard, guestGuard } from './core/guards/auth.guard';
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'auth/login' },
   { path: 'auth/login', component: LoginComponent, canActivate: [guestGuard] },
+  { path: 'auth/register', component: RegisterComponent, canActivate: [guestGuard] },
   { path: 'auth/forgot-password', component: ForgotPasswordComponent, canActivate: [guestGuard] },
   { path: 'auth/reset-password', component: ResetPasswordComponent, canActivate: [guestGuard] },
   {

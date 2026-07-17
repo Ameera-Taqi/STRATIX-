@@ -2,9 +2,10 @@ using Stratix.Domain.Enums;
 
 namespace Stratix.Domain.Entities;
 
-public class TaskItem
+public class TaskItem : ITenantScoped
 {
     public long Id { get; set; }
+    public long OrganizationId { get; set; }
     public long ProjectId { get; set; }
     public Project Project { get; set; } = null!;
     public long? StageId { get; set; }

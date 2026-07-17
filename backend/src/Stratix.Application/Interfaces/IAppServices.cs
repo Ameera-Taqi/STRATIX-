@@ -13,9 +13,64 @@ using Stratix.Domain.Enums;
 
 namespace Stratix.Application.Interfaces;
 
+public interface IMilestoneService
+{
+    Task<IReadOnlyList<Stratix.Application.DTOs.Milestones.MilestoneResponse>> GetAllAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<Stratix.Application.DTOs.Milestones.MilestoneResponse>> GetByProjectAsync(long projectId, CancellationToken ct = default);
+    Task<Stratix.Application.DTOs.Milestones.MilestoneResponse> GetByIdAsync(long id, CancellationToken ct = default);
+    Task<Stratix.Application.DTOs.Milestones.MilestoneResponse> CreateAsync(Stratix.Application.DTOs.Milestones.CreateMilestoneRequest request, CancellationToken ct = default);
+    Task<Stratix.Application.DTOs.Milestones.MilestoneResponse> UpdateAsync(long id, Stratix.Application.DTOs.Milestones.UpdateMilestoneRequest request, CancellationToken ct = default);
+    Task DeleteAsync(long id, CancellationToken ct = default);
+}
+
+public interface IChangeRequestService
+{
+    Task<IReadOnlyList<Stratix.Application.DTOs.ChangeRequests.ChangeRequestResponse>> GetAllAsync(long? projectId, CancellationToken ct = default);
+    Task<Stratix.Application.DTOs.ChangeRequests.ChangeRequestResponse> GetByIdAsync(long id, CancellationToken ct = default);
+    Task<Stratix.Application.DTOs.ChangeRequests.ChangeRequestResponse> CreateAsync(Stratix.Application.DTOs.ChangeRequests.CreateChangeRequestRequest request, CancellationToken ct = default);
+    Task<Stratix.Application.DTOs.ChangeRequests.ChangeRequestResponse> UpdateAsync(long id, Stratix.Application.DTOs.ChangeRequests.UpdateChangeRequestRequest request, CancellationToken ct = default);
+    Task DeleteAsync(long id, CancellationToken ct = default);
+}
+
+public interface IEmployeeKpiService
+{
+    Task<IReadOnlyList<Stratix.Application.DTOs.EmployeeKpis.EmployeeKpiResponse>> GetAllAsync(long? userId, CancellationToken ct = default);
+    Task<Stratix.Application.DTOs.EmployeeKpis.EmployeeKpiResponse> GetByIdAsync(long id, CancellationToken ct = default);
+    Task<Stratix.Application.DTOs.EmployeeKpis.EmployeeKpiResponse> CreateAsync(Stratix.Application.DTOs.EmployeeKpis.CreateEmployeeKpiRequest request, CancellationToken ct = default);
+    Task<Stratix.Application.DTOs.EmployeeKpis.EmployeeKpiResponse> UpdateAsync(long id, Stratix.Application.DTOs.EmployeeKpis.UpdateEmployeeKpiRequest request, CancellationToken ct = default);
+    Task DeleteAsync(long id, CancellationToken ct = default);
+}
+
+public interface INotificationService
+{
+    Task<IReadOnlyList<Stratix.Application.DTOs.Notifications.NotificationResponse>> GetMineAsync(CancellationToken ct = default);
+    Task<Stratix.Application.DTOs.Notifications.NotificationResponse> CreateAsync(Stratix.Application.DTOs.Notifications.CreateNotificationRequest request, CancellationToken ct = default);
+    Task MarkReadAsync(long id, CancellationToken ct = default);
+    Task MarkAllReadAsync(CancellationToken ct = default);
+    Task DeleteAsync(long id, CancellationToken ct = default);
+}
+
+public interface IProjectFileService
+{
+    Task<IReadOnlyList<Stratix.Application.DTOs.ProjectFiles.ProjectFileResponse>> GetByProjectAsync(long projectId, CancellationToken ct = default);
+    Task<Stratix.Application.DTOs.ProjectFiles.ProjectFileResponse> CreateAsync(Stratix.Application.DTOs.ProjectFiles.CreateProjectFileRequest request, CancellationToken ct = default);
+    Task DeleteAsync(long id, CancellationToken ct = default);
+}
+
+public interface IOrganizationService
+{
+    Task<Stratix.Application.DTOs.Organizations.OrganizationResponse?> GetCurrentAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<Stratix.Application.DTOs.Organizations.OrganizationResponse>> GetAllAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<Stratix.Application.DTOs.Organizations.PlanResponse>> GetPlansAsync(CancellationToken ct = default);
+    Task<Stratix.Application.DTOs.Organizations.SubscriptionResponse?> GetCurrentSubscriptionAsync(CancellationToken ct = default);
+}
+
 public interface IAuthService
 {
+    Task<LoginResponse> RegisterOrganizationAsync(RegisterOrganizationRequest request, CancellationToken ct = default);
     Task<LoginResponse> LoginAsync(string username, string password, CancellationToken ct = default);
+    Task<LoginResponse> RefreshAsync(string refreshToken, CancellationToken ct = default);
+    Task LogoutAsync(string refreshToken, CancellationToken ct = default);
     Task<AuthUserProfile> GetCurrentUserAsync(CancellationToken ct = default);
     Task<AuthUserProfile> UpdateMyProfileAsync(UpdateMyProfileRequest request, CancellationToken ct = default);
 }
@@ -29,6 +84,7 @@ public interface IPasswordResetService
 public interface IUserService
 {
     Task<IReadOnlyList<UserResponse>> GetAllAsync(CancellationToken ct = default);
+    Task<Stratix.Application.Common.PagedResult<UserResponse>> GetPagedAsync(int page, int pageSize, CancellationToken ct = default);
     Task<UserResponse> GetByIdAsync(long id, CancellationToken ct = default);
     Task<UserResponse> CreateAsync(CreateUserRequest request, CancellationToken ct = default);
     Task<UserResponse> UpdateAsync(long id, UpdateUserRequest request, CancellationToken ct = default);
@@ -37,6 +93,7 @@ public interface IUserService
 public interface IProjectService
 {
     Task<IReadOnlyList<ProjectResponse>> GetAllAsync(CancellationToken ct = default);
+    Task<Stratix.Application.Common.PagedResult<ProjectResponse>> GetPagedAsync(int page, int pageSize, CancellationToken ct = default);
     Task<ProjectResponse> GetByIdAsync(long id, CancellationToken ct = default);
     Task<ProjectResponse> CreateAsync(CreateProjectRequest request, CancellationToken ct = default);
     Task<ProjectResponse> UpdateAsync(long id, UpdateProjectRequest request, CancellationToken ct = default);
@@ -55,6 +112,7 @@ public interface IStageService
 public interface ITaskService
 {
     Task<IReadOnlyList<TaskResponse>> GetAllAsync(long? projectId, CancellationToken ct = default);
+    Task<Stratix.Application.Common.PagedResult<TaskResponse>> GetPagedAsync(long? projectId, int page, int pageSize, CancellationToken ct = default);
     Task<TaskResponse> GetByIdAsync(long id, CancellationToken ct = default);
     Task<TaskResponse> CreateAsync(CreateTaskRequest request, CancellationToken ct = default);
     Task<TaskResponse> UpdateAsync(long id, UpdateTaskRequest request, CancellationToken ct = default);

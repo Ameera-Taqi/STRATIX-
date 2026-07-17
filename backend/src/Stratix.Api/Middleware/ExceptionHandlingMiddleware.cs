@@ -22,6 +22,10 @@ public class ExceptionHandlingMiddleware
         {
             await WriteProblemAsync(context, StatusCodes.Status401Unauthorized, ex.Message);
         }
+        catch (Stratix.Application.Services.PlanLimitExceededException ex)
+        {
+            await WriteProblemAsync(context, StatusCodes.Status402PaymentRequired, ex.Message);
+        }
         catch (ArgumentException ex)
         {
             await WriteProblemAsync(context, StatusCodes.Status400BadRequest, ex.Message);

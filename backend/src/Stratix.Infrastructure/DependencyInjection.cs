@@ -23,6 +23,7 @@ public static class DependencyInjection
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddScoped<ITenantContext, TenantContext>();
         services.AddScoped<IPasswordResetMailService, SmtpPasswordResetMailService>();
         services.AddHttpContextAccessor();
 

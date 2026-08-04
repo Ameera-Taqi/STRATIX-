@@ -8,7 +8,6 @@ import { ProjectsStore } from '../../core/services/projects.store';
 import { ProjectHealthService } from '../../core/services/project-health.service';
 import { ProjectHealthScoreComponent } from '../../shared/components/project-health-score/project-health-score.component';
 import { RoleAccessService } from '../../core/services/role-access.service';
-import { LanguageService } from '../../core/i18n/language.service';
 import { ProjectRow } from '../../core/data/mock-data';
 import { priorityLabelKey, projectStatusLabelKey } from '../../shared/utils/enum-labels';
 
@@ -24,12 +23,13 @@ export class ProjectsComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly roleAccess = inject(RoleAccessService);
-  private readonly lang = inject(LanguageService);
 
   readonly projects = this.store.projects;
   readonly statusFilter = signal('All');
   readonly search = signal('');
   readonly showCreateModal = signal(false);
+  readonly showDeleteModal = signal(false);
+  readonly projectPendingDelete = signal<ProjectRow | null>(null);
   readonly formError = signal<string | null>(null);
   readonly submitting = signal(false);
   readonly deletingId = signal<number | null>(null);
@@ -160,17 +160,30 @@ export class ProjectsComponent implements OnInit {
       });
   }
 
-  deleteProject(project: ProjectRow): void {
+  openDeleteModal(project: ProjectRow): void {
     if (!this.canDelete()) return;
+    this.formError.set(null);
+    this.projectPendingDelete.set(project);
+    this.showDeleteModal.set(true);
+  }
 
-    const message = this.lang
-      .t('projects.confirmDelete')
-      .replace('{{name}}', project.name);
-    if (!confirm(message)) return;
+  closeDeleteModal(): void {
+    if (this.deletingId() != null) return;
+    this.showDeleteModal.set(false);
+    this.projectPendingDelete.set(null);
+  }
+
+  confirmDeleteProject(): void {
+    const project = this.projectPendingDelete();
+    if (!project || !this.canDelete()) return;
 
     this.deletingId.set(project.id);
     this.store.deleteProject(project.id).subscribe({
-      next: () => this.deletingId.set(null),
+      next: () => {
+        this.deletingId.set(null);
+        this.showDeleteModal.set(false);
+        this.projectPendingDelete.set(null);
+      },
       error: () => {
         this.deletingId.set(null);
         this.formError.set('projects.errorDelete');

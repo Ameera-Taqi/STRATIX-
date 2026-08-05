@@ -48,7 +48,7 @@ public class StageService : IStageService
         _db.Add(stage);
         await _db.SaveChangesAsync(ct);
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId, ct);
-        await _audit.RecordCreateAsync(AuditEntityType.STAGE, stage.Id, stage.Name, null, $"Stage created: {stage.Name}", projectId, project?.Name, ct);
+        await _audit.RecordCreateAsync(AuditEntityType.STAGE, stage.Id, stage.Name, null, $"Feature created: {stage.Name}", projectId, project?.Name, ct);
         return EntityMappers.ToResponse(stage);
     }
 
@@ -86,7 +86,7 @@ public class StageService : IStageService
 
     private async Task<ProjectStage> FindAsync(long id, CancellationToken ct) =>
         await _db.ProjectStages.FirstOrDefaultAsync(s => s.Id == id, ct)
-        ?? throw new KeyNotFoundException("Stage not found");
+        ?? throw new KeyNotFoundException("Feature not found");
 
     private async Task EnsureProjectExistsAsync(long projectId, CancellationToken ct)
     {

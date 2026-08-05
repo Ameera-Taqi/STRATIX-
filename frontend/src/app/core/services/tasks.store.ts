@@ -87,13 +87,10 @@ export class TasksStore {
 
 
   private syncDerivedState(): void {
-
-    this.syncAllProjectProgress();
-
+    // Do not recompute project.progress on load — that overwrites the API value
+    // (e.g. 30%) with task-completion % (0% when no tasks are DONE yet).
     this.employeesStore.syncFromTasks(this._tasks());
-
     this.employeesStore.syncFromProjects(this.projectsStore.projects());
-
   }
 
 
@@ -129,17 +126,13 @@ export class TasksStore {
 
 
   getByProject(projectId: number): TaskCard[] {
-
-    return this._tasks().filter((t) => t.projectId === projectId);
-
+    const target = Number(projectId);
+    return this._tasks().filter((t) => Number(t.projectId) === target);
   }
 
-
-
   getById(id: number): TaskCard | undefined {
-
-    return this._tasks().find((t) => t.id === id);
-
+    const target = Number(id);
+    return this._tasks().find((t) => Number(t.id) === target);
   }
 
 

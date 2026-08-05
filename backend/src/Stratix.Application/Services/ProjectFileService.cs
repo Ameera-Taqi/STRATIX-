@@ -37,6 +37,8 @@ public class ProjectFileService : IProjectFileService
         {
             ProjectId = request.ProjectId,
             FileName = request.FileName.Trim(),
+            Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
+            Category = string.IsNullOrWhiteSpace(request.Category) ? null : request.Category.Trim(),
             ContentType = request.ContentType,
             SizeBytes = request.SizeBytes,
             Url = request.Url.Trim(),

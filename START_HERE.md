@@ -63,7 +63,7 @@ cd frontend && npm start
 ```
 organizations → subscriptions / plans
 organizations → departments → users
-organizations → projects → stages / tasks / risks / milestones / change requests
+organizations → projects → features / tasks / risks
 tasks → task_comments
 users → employee_kpis, notifications
 projects → project_files

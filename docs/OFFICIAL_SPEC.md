@@ -11,7 +11,7 @@
 | 1 | **Authentication** | المصادقة | `AUTH` | `/auth/login` |
 | 2 | **Dashboard** | لوحة التحكم | `DASHBOARD` | `/dashboard` |
 | 3 | **Projects** | المشاريع | `PROJECTS` | `/projects` |
-| 4 | **Stages** | المراحل | `STAGES` | `/projects/:id` (tab Stages) |
+| 4 | **Features** | الميزات | `STAGES` | `/projects/:id` (tab Features) |
 | 5 | **Tasks** | المهام | `TASKS` | `/tasks` |
 | 6 | **Employees** | الموظفون | `EMPLOYEES` | `/team` |
 | 7 | **Performance & KPI** | الأداء ومؤشرات KPI | `PERFORMANCE` | `/performance` |
@@ -21,7 +21,7 @@
 
 ### ملاحظات تنفيذية
 
-- **Stages (4)** ليست صفحة مستقلة في الـ sidebar؛ منطقها ضمن **Project Details** (تبويب المراحل).
+- **Features (4)** ليست صفحة مستقلة في الـ sidebar؛ منطقها ضمن **Project Details** (تبويب الميزات).
 - **Authentication (1)** بوابة الدخول قبل الوصول لباقي الوحدات (JWT + RBAC).
 - API prefix مقترح: `/api/v1/{module-code}/...`
 
@@ -50,7 +50,7 @@
 Authentication → يحمي كل الوحدات
 Dashboard      → قراءة لجميع الأدوار (حسب الصلاحيات)
 Projects       → Admin, PM (كتابة) | Team Leader, Employee (محدود) | Executive (قراءة)
-Stages         → تبع Projects
+Features      → تبع Projects
 Tasks          → Admin, PM, Team Leader (إدارة) | Employee (مهامه) | Executive (قراءة)
 Employees      → Admin (كامل) | PM, Team Leader (عرض فريق) | Executive (قراءة)
 Performance    → Admin, PM, Team Leader, Executive
@@ -81,6 +81,6 @@ Settings       → Admin (نظام) | كل مستخدم (ملفه الشخصي �
 ## 6. Workflow الرسمي
 
 ```
-Create Project → Add Stages → Add Tasks → Assign Employees
+Create Project → Add Features → Add Tasks → Assign Employees
     → Track Progress → Evaluate Performance → Generate Reports
 ```

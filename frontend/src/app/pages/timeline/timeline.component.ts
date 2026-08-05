@@ -34,8 +34,8 @@ const STAGE_COLORS = [...CHART_SERIES];
             <a [routerLink]="['/projects', block.projectId]" class="inline-flex items-center gap-1 text-xs text-primary hover:underline">{{ 'common.view' | t }} <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span></a>
           </div>
           <div class="p-5">
-            <p class="mb-3 text-xs font-medium stratix-muted">{{ 'timeline.stages' | t }}</p>
-            <app-gantt-chart [rows]="block.stageRows" [markers]="block.taskMarkers" [emptyLabel]="'timeline.noStages' | t" />
+            <p class="mb-3 text-xs font-medium stratix-muted">{{ 'timeline.features' | t }}</p>
+            <app-gantt-chart [rows]="block.stageRows" [markers]="block.taskMarkers" [emptyLabel]="'timeline.noFeatures' | t" />
           </div>
         </section>
       }

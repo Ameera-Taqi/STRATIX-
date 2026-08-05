@@ -8,6 +8,8 @@ public class ProjectFile : ITenantScoped
     public long ProjectId { get; set; }
     public Project? Project { get; set; }
     public string FileName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? Category { get; set; }
     public string? ContentType { get; set; }
     public long SizeBytes { get; set; }
     public string Url { get; set; } = string.Empty;

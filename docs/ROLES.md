@@ -9,7 +9,7 @@
 | 1 | Super Admin | `SUPER_ADMIN` | Platform — all organizations |
 | 2 | Organization Admin | `ORG_ADMIN` | Full access within one tenant |
 | 3 | Admin | `ADMIN` | Tenant admin (users, departments, settings) |
-| 4 | Project Manager | `PROJECT_MANAGER` | Projects, stages, tasks, risks |
+| 4 | Project Manager | `PROJECT_MANAGER` | Projects, features, tasks, risks |
 | 5 | Team Leader | `TEAM_LEADER` | Assign / lead tasks |
 | 6 | Employee | `EMPLOYEE` | Own tasks (status updates) |
 | 7 | Executive Viewer | `EXECUTIVE_VIEWER` | Read dashboards / reports |

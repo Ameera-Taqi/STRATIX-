@@ -18,13 +18,15 @@ import { priorityLabelKey, projectStatusLabelKey } from '../../shared/utils/enum
   templateUrl: './projects.component.html',
 })
 export class ProjectsComponent implements OnInit {
-  private readonly store = inject(ProjectsStore);
+  readonly store = inject(ProjectsStore);
   private readonly healthService = inject(ProjectHealthService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly roleAccess = inject(RoleAccessService);
 
   readonly projects = this.store.projects;
+  readonly loading = this.store.loading;
+  readonly loadError = this.store.loadError;
   readonly statusFilter = signal('All');
   readonly search = signal('');
   readonly showCreateModal = signal(false);
@@ -55,6 +57,16 @@ export class ProjectsComponent implements OnInit {
     })),
   );
 
+  readonly filtered = computed(() => {
+    const status = this.statusFilter();
+    const q = this.search().toLowerCase();
+    return this.projects().filter((p) => {
+      const matchStatus = status === 'All' || p.status.toLowerCase() === status.toLowerCase();
+      const matchSearch = !q || p.name.toLowerCase().includes(q);
+      return matchStatus && matchSearch;
+    });
+  });
+
   form = {
     name: '',
     department: 'IT',
@@ -65,24 +77,13 @@ export class ProjectsComponent implements OnInit {
     priority: 'MEDIUM',
   };
 
-  filtered() {
-    return this.projects().filter((p) => {
-      const matchStatus =
-        this.statusFilter() === 'All' || p.status.toLowerCase() === this.statusFilter().toLowerCase();
-      const q = this.search().toLowerCase();
-      const matchSearch = !q || p.name.toLowerCase().includes(q);
-      return matchStatus && matchSearch;
-    });
-  }
-
   healthFor(projectId: number) {
     return this.healthService.getByProjectId(projectId);
   }
 
   ngOnInit(): void {
-    if (!this.store.loaded()) {
-      this.store.loadFromApi();
-    }
+    // Always refresh so the list is not stuck empty after a failed earlier load.
+    this.store.loadFromApi();
     const q = this.route.snapshot.queryParamMap.get('q');
     if (q) {
       this.search.set(q);

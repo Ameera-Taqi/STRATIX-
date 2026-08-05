@@ -72,30 +72,42 @@ export class ProjectsStore {
 
   private readonly _loaded = signal(false);
 
+  private readonly _loading = signal(false);
+
+  private readonly _loadError = signal<string | null>(null);
+
   private readonly _users = signal<User[]>([]);
+
+  private loadGeneration = 0;
 
 
 
   readonly projects = this._projects.asReadonly();
   readonly stagesByProject = this._stagesByProject.asReadonly();
   readonly loaded = this._loaded.asReadonly();
+  readonly loading = this._loading.asReadonly();
+  readonly loadError = this._loadError.asReadonly();
   readonly users = this._users.asReadonly();
 
 
 
   loadFromApi(onReady?: () => void): void {
+    const generation = ++this.loadGeneration;
+    this._loading.set(true);
+    this._loadError.set(null);
 
     this.api.getUsers().subscribe({
 
       next: (users) => {
-
+        if (generation !== this.loadGeneration) return;
         this._users.set(users);
-
-        this.loadProjects(onReady);
-
+        this.loadProjects(generation, onReady);
       },
 
-      error: () => this.loadProjects(onReady),
+      error: () => {
+        if (generation !== this.loadGeneration) return;
+        this.loadProjects(generation, onReady);
+      },
 
     });
 
@@ -103,26 +115,30 @@ export class ProjectsStore {
 
 
 
-  private loadProjects(onReady?: () => void): void {
+  private loadProjects(generation: number, onReady?: () => void): void {
 
     this.api.getProjects().subscribe({
 
       next: (projects) => {
+        if (generation !== this.loadGeneration) return;
 
-        this._projects.set(projects.map((p) => this.normalizeProject(p)));
-
+        const list = Array.isArray(projects) ? projects : [];
+        this._projects.set(list.map((p) => this.normalizeProject(p)));
+        this._loaded.set(true);
+        this._loading.set(false);
+        this._loadError.set(null);
         this.syncEmployeeProjectStats();
-
-        this.loadAllStages(projects.map((p) => p.id), onReady);
-
+        this.loadAllStages(list.map((p) => p.id), generation, onReady);
       },
 
       error: () => {
+        if (generation !== this.loadGeneration) return;
 
+        // Keep any previously loaded projects so navigation to detail does not go blank.
         this._loaded.set(true);
-
+        this._loading.set(false);
+        this._loadError.set('projects.loadError');
         onReady?.();
-
       },
 
     });
@@ -131,10 +147,10 @@ export class ProjectsStore {
 
 
 
-  private loadAllStages(projectIds: number[], onReady?: () => void): void {
+  private loadAllStages(projectIds: number[], generation: number, onReady?: () => void): void {
     if (projectIds.length === 0) {
+      if (generation !== this.loadGeneration) return;
       this._stagesByProject.set({});
-      this._loaded.set(true);
       onReady?.();
       return;
     }
@@ -144,20 +160,20 @@ export class ProjectsStore {
     for (const projectId of projectIds) {
       this.api.getStages(projectId).subscribe({
         next: (stages) => {
+          if (generation !== this.loadGeneration) return;
           this._stagesByProject.update((map) => ({
             ...map,
             [projectId]: stages.map((s) => this.normalizeStage(s)),
           }));
           pending -= 1;
           if (pending === 0) {
-            this._loaded.set(true);
             onReady?.();
           }
         },
         error: () => {
+          if (generation !== this.loadGeneration) return;
           pending -= 1;
           if (pending === 0) {
-            this._loaded.set(true);
             onReady?.();
           }
         },
@@ -168,11 +184,9 @@ export class ProjectsStore {
 
 
   getStages(projectId: number): StageRow[] {
-
-    const list = this._stagesByProject()[projectId] ?? [];
-
+    const key = Number(projectId);
+    const list = this._stagesByProject()[key] ?? [];
     return [...list].sort((a, b) => a.orderNumber - b.orderNumber);
-
   }
 
 
@@ -212,9 +226,9 @@ export class ProjectsStore {
         }));
         this.syncProjectProgress(projectId);
         this.notifications.push({
-          titleKey: 'notifications.stageAddedTitle',
-          bodyKey: 'notifications.stageAddedBody',
-          params: { stage: row.name, project: project?.name ?? '' },
+          titleKey: 'notifications.featureAddedTitle',
+          bodyKey: 'notifications.featureAddedBody',
+          params: { feature: row.name, project: project?.name ?? '' },
         });
       }),
       catchError((err) => {
@@ -293,11 +307,11 @@ export class ProjectsStore {
 
     this.notifications.push({
 
-      titleKey: 'notifications.stageCompletedTitle',
+      titleKey: 'notifications.featureCompletedTitle',
 
-      bodyKey: 'notifications.stageCompletedBody',
+      bodyKey: 'notifications.featureCompletedBody',
 
-      params: { stage: stage.name, project: project?.name ?? '' },
+      params: { feature: stage.name, project: project?.name ?? '' },
 
     });
 
@@ -389,25 +403,28 @@ export class ProjectsStore {
 
 
     const taskProgress = progressFromTasks(tasks);
-
     const stageProgress = progressFromStages(this.getStages(projectId));
+    const existing = this.getById(projectId)?.progress ?? 0;
 
-    const progress = taskProgress ?? stageProgress ?? this.getById(projectId)?.progress ?? 0;
+    // Prefer stages when present. For tasks, never replace a stored/API progress
+    // with 0% just because work is still in progress (incomplete ≠ zero progress).
+    let progress = existing;
+    if (stageProgress != null) {
+      progress = stageProgress;
+    } else if (taskProgress != null) {
+      progress = taskProgress === 0 && existing > 0 ? existing : taskProgress;
+    }
 
     this.setProjectProgress(projectId, progress);
-
   }
 
 
 
   private setProjectProgress(projectId: number, progress: number): void {
-
+    const target = Number(projectId);
     this._projects.update((list) =>
-
-      list.map((p) => (p.id === projectId ? { ...p, progress } : p)),
-
+      list.map((p) => (Number(p.id) === target ? { ...p, progress } : p)),
     );
-
   }
 
 
@@ -484,9 +501,52 @@ export class ProjectsStore {
 
 
   getById(id: number): ProjectRow | undefined {
+    const target = Number(id);
+    return this._projects().find((p) => Number(p.id) === target);
+  }
 
-    return this._projects().find((p) => p.id === id);
+  /** Load/refresh a single project (and its features) for the detail page. */
+  ensureProject(id: number, onReady?: () => void): void {
+    const projectId = Number(id);
+    if (!Number.isFinite(projectId) || projectId <= 0) {
+      onReady?.();
+      return;
+    }
 
+    // Always refresh from API so View opens the exact project that was clicked.
+    this._loading.set(true);
+    this.api.getProject(projectId).subscribe({
+      next: (project) => {
+        const normalized = this.normalizeProject(project);
+        this._projects.update((list) => {
+          const without = list.filter((p) => Number(p.id) !== Number(normalized.id));
+          return [...without, normalized];
+        });
+        this._loaded.set(true);
+        this._loading.set(false);
+        this._loadError.set(null);
+        this.syncEmployeeProjectStats();
+        this.api.getStages(projectId).subscribe({
+          next: (stages) => {
+            this._stagesByProject.update((map) => ({
+              ...map,
+              [projectId]: stages.map((s) => this.normalizeStage(s)),
+            }));
+            onReady?.();
+          },
+          error: () => onReady?.(),
+        });
+      },
+      error: () => {
+        this._loading.set(false);
+        if (this.getById(projectId)) {
+          onReady?.();
+          return;
+        }
+        this._loadError.set('projects.loadError');
+        onReady?.();
+      },
+    });
   }
 
   reloadUsers(): void {
@@ -539,13 +599,15 @@ export class ProjectsStore {
     const manager = project.manager?.trim() || project.owner?.trim() || '';
     return {
       ...project,
+      id: Number(project.id),
       manager,
-      managerId: project.managerId ?? null,
+      managerId: project.managerId == null ? null : Number(project.managerId),
       owner: project.owner?.trim() || manager,
       startDate: this.asDateString(project.startDate),
       endDate: this.asDateString(project.endDate),
       deadline: this.asDateString(project.deadline ?? project.endDate),
       priority: (project.priority ?? 'MEDIUM') as ProjectRow['priority'],
+      progress: Number(project.progress) || 0,
     };
   }
 

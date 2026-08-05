@@ -1,17 +1,30 @@
-@if (projectId() != null) {
+@if (projectId() != null && !embedded()) {
   <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
-  <p class="stratix-muted text-sm">
-    {{ 'tasks.forProject' | t }}: <strong class="text-dark dark:text-slate-100">{{ project()?.name }}</strong>
-  </p>
-  <div class="flex gap-2">
-    <button type="button" class="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-white" (click)="openAddTask()">
-      + {{ 'tasks.add' | t }}
-    </button>
-  </div>
+    <p class="stratix-muted text-sm">
+      {{ 'tasks.forProject' | t }}: <strong class="text-dark dark:text-slate-100">{{ project()?.name }}</strong>
+    </p>
   </div>
 }
 
-@if (showAddForm() && projectId() != null) {
+<div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+  <p class="text-sm stratix-muted">{{ 'board.hint' | t }}</p>
+  <div class="flex flex-wrap gap-2">
+    <button
+      type="button"
+      class="rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-violet-700"
+      (click)="openAddColumn()"
+    >
+      + {{ 'board.addColumn' | t }}
+    </button>
+    @if (projectId() != null && !embedded()) {
+      <button type="button" class="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-white" (click)="openAddTask()">
+        + {{ 'tasks.add' | t }}
+      </button>
+    }
+  </div>
+</div>
+
+@if (showAddForm() && projectId() != null && !embedded()) {
   <div class="stratix-card mb-4 p-4">
     <h4 class="stratix-heading text-sm">{{ 'tasks.addTitle' | t }}</h4>
     @if (taskError()) {
@@ -30,7 +43,7 @@
       <input type="date" class="stratix-input px-3 py-2 text-sm" [(ngModel)]="taskForm.dueDate" name="dueDate" />
       @if (stages().length > 0) {
         <select class="stratix-input px-3 py-2 text-sm sm:col-span-2" [(ngModel)]="taskForm.stageId" name="stageId">
-          <option [ngValue]="null">{{ 'tasks.noStage' | t }}</option>
+          <option [ngValue]="null">{{ 'tasks.noFeature' | t }}</option>
           @for (s of stages(); track s.id) {
             <option [ngValue]="s.id">{{ s.name }}</option>
           }
@@ -44,56 +57,117 @@
   </div>
 }
 
-@if (tasks().length === 0) {
-  <div class="stratix-card px-6 py-10 text-center stratix-muted text-sm">
+@if (showAddColumn()) {
+  <div class="stratix-card mb-4 p-4">
+    <h4 class="stratix-heading text-sm">{{ 'board.addColumnTitle' | t }}</h4>
+    <p class="mt-1 text-xs stratix-muted">{{ 'board.addColumnHint' | t }}</p>
+    @if (columnError()) {
+      <p class="mt-2 text-sm text-danger">{{ columnError()! | t }}</p>
+    }
+    <form class="mt-3 grid gap-3 sm:grid-cols-2" (ngSubmit)="saveColumn()">
+      <div>
+        <label class="stratix-muted mb-1 block text-sm">{{ 'board.columnName' | t }} *</label>
+        <input
+          type="text"
+          class="stratix-input w-full px-3 py-2 text-sm"
+          [(ngModel)]="columnForm.name"
+          [placeholder]="'board.columnNamePlaceholder' | t"
+          name="columnName"
+          required
+        />
+      </div>
+      <div>
+        <label class="stratix-muted mb-1 block text-sm">{{ 'board.columnStatus' | t }} *</label>
+        <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="columnForm.status" name="columnStatus">
+          @for (opt of statusOptions; track opt.value) {
+            <option [ngValue]="opt.value">{{ opt.labelKey | t }}</option>
+          }
+        </select>
+      </div>
+      <div class="flex justify-end gap-2 sm:col-span-2">
+        <button type="button" class="stratix-input px-3 py-1.5 text-sm" (click)="cancelAddColumn()">{{ 'projects.cancel' | t }}</button>
+        <button type="submit" class="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-white">{{ 'board.saveColumn' | t }}</button>
+      </div>
+    </form>
+  </div>
+}
+
+@if (showEmptyState()) {
+  <div class="stratix-card mb-4 px-6 py-10 text-center text-sm stratix-muted">
     {{ 'tasks.empty' | t }}
-    @if (projectId() != null) {
+    @if (projectId() != null && !embedded()) {
       <button type="button" class="mt-3 block w-full text-primary" (click)="openAddTask()">+ {{ 'tasks.add' | t }}</button>
     }
   </div>
-} @else {
-  <div class="flex min-h-[min(28rem,calc(100vh-12rem))] gap-4 overflow-x-auto pb-2">
-    @for (col of columns; track col.key) {
-      <div
-        class="stratix-kanban-col w-72 min-w-[280px] transition"
-        [class.ring-2]="dropTarget() === col.key"
-        [class]="dropTarget() === col.key ? 'ring-primary/40' : ''"
-        (dragover)="onDragOver($event, col.key)"
-        (drop)="onDrop(col.key)"
-      >
-        <div class="stratix-kanban-header px-4 py-3">
-          {{ col.labelKey | t }}
-          <span class="ms-1 stratix-muted">({{ tasksIn(col.key).length }})</span>
-        </div>
-        <div class="flex-1 space-y-3 overflow-y-auto p-3">
-          @for (task of tasksIn(col.key); track task.id) {
-            <div
-              draggable="true"
-              class="stratix-task-card cursor-grab p-4 active:cursor-grabbing"
-              [class.opacity-50]="draggingTaskId() === task.id"
-              (dragstart)="onDragStart(task.id)"
-              (dragend)="onDragEnd()"
-            >
-              <a [routerLink]="['/tasks', task.id]" class="block" (click)="$event.stopPropagation()">
-                <p class="font-medium text-dark dark:text-slate-100">{{ task.title }}</p>
-                @if (projectId() == null) {
-                  <p class="mt-1 text-xs text-primary">{{ task.projectName }}</p>
-                }
-                @if (task.stageName) {
-                  <p class="mt-0.5 text-xs stratix-muted">{{ 'module.stages' | t }}: {{ task.stageName }}</p>
-                }
-                <p class="mt-2 flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400"><app-ui-icon name="user" size="xs" /> {{ task.assignee }}</p>
-                <div class="mt-3 flex items-center justify-between">
-                  <span class="rounded px-1.5 py-0.5 text-[10px] font-medium" [class]="priorityClass(task.priority)">
-                    {{ task.priority }}
-                  </span>
-                  <span class="text-[10px] stratix-muted">{{ 'common.due' | t }} {{ task.dueDate }}</span>
-                </div>
-              </a>
-            </div>
-          }
-        </div>
-      </div>
-    }
-  </div>
 }
+
+<div class="flex min-h-[min(28rem,calc(100vh-14rem))] gap-3 overflow-x-auto pb-2">
+  @for (col of boardColumns(); track col.id) {
+    <div
+      class="flex w-80 min-w-[300px] flex-col rounded-xl bg-slate-100/80 dark:bg-slate-900/50"
+      [class.ring-2]="dropTarget() === col.id"
+      [class.ring-primary]="dropTarget() === col.id"
+      (dragover)="onDragOver($event, col.id)"
+      (drop)="onDrop(col)"
+    >
+      <div class="flex items-center gap-2 px-3 py-3">
+        <span class="h-2.5 w-2.5 rounded-full" [class]="col.dotClass"></span>
+        <span class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-700 dark:text-slate-200">
+          @if (col.labelKey) {
+            {{ col.labelKey | t }}
+          } @else {
+            {{ col.label }}
+          }
+        </span>
+        <span class="rounded-full bg-white/80 px-2 py-0.5 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+          {{ tasksInColumn(col).length }}
+        </span>
+        @if (!col.builtIn) {
+          <button
+            type="button"
+            class="rounded p-1 text-slate-400 transition hover:bg-white hover:text-danger dark:hover:bg-slate-800"
+            [attr.aria-label]="'board.removeColumn' | t"
+            (click)="removeColumn(col)"
+          >
+            <app-ui-icon name="close" size="xs" />
+          </button>
+        }
+      </div>
+      <div class="flex-1 space-y-2 overflow-y-auto px-2 pb-3">
+        @for (task of tasksInColumn(col); track task.id) {
+          <div
+            draggable="true"
+            class="cursor-grab rounded-lg border border-slate-200/80 bg-white p-3 shadow-sm transition hover:border-primary/30 hover:shadow-md active:cursor-grabbing dark:border-slate-700 dark:bg-slate-800"
+            [class.opacity-50]="draggingTaskId() === task.id"
+            (dragstart)="onDragStart(task.id)"
+            (dragend)="onDragEnd()"
+          >
+            <a [routerLink]="['/tasks', task.id]" class="block" (click)="$event.stopPropagation()">
+              <div class="mb-2 flex items-center gap-2">
+                <span class="inline-flex rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
+                  {{ 'work.type.task' | t }}
+                </span>
+                @if (task.stageName) {
+                  <span class="truncate text-[10px] text-violet-600 dark:text-violet-300">{{ task.stageName }}</span>
+                }
+              </div>
+              <p class="text-sm font-medium leading-snug text-dark dark:text-slate-100">{{ task.title }}</p>
+              @if (projectId() == null) {
+                <p class="mt-1 text-xs text-primary">{{ task.projectName }}</p>
+              }
+              <div class="mt-3 flex items-center justify-between gap-2">
+                <span class="inline-flex items-center gap-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                  <app-ui-icon name="user" size="xs" />
+                  {{ task.assignee }}
+                </span>
+                <span class="rounded px-1.5 py-0.5 text-[10px] font-medium" [class]="priorityClass(task.priority)">
+                  {{ task.priority }}
+                </span>
+              </div>
+            </a>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>

@@ -1,481 +1,329 @@
-import { Component, computed, inject, signal } from '@angular/core';
-
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-
 import { FormsModule } from '@angular/forms';
-
 import { TopbarComponent } from '../../layout/topbar/topbar.component';
-
 import { ProjectsStore } from '../../core/services/projects.store';
-
 import { TasksStore } from '../../core/services/tasks.store';
-
+import { EmployeesStore } from '../../core/services/employees.store';
+import { TaskCard } from '../../core/data/mock-data';
 import { StatusBadgeComponent } from '../../shared/components/status-badge.component';
-
 import { TaskBoardComponent } from '../../shared/components/task-board/task-board.component';
-
 import { GanttChartComponent } from '../../shared/components/gantt/gantt-chart.component';
-
 import { GanttRow, GanttTaskMarker } from '../../shared/components/gantt/gantt.types';
-
 import { ActivityTimelineComponent } from '../../shared/components/activity-timeline/activity-timeline.component';
-
 import { AttachmentsPanelComponent } from '../../shared/components/attachments-panel/attachments-panel.component';
-
 import { ProjectHealthScoreComponent } from '../../shared/components/project-health-score/project-health-score.component';
-
 import { HealthBreakdownComponent } from '../../shared/components/health-breakdown/health-breakdown.component';
-
 import { ProjectHealthService } from '../../core/services/project-health.service';
-
 import { ProjectAiBotComponent } from '../../shared/components/project-ai-bot/project-ai-bot.component';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { MilestonesStore } from '../../core/services/milestones.store';
-import { ChangeRequestsStore } from '../../core/services/change-requests.store';
-import { CurrentUserService } from '../../core/services/current-user.service';
-import { MilestoneStatus } from '../../core/models/milestone.model';
-import { ChangeRequestPriority, ChangeRequestStatus } from '../../core/models/change-request.model';
 import { UiIconComponent } from '../../shared/components/ui-icon/ui-icon.component';
 import { CHART_COLORS, CHART_SERIES } from '../../shared/components/charts/chart-palette';
 
 const STAGE_COLORS = [...CHART_SERIES];
 
+export type WorkItemType = 'FEATURE' | 'TASK';
 
+export interface WorkListItem {
+  id: string;
+  type: WorkItemType;
+  entityId: number;
+  title: string;
+  status: string;
+  assignee: string;
+  dueDate: string;
+  parentName: string | null;
+}
 
 @Component({
-
   selector: 'app-project-detail',
-
   standalone: true,
-
   imports: [
-
     TopbarComponent,
-
     StatusBadgeComponent,
-
     TaskBoardComponent,
-
     GanttChartComponent,
-
     ActivityTimelineComponent,
-
     AttachmentsPanelComponent,
-
     ProjectHealthScoreComponent,
-
     HealthBreakdownComponent,
     ProjectAiBotComponent,
     RouterLink,
-
     TranslatePipe,
-
     FormsModule,
-
     UiIconComponent,
-
   ],
-
   templateUrl: './project-detail.component.html',
-
 })
-
-export class ProjectDetailComponent {
-
+export class ProjectDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
-
   private readonly tasksStore = inject(TasksStore);
-
+  private readonly employeesStore = inject(EmployeesStore);
   private readonly healthService = inject(ProjectHealthService);
-
   readonly store = inject(ProjectsStore);
 
-  readonly milestonesStore = inject(MilestonesStore);
-
-  readonly changeRequestsStore = inject(ChangeRequestsStore);
-
-  private readonly currentUser = inject(CurrentUserService);
-
-
-
-  readonly projectId = Number(this.route.snapshot.paramMap.get('id'));
-
-
+  readonly projectId = signal(Number(this.route.snapshot.paramMap.get('id')));
+  readonly employees = this.employeesStore.employees;
 
   readonly project = computed(() => {
-
     this.store.projects();
-
-    return this.store.getById(this.projectId) ?? this.store.projects()[0];
-
+    return this.store.getById(this.projectId());
   });
-
-
 
   readonly stages = computed(() => {
-
     this.store.stagesByProject();
-
-    return this.store.getStages(this.projectId);
-
+    return this.store.getStages(this.projectId());
   });
 
-
+  readonly tasks = computed(() => {
+    this.tasksStore.tasks();
+    return this.tasksStore.getByProject(this.projectId());
+  });
 
   readonly health = computed(() => {
-
     this.healthService.all();
-
-    return this.healthService.getByProjectId(this.projectId);
-
+    return this.healthService.getByProjectId(this.projectId());
   });
 
+  /** Combined Feature + Task rows for List / Backlog. */
+  readonly workItems = computed((): WorkListItem[] => {
+    const features = this.stages().map(
+      (s): WorkListItem => ({
+        id: `F-${s.id}`,
+        type: 'FEATURE',
+        entityId: s.id,
+        title: s.name,
+        status: s.status,
+        assignee: '—',
+        dueDate: s.endDate,
+        parentName: null,
+      }),
+    );
+    const tasks = this.tasks().map(
+      (t): WorkListItem => ({
+        id: `T-${t.id}`,
+        type: 'TASK',
+        entityId: t.id,
+        title: t.title,
+        status: t.status,
+        assignee: t.assignee || '—',
+        dueDate: t.dueDate,
+        parentName: t.stageName,
+      }),
+    );
+    return [...features, ...tasks];
+  });
 
-
-  readonly ganttRows = computed((): GanttRow[] =>
-
-    this.stages().map((s, i) => ({
-
-      id: s.id,
-
-      label: s.name,
-
-      start: s.startDate,
-
-      end: s.endDate,
-
-      progress: s.progress,
-
-      color: STAGE_COLORS[i % STAGE_COLORS.length],
-
-      sublabel: s.status,
-
-    })),
-
+  /** Backlog: open work only (not Done). */
+  readonly backlogItems = computed(() =>
+    this.workItems().filter((w) => {
+      const s = w.status.toUpperCase().replace(/\s+/g, '_');
+      return s !== 'DONE' && w.status !== 'Done';
+    }),
   );
 
-
+  readonly ganttRows = computed((): GanttRow[] =>
+    this.stages().map((s, i) => ({
+      id: s.id,
+      label: s.name,
+      start: s.startDate,
+      end: s.endDate,
+      progress: s.progress,
+      color: STAGE_COLORS[i % STAGE_COLORS.length],
+      sublabel: s.status,
+    })),
+  );
 
   readonly ganttMarkers = computed((): GanttTaskMarker[] => {
-
     this.tasksStore.tasks();
-
     return this.tasksStore
-
-      .getByProject(this.projectId)
-
+      .getByProject(this.projectId())
       .filter((t) => t.stageId != null)
-
       .map((t, i) => ({
-
         id: i + 1,
-
         rowId: t.stageId!,
-
         label: t.title,
-
         date: t.dueDate,
-
         color: t.status === 'DONE' ? CHART_COLORS.teal : CHART_COLORS.coral,
-
       }));
-
   });
-
-
 
   readonly stageError = signal<string | null>(null);
-
   readonly showStageForm = signal(false);
-
+  readonly taskError = signal<string | null>(null);
+  readonly showTaskForm = signal(false);
   readonly stageStatusOptions = ['Planned', 'Active', 'Done', 'On Hold'];
 
-
-
   stageForm = {
-
     name: '',
-
     startDate: '',
-
     endDate: '',
-
     status: 'Planned',
-
     progress: 0,
-
   };
 
-
+  taskForm = {
+    title: '',
+    assigneeId: null as number | null,
+    priority: 'MEDIUM' as TaskCard['priority'],
+    dueDate: '',
+    status: 'TODO' as TaskCard['status'],
+    stageId: null as number | null,
+  };
 
   tabKeys = [
-
     'project.tabs.overview',
-
     'project.tabs.timeline',
-
-    'project.tabs.stages',
-
-    'project.tabs.milestones',
-
-    'project.tabs.changes',
-
-    'project.tabs.tasks',
-
+    'project.tabs.backlog',
+    'project.tabs.board',
+    'project.tabs.list',
     'project.tabs.files',
-
     'project.tabs.activity',
-
   ];
-
   activeTabKey = 'project.tabs.overview';
 
-  readonly milestones = computed(() => {
-    this.milestonesStore.milestones();
-    return this.milestonesStore.forProject(this.projectId);
-  });
-
-  readonly changeRequests = computed(() => {
-    this.changeRequestsStore.changeRequests();
-    return this.changeRequestsStore.forProject(this.projectId);
-  });
-
-  readonly milestoneStatusOptions: MilestoneStatus[] = ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'DELAYED'];
-  readonly changeRequestPriorityOptions: ChangeRequestPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
-  readonly changeRequestStatusOptions: ChangeRequestStatus[] = ['PENDING', 'APPROVED', 'REJECTED', 'IMPLEMENTED'];
-
-  readonly showMilestoneForm = signal(false);
-  readonly milestoneError = signal<string | null>(null);
-  milestoneForm = {
-    title: '',
-    dueDate: '',
-  };
-
-  readonly showChangeRequestForm = signal(false);
-  readonly changeRequestError = signal<string | null>(null);
-  changeRequestForm = {
-    title: '',
-    description: '',
-    priority: 'MEDIUM' as ChangeRequestPriority,
-  };
-
-  setTab(key: string): void {
-    this.activeTabKey = key;
-    if (key === 'project.tabs.milestones') {
-      this.milestonesStore.loadForProject(this.projectId);
-    } else if (key === 'project.tabs.changes') {
-      this.changeRequestsStore.loadForProject(this.projectId);
-    }
-  }
-
-  openMilestoneForm(): void {
-    this.milestoneError.set(null);
-    this.milestoneForm = { title: '', dueDate: this.project().endDate ?? '' };
-    this.showMilestoneForm.set(true);
-  }
-
-  cancelMilestoneForm(): void {
-    this.showMilestoneForm.set(false);
-    this.milestoneError.set(null);
-  }
-
-  async saveMilestone(): Promise<void> {
-    if (!this.milestoneForm.title.trim()) {
-      this.milestoneError.set('milestones.errorTitle');
-      return;
-    }
-    if (!this.milestoneForm.dueDate) {
-      this.milestoneError.set('milestones.errorDueDate');
-      return;
-    }
-    try {
-      await this.milestonesStore.create({
-        projectId: this.projectId,
-        title: this.milestoneForm.title.trim(),
-        dueDate: this.milestoneForm.dueDate,
-      });
-      this.showMilestoneForm.set(false);
-      this.milestoneError.set(null);
-    } catch {
-      this.milestoneError.set('project.errorStageSave');
-    }
-  }
-
-  completeMilestone(id: number): void {
-    const milestone = this.milestones().find((m) => m.id === id);
-    if (!milestone) return;
-    void this.milestonesStore.complete(milestone);
-  }
-
-  deleteMilestone(id: number): void {
-    void this.milestonesStore.remove(id);
-  }
-
-  milestoneStatusClass(status: string): string {
-    switch (status) {
-      case 'COMPLETED':
-        return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300';
-      case 'DELAYED':
-        return 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300';
-      case 'IN_PROGRESS':
-        return 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300';
-      default:
-        return 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300';
-    }
-  }
-
-  openChangeRequestForm(): void {
-    this.changeRequestError.set(null);
-    this.changeRequestForm = { title: '', description: '', priority: 'MEDIUM' };
-    this.showChangeRequestForm.set(true);
-  }
-
-  cancelChangeRequestForm(): void {
-    this.showChangeRequestForm.set(false);
-    this.changeRequestError.set(null);
-  }
-
-  async saveChangeRequest(): Promise<void> {
-    if (!this.changeRequestForm.title.trim()) {
-      this.changeRequestError.set('changeRequests.errorTitle');
-      return;
-    }
-    try {
-      await this.changeRequestsStore.create({
-        projectId: this.projectId,
-        title: this.changeRequestForm.title.trim(),
-        description: this.changeRequestForm.description.trim() || null,
-        priority: this.changeRequestForm.priority,
-        requestedById: this.currentUser.profile().employeeId,
-      });
-      this.showChangeRequestForm.set(false);
-      this.changeRequestError.set(null);
-    } catch {
-      this.changeRequestError.set('changeRequests.errorSave');
-    }
-  }
-
-  setChangeRequestStatus(id: number, status: ChangeRequestStatus): void {
-    const cr = this.changeRequests().find((c) => c.id === id);
-    if (!cr) return;
-    void this.changeRequestsStore.updateStatus(cr, status, this.currentUser.profile().employeeId);
-  }
-
-  deleteChangeRequest(id: number): void {
-    void this.changeRequestsStore.remove(id);
-  }
-
-  changeRequestStatusClass(status: string): string {
-    switch (status) {
-      case 'APPROVED':
-        return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300';
-      case 'IMPLEMENTED':
-        return 'bg-primary/10 text-primary';
-      case 'REJECTED':
-        return 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300';
-      default:
-        return 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300';
-    }
-  }
-
-
-
-  openStageForm(): void {
-
-    const p = this.project();
-
-    this.stageError.set(null);
-
-    this.stageForm = {
-
-      name: '',
-
-      startDate: p.startDate,
-
-      endDate: p.endDate,
-
-      status: 'Planned',
-
-      progress: 0,
-
-    };
-
-    this.showStageForm.set(true);
-
-  }
-
-
-
-  cancelStageForm(): void {
-
-    this.showStageForm.set(false);
-
-    this.stageError.set(null);
-
-  }
-
-
-
-  saveStage(): void {
-
-    if (!this.stageForm.name.trim()) {
-
-      this.stageError.set('project.errorStageName');
-
-      return;
-
-    }
-
-    if (!this.stageForm.endDate) {
-
-      this.stageError.set('project.errorStageEnd');
-
-      return;
-
-    }
-
-    if (this.stageForm.endDate < this.stageForm.startDate) {
-
-      this.stageError.set('projects.errorDates');
-
-      return;
-
-    }
-
-
-
-    this.store.addStage(this.projectId, {
-      name: this.stageForm.name,
-      startDate: this.stageForm.startDate,
-      endDate: this.stageForm.endDate,
-      status: this.stageForm.status,
-      progress: Number(this.stageForm.progress) || 0,
-    }).subscribe({
-      next: () => {
-        this.showStageForm.set(false);
-        this.stageError.set(null);
-      },
-      error: () => {
-        this.stageError.set('project.errorStageSave');
-      },
+  ngOnInit(): void {
+    this.route.paramMap.subscribe((params) => {
+      const id = Number(params.get('id'));
+      this.projectId.set(id);
+      this.activeTabKey = 'project.tabs.overview';
+      this.showStageForm.set(false);
+      this.showTaskForm.set(false);
+      this.store.ensureProject(id, () => this.tasksStore.loadFromApi());
+      if (!this.employeesStore.loaded()) {
+        this.employeesStore.loadFromApi();
+      }
     });
   }
 
-
-
-  deleteStage(stageId: number): void {
-
-    this.store.removeStage(this.projectId, stageId);
-
+  setTab(key: string): void {
+    this.activeTabKey = key;
   }
 
-
-
-  completeStage(stageId: number): void {
-
-    this.store.completeStage(this.projectId, stageId);
-
+  workTypeLabel(type: WorkItemType): string {
+    return type === 'FEATURE' ? 'work.type.feature' : 'work.type.task';
   }
 
+  workTypeClass(type: WorkItemType): string {
+    return type === 'FEATURE'
+      ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300'
+      : 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300';
+  }
+
+  statusPillClass(status: string): string {
+    const s = status.toUpperCase().replace(/\s+/g, '_');
+    if (s === 'DONE' || status === 'Done') {
+      return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300';
+    }
+    if (s === 'IN_PROGRESS' || s === 'REVIEW' || status === 'Active') {
+      return 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300';
+    }
+    return 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200';
+  }
+
+  openStageForm(): void {
+    const p = this.project();
+    if (!p) return;
+    this.showTaskForm.set(false);
+    this.stageError.set(null);
+    this.stageForm = {
+      name: '',
+      startDate: p.startDate,
+      endDate: p.endDate,
+      status: 'Planned',
+      progress: 0,
+    };
+    this.showStageForm.set(true);
+  }
+
+  cancelStageForm(): void {
+    this.showStageForm.set(false);
+    this.stageError.set(null);
+  }
+
+  saveStage(): void {
+    const p = this.project();
+    if (!p) return;
+    if (!this.stageForm.name.trim()) {
+      this.stageError.set('project.errorFeatureName');
+      return;
+    }
+    if (!this.stageForm.endDate) {
+      this.stageError.set('project.errorFeatureEnd');
+      return;
+    }
+    this.store
+      .addStage(this.projectId(), {
+        name: this.stageForm.name,
+        startDate: this.stageForm.startDate || p.startDate,
+        endDate: this.stageForm.endDate,
+        status: this.stageForm.status,
+        progress: this.stageForm.progress,
+      })
+      .subscribe({
+        next: () => {
+          this.showStageForm.set(false);
+          this.stageError.set(null);
+        },
+        error: () => this.stageError.set('project.errorFeatureSave'),
+      });
+  }
+
+  openTaskForm(): void {
+    const p = this.project();
+    if (!p) return;
+    this.showStageForm.set(false);
+    this.taskError.set(null);
+    const defaultAssignee = this.employees().find((e) => e.name === p.manager);
+    this.taskForm = {
+      title: '',
+      assigneeId: defaultAssignee?.id ?? this.employees()[0]?.id ?? null,
+      priority: 'MEDIUM',
+      dueDate: p.endDate || new Date().toISOString().slice(0, 10),
+      status: 'TODO',
+      stageId: this.stages().length === 1 ? this.stages()[0].id : null,
+    };
+    this.showTaskForm.set(true);
+  }
+
+  cancelTaskForm(): void {
+    this.showTaskForm.set(false);
+    this.taskError.set(null);
+  }
+
+  saveTask(): void {
+    if (!this.taskForm.title.trim()) {
+      this.taskError.set('tasks.errorTitle');
+      return;
+    }
+    if (this.taskForm.assigneeId == null) {
+      this.taskError.set('tasks.errorAssignee');
+      return;
+    }
+    const assignee = this.employees().find((e) => e.id === this.taskForm.assigneeId);
+    this.tasksStore.addTask({
+      projectId: this.projectId(),
+      title: this.taskForm.title,
+      assignee: assignee?.name ?? '',
+      assigneeId: this.taskForm.assigneeId,
+      priority: this.taskForm.priority,
+      dueDate: this.taskForm.dueDate,
+      status: this.taskForm.status,
+      stageId: this.taskForm.stageId,
+    });
+    this.showTaskForm.set(false);
+    this.taskError.set(null);
+  }
+
+  completeStage(id: number): void {
+    this.store.completeStage(this.projectId(), id);
+  }
+
+  deleteStage(id: number): void {
+    this.store.removeStage(this.projectId(), id);
+  }
+
+  taskLink(item: WorkListItem): string[] | null {
+    return item.type === 'TASK' ? ['/tasks', String(item.entityId)] : null;
+  }
 }
-

@@ -17,25 +17,6 @@ using Stratix.Domain.Enums;
 
 namespace Stratix.Application.Interfaces;
 
-public interface IMilestoneService
-{
-    Task<IReadOnlyList<Stratix.Application.DTOs.Milestones.MilestoneResponse>> GetAllAsync(CancellationToken ct = default);
-    Task<IReadOnlyList<Stratix.Application.DTOs.Milestones.MilestoneResponse>> GetByProjectAsync(long projectId, CancellationToken ct = default);
-    Task<Stratix.Application.DTOs.Milestones.MilestoneResponse> GetByIdAsync(long id, CancellationToken ct = default);
-    Task<Stratix.Application.DTOs.Milestones.MilestoneResponse> CreateAsync(Stratix.Application.DTOs.Milestones.CreateMilestoneRequest request, CancellationToken ct = default);
-    Task<Stratix.Application.DTOs.Milestones.MilestoneResponse> UpdateAsync(long id, Stratix.Application.DTOs.Milestones.UpdateMilestoneRequest request, CancellationToken ct = default);
-    Task DeleteAsync(long id, CancellationToken ct = default);
-}
-
-public interface IChangeRequestService
-{
-    Task<IReadOnlyList<Stratix.Application.DTOs.ChangeRequests.ChangeRequestResponse>> GetAllAsync(long? projectId, CancellationToken ct = default);
-    Task<Stratix.Application.DTOs.ChangeRequests.ChangeRequestResponse> GetByIdAsync(long id, CancellationToken ct = default);
-    Task<Stratix.Application.DTOs.ChangeRequests.ChangeRequestResponse> CreateAsync(Stratix.Application.DTOs.ChangeRequests.CreateChangeRequestRequest request, CancellationToken ct = default);
-    Task<Stratix.Application.DTOs.ChangeRequests.ChangeRequestResponse> UpdateAsync(long id, Stratix.Application.DTOs.ChangeRequests.UpdateChangeRequestRequest request, CancellationToken ct = default);
-    Task DeleteAsync(long id, CancellationToken ct = default);
-}
-
 public interface IEmployeeKpiService
 {
     Task<IReadOnlyList<Stratix.Application.DTOs.EmployeeKpis.EmployeeKpiResponse>> GetAllAsync(long? userId, CancellationToken ct = default);

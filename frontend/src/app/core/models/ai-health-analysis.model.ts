@@ -27,10 +27,6 @@ export interface ProjectHealthAnalysisRequest {
     completedStages: number;
     delayedStages: number;
   };
-  changeRequests: {
-    openChangeRequests: number;
-    approvedChangeRequests: number;
-  };
   performance: {
     teamKpiScore: number;
     projectHealthScore: number;

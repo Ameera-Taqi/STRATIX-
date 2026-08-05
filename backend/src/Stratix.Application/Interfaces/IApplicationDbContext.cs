@@ -15,8 +15,6 @@ public interface IApplicationDbContext
     IQueryable<TaskItem> Tasks { get; }
     IQueryable<TaskComment> TaskComments { get; }
     IQueryable<ProjectRisk> ProjectRisks { get; }
-    IQueryable<Milestone> Milestones { get; }
-    IQueryable<ChangeRequest> ChangeRequests { get; }
     IQueryable<EmployeeKpi> EmployeeKpis { get; }
     IQueryable<Notification> Notifications { get; }
     IQueryable<ProjectFile> ProjectFiles { get; }

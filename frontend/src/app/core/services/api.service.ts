@@ -53,18 +53,6 @@ import {
   ProjectFileResponse,
 } from '../models/project-file.model';
 
-import {
-  CreateMilestoneRequest,
-  MilestoneResponse,
-  UpdateMilestoneRequest,
-} from '../models/milestone.model';
-
-import {
-  ChangeRequestResponse,
-  CreateChangeRequestRequest,
-  UpdateChangeRequestRequest,
-} from '../models/change-request.model';
-
 import { EmployeeKpiResponse } from '../models/employee-kpi.model';
 
 import {
@@ -534,46 +522,6 @@ export class ApiService {
 
   deleteTaskComment(id: number): Observable<void> {
     return this.http.delete<void>(`${this.base}/task-comments/${id}`);
-  }
-
-  getMilestones(projectId?: number): Observable<MilestoneResponse[]> {
-    const url =
-      projectId != null
-        ? `${this.base}/projects/${projectId}/milestones`
-        : `${this.base}/milestones`;
-    return this.http.get<MilestoneResponse[]>(url);
-  }
-
-  createMilestone(body: CreateMilestoneRequest): Observable<MilestoneResponse> {
-    return this.http.post<MilestoneResponse>(`${this.base}/milestones`, body);
-  }
-
-  updateMilestone(id: number, body: UpdateMilestoneRequest): Observable<MilestoneResponse> {
-    return this.http.put<MilestoneResponse>(`${this.base}/milestones/${id}`, body);
-  }
-
-  deleteMilestone(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.base}/milestones/${id}`);
-  }
-
-  getChangeRequests(projectId?: number): Observable<ChangeRequestResponse[]> {
-    const url =
-      projectId != null
-        ? `${this.base}/change-requests?projectId=${projectId}`
-        : `${this.base}/change-requests`;
-    return this.http.get<ChangeRequestResponse[]>(url);
-  }
-
-  createChangeRequest(body: CreateChangeRequestRequest): Observable<ChangeRequestResponse> {
-    return this.http.post<ChangeRequestResponse>(`${this.base}/change-requests`, body);
-  }
-
-  updateChangeRequest(id: number, body: UpdateChangeRequestRequest): Observable<ChangeRequestResponse> {
-    return this.http.put<ChangeRequestResponse>(`${this.base}/change-requests/${id}`, body);
-  }
-
-  deleteChangeRequest(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.base}/change-requests/${id}`);
   }
 
   getEmployeeKpis(userId?: number): Observable<EmployeeKpiResponse[]> {

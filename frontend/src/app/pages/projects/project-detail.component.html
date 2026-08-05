@@ -1,551 +1,299 @@
 <app-topbar titleKey="page.projects" />
 
 <main class="stratix-page p-6">
+  <a routerLink="/projects" class="mb-4 inline-flex items-center gap-1 text-sm text-primary hover:underline">
+    <span class="stratix-chevron-flip"><app-ui-icon name="chevron-left" size="xs" /></span>
+    {{ 'projects.back' | t }}
+  </a>
 
-  <a routerLink="/projects" class="mb-4 inline-flex items-center gap-1 text-sm text-primary hover:underline"><span class="stratix-chevron-flip"><app-ui-icon name="chevron-left" size="xs" /></span> {{ 'projects.back' | t }}</a>
-
-
-
-  <div class="mb-6 stratix-card p-6">
-
-    <div class="flex flex-wrap items-start justify-between gap-4">
-
-      <div>
-
-        <h2 class="text-2xl font-bold text-dark dark:text-slate-100">{{ project().name }}</h2>
-
-        <app-status-badge class="mt-2 inline-block" [status]="project().status" />
-
-      </div>
-
-      <div class="flex flex-col items-end gap-3">
-
-        <app-project-health-score [health]="health()" />
-
-        <div class="text-end text-sm text-slate-600 dark:text-slate-300">
-
-          <p><strong>{{ 'common.progress' | t }}:</strong> {{ project().progress }}%</p>
-
-          <p><strong>{{ 'common.start' | t }}:</strong> {{ project().startDate }}</p>
-
-          <p><strong>{{ 'common.end' | t }}:</strong> {{ project().endDate }}</p>
-
-        </div>
-
-      </div>
-
+  @if (store.loading() && !project()) {
+    <p class="py-16 text-center text-sm stratix-muted">{{ 'common.loading' | t }}</p>
+  } @else if (!project()) {
+    <div class="stratix-card px-6 py-16 text-center">
+      <p class="text-sm stratix-muted">{{ 'project.notFound' | t }}</p>
+      <a routerLink="/projects" class="mt-4 inline-block text-sm font-medium text-primary hover:underline">
+        {{ 'projects.back' | t }}
+      </a>
     </div>
-
-    <div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
-
-      <div class="h-full rounded-full bg-primary" [style.width.%]="project().progress"></div>
-
-    </div>
-
-  </div>
-
-
-
-  <div class="mb-4 overflow-x-auto border-b border-slate-200 dark:border-slate-700">
-    <div class="flex min-w-max gap-1">
-    @for (key of tabKeys; track key) {
-      <button
-        type="button"
-        class="shrink-0 border-b-2 px-4 py-2 text-sm font-medium transition whitespace-nowrap"
-        [class.border-primary]="activeTabKey === key"
-        [class.text-primary]="activeTabKey === key"
-        [class.border-transparent]="activeTabKey !== key"
-        [class.text-slate-500]="activeTabKey !== key"
-        (click)="setTab(key)"
-      >
-        {{ key | t }}
-      </button>
-    }
-    </div>
-  </div>
-
-
-
-  @if (activeTabKey === 'project.tabs.overview') {
-
-    <div class="stratix-card p-6">
-
-      <p class="text-slate-600 dark:text-slate-300">{{ 'project.overviewDept' | t }}: <strong>{{ project().department }}</strong></p>
-
-      <p class="mt-2 text-slate-600 dark:text-slate-300">{{ 'project.overviewManager' | t }}: <strong>{{ project().manager }}</strong></p>
-
-      <p class="mt-4 text-sm stratix-muted">{{ 'project.overviewHint' | t }}</p>
-
-      @if (health()) {
-
-        <div class="mt-6 border-t border-slate-100 pt-6 dark:border-slate-700">
-
-          <h4 class="mb-4 text-sm font-semibold text-dark dark:text-slate-100">{{ 'health.breakdown' | t }}</h4>
-
-          <app-health-breakdown [factors]="health()!.factors" />
-
-        </div>
-
-      }
-
-    </div>
-
-  }
-
-
-
-  @if (activeTabKey === 'project.tabs.timeline') {
-
-    <div class="stratix-card p-5">
-
-      <p class="mb-4 text-xs stratix-muted">{{ 'timeline.hint' | t }}</p>
-
-      <app-gantt-chart [rows]="ganttRows()" [markers]="ganttMarkers()" [emptyLabel]="'timeline.noStages' | t" />
-
-    </div>
-
-  }
-
-
-
-  @if (activeTabKey === 'project.tabs.stages') {
-
-    <div class="mb-4 flex justify-end">
-
-      <button
-
-        type="button"
-
-        class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90"
-
-        (click)="openStageForm()"
-
-      >
-
-        + {{ 'project.addStage' | t }}
-
-      </button>
-
-    </div>
-
-
-
-    @if (showStageForm()) {
-
-      <div class="stratix-card mb-4 p-5">
-
-        <h3 class="stratix-heading text-base">{{ 'project.addStageTitle' | t }}</h3>
-
-        @if (stageError()) {
-
-          <p class="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-danger dark:bg-red-900/30">{{ stageError()! | t }}</p>
-
-        }
-
-        <form class="mt-4 grid gap-4 sm:grid-cols-2" (ngSubmit)="saveStage()">
-
-          <div class="sm:col-span-2">
-
-            <label class="stratix-muted mb-1 block text-sm">{{ 'project.stageName' | t }} *</label>
-
-            <input type="text" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="stageForm.name" name="stageName" required />
-
-          </div>
-
-          <div>
-
-            <label class="stratix-muted mb-1 block text-sm">{{ 'common.start' | t }}</label>
-
-            <input type="date" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="stageForm.startDate" name="stageStart" />
-
-          </div>
-
-          <div>
-
-            <label class="stratix-muted mb-1 block text-sm">{{ 'common.end' | t }} *</label>
-
-            <input type="date" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="stageForm.endDate" name="stageEnd" required />
-
-          </div>
-
-          <div>
-
-            <label class="stratix-muted mb-1 block text-sm">{{ 'common.status' | t }}</label>
-
-            <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="stageForm.status" name="stageStatus">
-
-              @for (st of stageStatusOptions; track st) {
-
-                <option [value]="st">{{ st }}</option>
-
-              }
-
-            </select>
-
-          </div>
-
-          <div>
-
-            <label class="stratix-muted mb-1 block text-sm">{{ 'common.progress' | t }} (%)</label>
-
-            <input type="number" min="0" max="100" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="stageForm.progress" name="stageProgress" />
-
-          </div>
-
-          <div class="flex justify-end gap-2 sm:col-span-2">
-
-            <button type="button" class="stratix-input px-4 py-2 text-sm" (click)="cancelStageForm()">{{ 'projects.cancel' | t }}</button>
-
-            <button type="submit" class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white">{{ 'project.saveStage' | t }}</button>
-
-          </div>
-
-        </form>
-
-      </div>
-
-    }
-
-
-
-    <div class="stratix-card overflow-hidden">
-
-      @if (stages().length === 0) {
-
-        <div class="px-6 py-12 text-center">
-
-          <p class="stratix-muted text-sm">{{ 'project.noStages' | t }}</p>
-
-          <p class="mt-2 text-xs stratix-muted">{{ 'project.noStagesHint' | t }}</p>
-
-          <button type="button" class="mt-4 text-sm font-medium text-primary" (click)="openStageForm()">
-
-            + {{ 'project.addStage' | t }}
-
+  } @else {
+    <div class="mb-4 overflow-x-auto border-b border-slate-200 dark:border-slate-700">
+      <div class="flex min-w-max gap-1">
+        @for (key of tabKeys; track key) {
+          <button
+            type="button"
+            class="shrink-0 border-b-2 px-4 py-2 text-sm font-medium transition whitespace-nowrap"
+            [class.border-primary]="activeTabKey === key"
+            [class.text-primary]="activeTabKey === key"
+            [class.border-transparent]="activeTabKey !== key"
+            [class.text-slate-500]="activeTabKey !== key"
+            (click)="setTab(key)"
+          >
+            {{ key | t }}
           </button>
-
-        </div>
-
-      } @else {
-
-        <table class="w-full text-start text-sm">
-
-          <thead class="stratix-table-head">
-
-            <tr>
-
-              <th class="px-5 py-3 w-12">#</th>
-
-              <th class="px-5 py-3">{{ 'project.stageName' | t }}</th>
-
-              <th class="px-5 py-3">{{ 'common.start' | t }}</th>
-
-              <th class="px-5 py-3">{{ 'common.end' | t }}</th>
-
-              <th class="px-5 py-3">{{ 'common.progress' | t }}</th>
-
-              <th class="px-5 py-3">{{ 'common.status' | t }}</th>
-
-              <th class="px-5 py-3">{{ 'common.actions' | t }}</th>
-
-            </tr>
-
-          </thead>
-
-          <tbody>
-
-            @for (s of stages(); track s.id) {
-
-              <tr class="stratix-table-row">
-
-                <td class="px-5 py-3 stratix-muted">{{ s.orderNumber }}</td>
-
-                <td class="px-5 py-3 font-medium">{{ s.name }}</td>
-
-                <td class="px-5 py-3 text-slate-600 dark:text-slate-300">{{ s.startDate }}</td>
-
-                <td class="px-5 py-3 text-slate-600 dark:text-slate-300">{{ s.endDate }}</td>
-
-                <td class="px-5 py-3">
-
-                  <div class="flex items-center gap-2">
-
-                    <div class="h-2 w-16 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
-
-                      <div class="h-full bg-primary" [style.width.%]="s.progress"></div>
-
-                    </div>
-
-                    {{ s.progress }}%
-
-                  </div>
-
-                </td>
-
-                <td class="px-5 py-3"><app-status-badge [status]="s.status" /></td>
-
-                <td class="px-5 py-3">
-
-                  @if (s.status !== 'Done') {
-
-                    <button type="button" class="me-3 text-sm text-primary hover:underline" (click)="completeStage(s.id)">
-
-                      {{ 'project.completeStage' | t }}
-
-                    </button>
-
-                  }
-
-                  <button type="button" class="text-sm text-danger hover:underline" (click)="deleteStage(s.id)">
-
-                    {{ 'common.delete' | t }}
-
-                  </button>
-
-                </td>
-
-              </tr>
-
-            }
-
-          </tbody>
-
-        </table>
-
-      }
-
-    </div>
-
-  }
-
-
-
-  @if (activeTabKey === 'project.tabs.milestones') {
-
-    <div class="mb-4 flex justify-end">
-      <button
-        type="button"
-        class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90"
-        (click)="openMilestoneForm()"
-      >
-        + {{ 'milestones.add' | t }}
-      </button>
-    </div>
-
-    @if (showMilestoneForm()) {
-      <div class="stratix-card mb-4 p-5">
-        <h3 class="stratix-heading text-base">{{ 'milestones.add' | t }}</h3>
-        @if (milestoneError()) {
-          <p class="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-danger dark:bg-red-900/30">{{ milestoneError()! | t }}</p>
         }
-        <form class="mt-4 grid gap-4 sm:grid-cols-2" (ngSubmit)="saveMilestone()">
-          <div class="sm:col-span-2">
-            <label class="stratix-muted mb-1 block text-sm">{{ 'milestones.title' | t }} *</label>
-            <input type="text" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="milestoneForm.title" name="milestoneTitle" required />
+      </div>
+    </div>
+
+    @if (activeTabKey === 'project.tabs.overview') {
+      <div class="mb-6 stratix-card p-6">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div class="min-w-0 flex-1">
+            <h2 class="text-2xl font-bold text-dark dark:text-slate-100">{{ project()!.name }}</h2>
+            <app-status-badge class="mt-2 inline-block" [status]="project()!.status" />
           </div>
-          <div>
-            <label class="stratix-muted mb-1 block text-sm">{{ 'milestones.dueDate' | t }} *</label>
-            <input type="date" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="milestoneForm.dueDate" name="milestoneDueDate" required />
+          <div class="flex flex-col items-end gap-3">
+            <app-project-health-score [health]="health()" />
           </div>
-          <div class="flex justify-end gap-2 sm:col-span-2">
-            <button type="button" class="stratix-input px-4 py-2 text-sm" (click)="cancelMilestoneForm()">{{ 'projects.cancel' | t }}</button>
-            <button type="submit" class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white">{{ 'milestones.save' | t }}</button>
+        </div>
+        <div class="mt-5">
+          <div class="mb-1.5 flex items-center justify-between text-xs">
+            <span class="stratix-muted">{{ 'common.progress' | t }}</span>
+            <span class="font-medium tabular-nums text-slate-600 dark:text-slate-300">{{ project()!.progress }}%</span>
           </div>
-        </form>
+          <div class="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+            <div class="h-full rounded-full bg-primary" [style.width.%]="project()!.progress"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stratix-card p-6">
+        <p class="text-sm stratix-muted">{{ 'project.overviewHint' | t }}</p>
+        @if (health()) {
+          <div class="mt-6 border-t border-slate-100 pt-6 dark:border-slate-700">
+            <h4 class="mb-4 text-sm font-semibold text-dark dark:text-slate-100">{{ 'health.breakdown' | t }}</h4>
+            <app-health-breakdown [factors]="health()!.factors" />
+          </div>
+        }
       </div>
     }
 
-    <div class="stratix-card overflow-hidden">
-      @if (milestonesStore.loading() && milestones().length === 0) {
-        <div class="px-6 py-12 text-center stratix-muted text-sm">{{ 'common.loading' | t }}</div>
-      } @else if (milestones().length === 0) {
-        <div class="px-6 py-12 text-center">
-          <p class="stratix-muted text-sm">{{ 'milestones.empty' | t }}</p>
-        </div>
-      } @else {
-        <table class="w-full text-start text-sm">
-          <thead class="stratix-table-head">
-            <tr>
-              <th class="px-5 py-3">{{ 'milestones.title' | t }}</th>
-              <th class="px-5 py-3">{{ 'milestones.dueDate' | t }}</th>
-              <th class="px-5 py-3">{{ 'milestones.completedDate' | t }}</th>
-              <th class="px-5 py-3">{{ 'common.status' | t }}</th>
-              <th class="px-5 py-3">{{ 'common.actions' | t }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (m of milestones(); track m.id) {
-              <tr class="stratix-table-row">
-                <td class="px-5 py-3 font-medium">{{ m.title }}</td>
-                <td class="px-5 py-3 text-slate-600 dark:text-slate-300">{{ m.dueDate }}</td>
-                <td class="px-5 py-3 text-slate-600 dark:text-slate-300">{{ m.completedDate ?? '—' }}</td>
-                <td class="px-5 py-3">
-                  <span class="stratix-badge" [class]="milestoneStatusClass(m.status)">{{ m.status }}</span>
-                </td>
-                <td class="px-5 py-3">
-                  @if (m.status !== 'COMPLETED') {
-                    <button type="button" class="me-3 text-sm text-primary hover:underline" (click)="completeMilestone(m.id)">
-                      {{ 'milestones.complete' | t }}
-                    </button>
-                  }
-                  <button type="button" class="text-sm text-danger hover:underline" (click)="deleteMilestone(m.id)">
-                    {{ 'common.delete' | t }}
-                  </button>
-                </td>
+    @if (activeTabKey === 'project.tabs.list') {
+      <div class="stratix-card overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[720px] text-start text-sm">
+            <thead class="stratix-table-head">
+              <tr>
+                <th class="px-4 py-3 font-medium">{{ 'work.type' | t }}</th>
+                <th class="px-4 py-3 font-medium">{{ 'work.key' | t }}</th>
+                <th class="px-4 py-3 font-medium">{{ 'common.name' | t }}</th>
+                <th class="px-4 py-3 font-medium">{{ 'common.status' | t }}</th>
+                <th class="px-4 py-3 font-medium">{{ 'common.assigned' | t }}</th>
+                <th class="px-4 py-3 font-medium">{{ 'common.due' | t }}</th>
               </tr>
-            }
-          </tbody>
-        </table>
-      }
-    </div>
-
-  }
-
-
-
-  @if (activeTabKey === 'project.tabs.changes') {
-
-    <div class="mb-4 flex justify-end">
-      <button
-        type="button"
-        class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90"
-        (click)="openChangeRequestForm()"
-      >
-        + {{ 'changeRequests.add' | t }}
-      </button>
-    </div>
-
-    @if (showChangeRequestForm()) {
-      <div class="stratix-card mb-4 p-5">
-        <h3 class="stratix-heading text-base">{{ 'changeRequests.add' | t }}</h3>
-        @if (changeRequestError()) {
-          <p class="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-danger dark:bg-red-900/30">{{ changeRequestError()! | t }}</p>
-        }
-        <form class="mt-4 grid gap-4 sm:grid-cols-2" (ngSubmit)="saveChangeRequest()">
-          <div class="sm:col-span-2">
-            <label class="stratix-muted mb-1 block text-sm">{{ 'changeRequests.title' | t }} *</label>
-            <input type="text" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="changeRequestForm.title" name="crTitle" required />
-          </div>
-          <div class="sm:col-span-2">
-            <label class="stratix-muted mb-1 block text-sm">{{ 'changeRequests.description' | t }}</label>
-            <textarea class="stratix-input w-full px-3 py-2 text-sm" rows="3" [(ngModel)]="changeRequestForm.description" name="crDescription"></textarea>
-          </div>
-          <div>
-            <label class="stratix-muted mb-1 block text-sm">{{ 'common.priority' | t }}</label>
-            <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="changeRequestForm.priority" name="crPriority">
-              @for (p of changeRequestPriorityOptions; track p) {
-                <option [value]="p">{{ p }}</option>
+            </thead>
+            <tbody>
+              @if (workItems().length === 0) {
+                <tr>
+                  <td colspan="6" class="px-4 py-10 text-center stratix-muted">{{ 'work.listEmpty' | t }}</td>
+                </tr>
+              } @else {
+                @for (item of workItems(); track item.id) {
+                  <tr class="stratix-table-row">
+                    <td class="px-4 py-3">
+                      <span class="inline-flex rounded px-2 py-0.5 text-[11px] font-semibold" [class]="workTypeClass(item.type)">
+                        {{ workTypeLabel(item.type) | t }}
+                      </span>
+                    </td>
+                    <td class="px-4 py-3 font-mono text-xs text-slate-500">{{ item.id }}</td>
+                    <td class="px-4 py-3 font-medium text-dark dark:text-slate-100">
+                      @if (taskLink(item); as link) {
+                        <a [routerLink]="link" class="hover:text-primary hover:underline">{{ item.title }}</a>
+                      } @else {
+                        {{ item.title }}
+                      }
+                      @if (item.parentName) {
+                        <span class="mt-0.5 block text-xs stratix-muted">{{ item.parentName }}</span>
+                      }
+                    </td>
+                    <td class="px-4 py-3">
+                      <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium" [class]="statusPillClass(item.status)">
+                        {{ item.status }}
+                      </span>
+                    </td>
+                    <td class="px-4 py-3 text-slate-600 dark:text-slate-300">{{ item.assignee }}</td>
+                    <td class="px-4 py-3 tabular-nums text-slate-500 dark:text-slate-400">{{ item.dueDate }}</td>
+                  </tr>
+                }
               }
-            </select>
-          </div>
-          <div class="flex justify-end gap-2 sm:col-span-2">
-            <button type="button" class="stratix-input px-4 py-2 text-sm" (click)="cancelChangeRequestForm()">{{ 'projects.cancel' | t }}</button>
-            <button type="submit" class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white">{{ 'changeRequests.save' | t }}</button>
-          </div>
-        </form>
+            </tbody>
+          </table>
+        </div>
       </div>
     }
 
-    <div class="stratix-card overflow-hidden">
-      @if (changeRequestsStore.loading() && changeRequests().length === 0) {
-        <div class="px-6 py-12 text-center stratix-muted text-sm">{{ 'common.loading' | t }}</div>
-      } @else if (changeRequests().length === 0) {
-        <div class="px-6 py-12 text-center">
-          <p class="stratix-muted text-sm">{{ 'changeRequests.empty' | t }}</p>
+    @if (activeTabKey === 'project.tabs.board') {
+      <app-task-board [projectId]="projectId()" [embedded]="true" />
+    }
+
+    @if (activeTabKey === 'project.tabs.backlog') {
+      <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <p class="text-sm stratix-muted">{{ 'work.backlogHint' | t }}</p>
+        <div class="flex flex-wrap gap-2">
+          <button
+            type="button"
+            class="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-violet-700 active:scale-[0.98]"
+            (click)="openStageForm()"
+          >
+            + {{ 'project.addFeature' | t }}
+          </button>
+          <button
+            type="button"
+            class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-sky-700 active:scale-[0.98]"
+            (click)="openTaskForm()"
+          >
+            + {{ 'tasks.add' | t }}
+          </button>
         </div>
-      } @else {
-        <table class="w-full text-start text-sm">
-          <thead class="stratix-table-head">
-            <tr>
-              <th class="px-5 py-3">{{ 'changeRequests.title' | t }}</th>
-              <th class="px-5 py-3">{{ 'common.priority' | t }}</th>
-              <th class="px-5 py-3">{{ 'changeRequests.requestedBy' | t }}</th>
-              <th class="px-5 py-3">{{ 'common.status' | t }}</th>
-              <th class="px-5 py-3">{{ 'common.actions' | t }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (c of changeRequests(); track c.id) {
-              <tr class="stratix-table-row">
-                <td class="px-5 py-3">
-                  <p class="font-medium">{{ c.title }}</p>
-                  @if (c.description) {
-                    <p class="mt-0.5 truncate text-xs stratix-muted">{{ c.description }}</p>
-                  }
-                </td>
-                <td class="px-5 py-3 text-slate-600 dark:text-slate-300">{{ c.priority }}</td>
-                <td class="px-5 py-3 text-slate-600 dark:text-slate-300">{{ c.requestedByName }}</td>
-                <td class="px-5 py-3">
-                  <select
-                    class="stratix-input py-1 text-xs"
-                    [class]="changeRequestStatusClass(c.status)"
-                    [ngModel]="c.status"
-                    (ngModelChange)="setChangeRequestStatus(c.id, $event)"
-                  >
-                    @for (s of changeRequestStatusOptions; track s) {
-                      <option [value]="s">{{ s }}</option>
-                    }
-                  </select>
-                </td>
-                <td class="px-5 py-3">
-                  <button type="button" class="text-sm text-danger hover:underline" (click)="deleteChangeRequest(c.id)">
-                    {{ 'common.delete' | t }}
-                  </button>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      }
-    </div>
-
-  }
-
-
-
-  @if (activeTabKey === 'project.tabs.tasks') {
-
-    <app-task-board [projectId]="projectId" [embedded]="true" />
-
-  }
-
-
-
-  @if (activeTabKey === 'project.tabs.files') {
-
-    <div class="stratix-card p-6">
-
-      <h3 class="mb-4 stratix-heading text-sm">{{ 'project.tabs.files' | t }}</h3>
-
-      <app-attachments-panel [projectId]="projectId" [projectName]="project().name" />
-
-    </div>
-
-  }
-
-
-
-  @if (activeTabKey === 'project.tabs.activity') {
-
-    <div class="stratix-card p-6">
-
-      <div class="mb-2 flex items-center justify-between">
-
-        <h3 class="stratix-heading text-sm">{{ 'activity.title' | t }}</h3>
-
-        <a routerLink="/audit" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">{{ 'audit.viewAll' | t }} <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span></a>
-
       </div>
 
-      <p class="mb-6 text-xs stratix-muted">{{ 'activity.hint' | t }}</p>
+      @if (showStageForm()) {
+        <div class="stratix-card mb-4 p-5">
+          <h3 class="stratix-heading text-base">{{ 'project.addFeatureTitle' | t }}</h3>
+          @if (stageError()) {
+            <p class="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-danger dark:bg-red-900/30">{{ stageError()! | t }}</p>
+          }
+          <form class="mt-4 grid gap-4 sm:grid-cols-2" (ngSubmit)="saveStage()">
+            <div class="sm:col-span-2">
+              <label class="stratix-muted mb-1 block text-sm">{{ 'project.featureName' | t }} *</label>
+              <input type="text" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="stageForm.name" name="featureName" required />
+            </div>
+            <div>
+              <label class="stratix-muted mb-1 block text-sm">{{ 'common.start' | t }}</label>
+              <input type="date" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="stageForm.startDate" name="featureStart" />
+            </div>
+            <div>
+              <label class="stratix-muted mb-1 block text-sm">{{ 'common.end' | t }} *</label>
+              <input type="date" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="stageForm.endDate" name="featureEnd" required />
+            </div>
+            <div class="flex justify-end gap-2 sm:col-span-2">
+              <button type="button" class="stratix-input px-4 py-2 text-sm" (click)="cancelStageForm()">{{ 'projects.cancel' | t }}</button>
+              <button type="submit" class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white">{{ 'project.saveFeature' | t }}</button>
+            </div>
+          </form>
+        </div>
+      }
 
-      <app-activity-timeline [projectId]="projectId" [limit]="50" />
+      @if (showTaskForm()) {
+        <div class="stratix-card mb-4 p-5">
+          <h3 class="stratix-heading text-base">{{ 'tasks.addTitle' | t }}</h3>
+          @if (taskError()) {
+            <p class="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-danger dark:bg-red-900/30">{{ taskError()! | t }}</p>
+          }
+          <form class="mt-4 grid gap-4 sm:grid-cols-2" (ngSubmit)="saveTask()">
+            <div class="sm:col-span-2">
+              <label class="stratix-muted mb-1 block text-sm">{{ 'tasks.titlePlaceholder' | t }} *</label>
+              <input type="text" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="taskForm.title" name="taskTitle" required />
+            </div>
+            <div>
+              <label class="stratix-muted mb-1 block text-sm">{{ 'common.assigned' | t }} *</label>
+              <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="taskForm.assigneeId" name="taskAssignee" required>
+                <option [ngValue]="null" disabled>{{ 'common.assigned' | t }}</option>
+                @for (e of employees(); track e.id) {
+                  <option [ngValue]="e.id">{{ e.name }}</option>
+                }
+              </select>
+            </div>
+            <div>
+              <label class="stratix-muted mb-1 block text-sm">{{ 'common.due' | t }}</label>
+              <input type="date" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="taskForm.dueDate" name="taskDue" />
+            </div>
+            @if (stages().length > 0) {
+              <div class="sm:col-span-2">
+                <label class="stratix-muted mb-1 block text-sm">{{ 'work.type.feature' | t }}</label>
+                <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="taskForm.stageId" name="taskStage">
+                  <option [ngValue]="null">{{ 'tasks.noFeature' | t }}</option>
+                  @for (s of stages(); track s.id) {
+                    <option [ngValue]="s.id">{{ s.name }}</option>
+                  }
+                </select>
+              </div>
+            }
+            <div class="flex justify-end gap-2 sm:col-span-2">
+              <button type="button" class="stratix-input px-4 py-2 text-sm" (click)="cancelTaskForm()">{{ 'projects.cancel' | t }}</button>
+              <button type="submit" class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white">{{ 'tasks.add' | t }}</button>
+            </div>
+          </form>
+        </div>
+      }
 
-    </div>
+      <div class="stratix-card overflow-hidden">
+        @if (backlogItems().length === 0) {
+          <div class="px-6 py-12 text-center text-sm stratix-muted">{{ 'work.backlogEmpty' | t }}</div>
+        } @else {
+          <ul class="divide-y divide-slate-100 dark:divide-slate-700/80">
+            @for (item of backlogItems(); track item.id) {
+              <li class="flex flex-wrap items-center gap-3 px-4 py-3 transition hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-[10px] font-bold" [class]="workTypeClass(item.type)">
+                  {{ item.type === 'FEATURE' ? 'F' : 'T' }}
+                </span>
+                <span class="w-16 shrink-0 font-mono text-xs text-slate-400">{{ item.id }}</span>
+                <div class="min-w-0 flex-1">
+                  @if (taskLink(item); as link) {
+                    <a [routerLink]="link" class="font-medium text-dark hover:text-primary hover:underline dark:text-slate-100">{{ item.title }}</a>
+                  } @else {
+                    <p class="font-medium text-dark dark:text-slate-100">{{ item.title }}</p>
+                  }
+                  @if (item.parentName) {
+                    <p class="text-xs stratix-muted">{{ item.parentName }}</p>
+                  }
+                </div>
+                <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium" [class]="statusPillClass(item.status)">
+                  {{ item.status }}
+                </span>
+                <span class="hidden text-xs text-slate-500 sm:inline dark:text-slate-400">{{ item.assignee }}</span>
+                <span class="tabular-nums text-xs text-slate-400">{{ item.dueDate }}</span>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    }
 
+    @if (activeTabKey === 'project.tabs.timeline') {
+      <div class="stratix-card overflow-hidden">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3 dark:border-slate-700">
+          <div>
+            <h3 class="text-sm font-semibold text-dark dark:text-slate-100">{{ 'project.tabs.timeline' | t }}</h3>
+            <p class="text-xs stratix-muted">{{ 'work.timelineHint' | t }}</p>
+          </div>
+          <div class="flex flex-wrap gap-2 text-xs">
+            <span class="inline-flex items-center gap-1.5 rounded-full bg-violet-100 px-2.5 py-1 font-medium text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
+              {{ 'work.type.feature' | t }}
+            </span>
+            <span class="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-2.5 py-1 font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
+              {{ 'work.type.task' | t }}
+            </span>
+          </div>
+        </div>
+        <div class="p-5">
+          <app-gantt-chart [rows]="ganttRows()" [markers]="ganttMarkers()" [emptyLabel]="'timeline.noFeatures' | t" />
+        </div>
+      </div>
+    }
+
+    @if (activeTabKey === 'project.tabs.files') {
+      <div class="stratix-card p-6">
+        <h3 class="mb-4 stratix-heading text-sm">{{ 'project.tabs.files' | t }}</h3>
+        <app-attachments-panel [projectId]="projectId()" [projectName]="project()!.name" />
+      </div>
+    }
+
+    @if (activeTabKey === 'project.tabs.activity') {
+      <div class="stratix-card p-6">
+        <div class="mb-2 flex items-center justify-between">
+          <h3 class="stratix-heading text-sm">{{ 'activity.title' | t }}</h3>
+          <a routerLink="/audit" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+            {{ 'audit.viewAll' | t }}
+            <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span>
+          </a>
+        </div>
+        <p class="mb-6 text-xs stratix-muted">{{ 'activity.hint' | t }}</p>
+        <app-activity-timeline [projectId]="projectId()" [limit]="50" />
+      </div>
+    }
   }
-
 </main>
 
-<app-project-ai-bot [projectId]="projectId" />
-
+@if (project()) {
+  <app-project-ai-bot [projectId]="projectId()" />
+}

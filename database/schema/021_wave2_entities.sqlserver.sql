@@ -1,31 +1,8 @@
 -- ============================================================================
--- 021 — Wave 2 tenant-scoped entities: change_requests, employee_kpis,
+-- 021 — Wave 2 tenant-scoped entities: employee_kpis,
 --       notifications, project_files. Idempotent.
+--       (change_requests removed — see 026_drop_change_requests.sql)
 -- ============================================================================
-IF OBJECT_ID('dbo.change_requests', 'U') IS NULL
-BEGIN
-    CREATE TABLE dbo.change_requests (
-        id               BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT pk_change_requests PRIMARY KEY,
-        organization_id  BIGINT        NOT NULL,
-        project_id       BIGINT        NOT NULL,
-        title            NVARCHAR(200) NOT NULL,
-        description      NVARCHAR(MAX) NULL,
-        status           NVARCHAR(20)  NOT NULL CONSTRAINT df_cr_status DEFAULT 'PENDING',
-        priority         NVARCHAR(20)  NOT NULL CONSTRAINT df_cr_priority DEFAULT 'MEDIUM',
-        requested_by_id  BIGINT        NOT NULL,
-        reviewed_by_id   BIGINT        NULL,
-        created_at       DATETIME2(0)  NOT NULL CONSTRAINT df_cr_created DEFAULT SYSUTCDATETIME(),
-        updated_at       DATETIME2(0)  NOT NULL CONSTRAINT df_cr_updated DEFAULT SYSUTCDATETIME(),
-        CONSTRAINT fk_cr_org FOREIGN KEY (organization_id) REFERENCES dbo.organizations(id),
-        CONSTRAINT fk_cr_project FOREIGN KEY (project_id) REFERENCES dbo.projects(id),
-        CONSTRAINT fk_cr_requested FOREIGN KEY (requested_by_id) REFERENCES dbo.users(id),
-        CONSTRAINT fk_cr_reviewed FOREIGN KEY (reviewed_by_id) REFERENCES dbo.users(id)
-    );
-    CREATE INDEX ix_change_requests_org ON dbo.change_requests(organization_id);
-    CREATE INDEX ix_change_requests_project ON dbo.change_requests(project_id);
-END
-GO
-
 IF OBJECT_ID('dbo.employee_kpis', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.employee_kpis (

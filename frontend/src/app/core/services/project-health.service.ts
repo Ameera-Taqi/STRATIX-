@@ -39,7 +39,8 @@ export class ProjectHealthService {
   });
 
   getByProjectId(projectId: number): ProjectHealthResult | undefined {
-    return this.all().find((h) => h.projectId === projectId);
+    const target = Number(projectId);
+    return this.all().find((h) => Number(h.projectId) === target);
   }
 
   readonly portfolioScore = computed(() => {

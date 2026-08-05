@@ -20,7 +20,7 @@
 
 1. **Dashboard** — KPI cards, 3 charts, recent projects table
 2. **Projects** — Search, status filter, new project, projects table + actions
-3. **Project details** — Header, tabs (Overview, Stages, Tasks, Files, Activity)
+3. **Project details** — Header, tabs (Overview, Features, Tasks, Files, Activity)
 4. **Tasks board** — To Do | In Progress | Review | Done
 5. **Task details** — Info, subtasks, activity
 6. **Team** — Search, add employee, employees table

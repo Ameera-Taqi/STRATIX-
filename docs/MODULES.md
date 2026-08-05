@@ -11,7 +11,7 @@
 | 1 | Authentication | `AUTH` |
 | 2 | Dashboard | `DASHBOARD` |
 | 3 | Projects | `PROJECTS` |
-| 4 | Stages | `STAGES` |
+| 4 | Features | `STAGES` |
 | 5 | Tasks | `TASKS` |
 | 6 | Employees | `EMPLOYEES` |
 | 7 | Performance & KPI | `PERFORMANCE` |
@@ -24,7 +24,7 @@
 ## Workflow
 
 ```
-Create Project → Add Stages → Add Tasks → Assign Employees
+Create Project → Add Features → Add Tasks → Assign Employees
     → Track Progress → Evaluate Performance → Generate Reports
 ```
 

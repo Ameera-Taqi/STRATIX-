@@ -32,7 +32,7 @@ GO
 DECLARE @tables TABLE (name SYSNAME);
 INSERT INTO @tables (name) VALUES
     ('users'), ('departments'), ('projects'), ('project_stages'),
-    ('tasks'), ('project_risks'), ('audit_logs'), ('project_milestones');
+    ('tasks'), ('project_risks'), ('audit_logs');
 
 DECLARE @t SYSNAME, @sql NVARCHAR(MAX);
 DECLARE cur CURSOR LOCAL FAST_FORWARD FOR SELECT name FROM @tables;
@@ -57,7 +57,7 @@ DECLARE @t2 SYSNAME, @sql2 NVARCHAR(MAX);
 DECLARE cur2 CURSOR LOCAL FAST_FORWARD FOR
     SELECT name FROM (VALUES
         ('users'), ('departments'), ('projects'), ('project_stages'),
-        ('tasks'), ('project_risks'), ('audit_logs'), ('project_milestones')) v(name)
+        ('tasks'), ('project_risks'), ('audit_logs')) v(name)
     WHERE COL_LENGTH('dbo.' + name, 'organization_id') IS NOT NULL;
 OPEN cur2;
 FETCH NEXT FROM cur2 INTO @t2;

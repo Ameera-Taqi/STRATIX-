@@ -47,8 +47,6 @@ public class StratixDbContext : DbContext, IApplicationDbContext
     public DbSet<TaskItem> TaskSet => Set<TaskItem>();
     public DbSet<TaskComment> TaskCommentSet => Set<TaskComment>();
     public DbSet<ProjectRisk> ProjectRiskSet => Set<ProjectRisk>();
-    public DbSet<Milestone> MilestoneSet => Set<Milestone>();
-    public DbSet<ChangeRequest> ChangeRequestSet => Set<ChangeRequest>();
     public DbSet<EmployeeKpi> EmployeeKpiSet => Set<EmployeeKpi>();
     public DbSet<Notification> NotificationSet => Set<Notification>();
     public DbSet<ProjectFile> ProjectFileSet => Set<ProjectFile>();
@@ -68,8 +66,6 @@ public class StratixDbContext : DbContext, IApplicationDbContext
     IQueryable<TaskItem> IApplicationDbContext.Tasks => TaskSet;
     IQueryable<TaskComment> IApplicationDbContext.TaskComments => TaskCommentSet;
     IQueryable<ProjectRisk> IApplicationDbContext.ProjectRisks => ProjectRiskSet;
-    IQueryable<Milestone> IApplicationDbContext.Milestones => MilestoneSet;
-    IQueryable<ChangeRequest> IApplicationDbContext.ChangeRequests => ChangeRequestSet;
     IQueryable<EmployeeKpi> IApplicationDbContext.EmployeeKpis => EmployeeKpiSet;
     IQueryable<Notification> IApplicationDbContext.Notifications => NotificationSet;
     IQueryable<ProjectFile> IApplicationDbContext.ProjectFiles => ProjectFileSet;
@@ -331,44 +327,6 @@ public class StratixDbContext : DbContext, IApplicationDbContext
             e.HasOne(x => x.Owner).WithMany().HasForeignKey(x => x.OwnerId);
         });
 
-        modelBuilder.Entity<Milestone>(e =>
-        {
-            e.ToTable("project_milestones");
-            e.HasKey(x => x.Id);
-            e.Property(x => x.Id).HasColumnName("id");
-            e.Property(x => x.OrganizationId).HasColumnName("organization_id");
-            e.HasQueryFilter(x => !_filterByTenant || x.OrganizationId == _tenantId);
-            e.Property(x => x.ProjectId).HasColumnName("project_id");
-            e.Property(x => x.Title).HasColumnName("title").HasMaxLength(200).IsRequired();
-            e.Property(x => x.DueDate).HasColumnName("due_date");
-            e.Property(x => x.CompletedDate).HasColumnName("completed_date");
-            e.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20);
-            e.Property(x => x.CreatedAt).HasColumnName("created_at");
-            e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
-            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId);
-        });
-
-        modelBuilder.Entity<ChangeRequest>(e =>
-        {
-            e.ToTable("change_requests");
-            e.HasKey(x => x.Id);
-            e.Property(x => x.Id).HasColumnName("id");
-            e.Property(x => x.OrganizationId).HasColumnName("organization_id");
-            e.HasQueryFilter(x => !_filterByTenant || x.OrganizationId == _tenantId);
-            e.Property(x => x.ProjectId).HasColumnName("project_id");
-            e.Property(x => x.Title).HasColumnName("title").HasMaxLength(200).IsRequired();
-            e.Property(x => x.Description).HasColumnName("description");
-            e.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20);
-            e.Property(x => x.Priority).HasColumnName("priority").HasConversion<string>().HasMaxLength(20);
-            e.Property(x => x.RequestedById).HasColumnName("requested_by_id");
-            e.Property(x => x.ReviewedById).HasColumnName("reviewed_by_id");
-            e.Property(x => x.CreatedAt).HasColumnName("created_at");
-            e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
-            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId);
-            e.HasOne(x => x.RequestedBy).WithMany().HasForeignKey(x => x.RequestedById);
-            e.HasOne(x => x.ReviewedBy).WithMany().HasForeignKey(x => x.ReviewedById);
-        });
-
         modelBuilder.Entity<EmployeeKpi>(e =>
         {
             e.ToTable("employee_kpis");
@@ -413,6 +371,8 @@ public class StratixDbContext : DbContext, IApplicationDbContext
             e.HasQueryFilter(x => !_filterByTenant || x.OrganizationId == _tenantId);
             e.Property(x => x.ProjectId).HasColumnName("project_id");
             e.Property(x => x.FileName).HasColumnName("file_name").HasMaxLength(300).IsRequired();
+            e.Property(x => x.Description).HasColumnName("description").HasMaxLength(1000);
+            e.Property(x => x.Category).HasColumnName("category").HasMaxLength(80);
             e.Property(x => x.ContentType).HasColumnName("content_type").HasMaxLength(150);
             e.Property(x => x.SizeBytes).HasColumnName("size_bytes");
             e.Property(x => x.Url).HasColumnName("url").HasMaxLength(1000).IsRequired();

@@ -17,8 +17,6 @@ public static class DependencyInjection
         services.AddScoped<ITaskService, TaskService>();
         services.AddScoped<ITaskCommentService, TaskCommentService>();
         services.AddScoped<IRiskService, RiskService>();
-        services.AddScoped<IMilestoneService, MilestoneService>();
-        services.AddScoped<IChangeRequestService, ChangeRequestService>();
         services.AddScoped<IEmployeeKpiService, EmployeeKpiService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IProjectFileService, ProjectFileService>();

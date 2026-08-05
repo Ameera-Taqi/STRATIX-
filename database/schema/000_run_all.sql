@@ -17,3 +17,4 @@
 :r 023_platform_module_permissions.sql
 :r 024_organization_logo.sql
 :r 025_organization_roles.sql
+:r 026_drop_change_requests.sql

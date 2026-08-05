@@ -37,7 +37,6 @@ public class ProjectHealthAnalysisService : IProjectHealthAnalysisService
         if (request.Tasks.OverdueTasks >= 3) riskScore += 2;
         if (request.Tasks.DelayedTasks >= 2) riskScore += 1;
         if (request.Stages.DelayedStages >= 2) riskScore += 1;
-        if (request.ChangeRequests.OpenChangeRequests >= 3) riskScore += 1;
         return riskScore >= 4 ? DeliveryRisk.HIGH : riskScore >= 2 ? DeliveryRisk.MEDIUM : DeliveryRisk.LOW;
     }
 

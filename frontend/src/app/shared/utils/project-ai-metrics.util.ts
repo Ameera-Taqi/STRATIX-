@@ -50,10 +50,6 @@ export function buildProjectHealthAnalysisRequest(
       completedStages: completedStages,
       delayedStages: delayedStages,
     },
-    changeRequests: {
-      openChangeRequests: 0,
-      approvedChangeRequests: 0,
-    },
     performance: {
       teamKpiScore: Math.round(taskCompletionRate),
       projectHealthScore: health?.score ?? project.progress,

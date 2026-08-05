@@ -1,8 +1,6 @@
 using Stratix.Application.DTOs.Audit;
 using Stratix.Application.DTOs.Auth;
-using Stratix.Application.DTOs.ChangeRequests;
 using Stratix.Application.DTOs.EmployeeKpis;
-using Stratix.Application.DTOs.Milestones;
 using Stratix.Application.DTOs.Notifications;
 using Stratix.Application.DTOs.ProjectFiles;
 using Stratix.Application.DTOs.Projects;
@@ -57,15 +55,6 @@ public static class EntityMappers
     public static TaskCommentResponse ToResponse(TaskComment c) => new(
         c.Id, c.TaskId, c.UserId, c.User?.Name ?? "", c.Comment, c.CreatedAt);
 
-    public static MilestoneResponse ToResponse(Milestone m) => new(
-        m.Id, m.ProjectId, m.Project?.Name ?? "", m.Title,
-        m.DueDate, m.CompletedDate, m.Status.ToString(), m.CreatedAt, m.UpdatedAt);
-
-    public static ChangeRequestResponse ToResponse(ChangeRequest c) => new(
-        c.Id, c.ProjectId, c.Project?.Name ?? "", c.Title, c.Description,
-        c.Status.ToString(), c.Priority.ToString(), c.RequestedById, c.RequestedBy?.Name ?? "",
-        c.ReviewedById, c.ReviewedBy?.Name, c.CreatedAt, c.UpdatedAt);
-
     public static EmployeeKpiResponse ToResponse(EmployeeKpi k) => new(
         k.Id, k.UserId, k.User?.Name ?? "", k.Period,
         k.TasksCompleted, k.TasksOnTime, k.Score, k.Notes, k.CreatedAt, k.UpdatedAt);
@@ -74,8 +63,8 @@ public static class EntityMappers
         n.Id, n.UserId, n.Title, n.Message, n.Type.ToString(), n.IsRead, n.Link, n.CreatedAt);
 
     public static ProjectFileResponse ToResponse(ProjectFile f) => new(
-        f.Id, f.ProjectId, f.Project?.Name ?? "", f.FileName, f.ContentType, f.SizeBytes, f.Url,
-        f.UploadedById, f.UploadedBy?.Name ?? "", f.CreatedAt);
+        f.Id, f.ProjectId, f.Project?.Name ?? "", f.FileName, f.Description, f.Category,
+        f.ContentType, f.SizeBytes, f.Url, f.UploadedById, f.UploadedBy?.Name ?? "", f.CreatedAt);
 
     public static RiskResponse ToResponse(ProjectRisk risk) => new(
         risk.Id, risk.Title, risk.Description, risk.Impact, risk.Probability,

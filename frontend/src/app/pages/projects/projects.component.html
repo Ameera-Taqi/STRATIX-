@@ -42,6 +42,14 @@
         {{ formError()! | t }}
       </p>
     }
+    @if (loadError()) {
+      <div class="mx-5 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-danger dark:bg-red-900/30 dark:text-red-300">
+        <span>{{ loadError()! | t }}</span>
+        <button type="button" class="font-medium underline" (click)="store.loadFromApi()">
+          {{ 'common.retry' | t }}
+        </button>
+      </div>
+    }
     <div class="overflow-x-auto">
     <table class="w-full min-w-[920px] text-start text-sm">
       <thead class="stratix-table-head">
@@ -58,7 +66,11 @@
         </tr>
       </thead>
       <tbody>
-        @if (filtered().length === 0) {
+        @if (loading() && filtered().length === 0) {
+          <tr>
+            <td colspan="9" class="px-5 py-10 text-center stratix-muted">{{ 'common.loading' | t }}</td>
+          </tr>
+        } @else if (filtered().length === 0) {
           <tr>
             <td colspan="9" class="px-5 py-10 text-center stratix-muted">{{ 'projects.empty' | t }}</td>
           </tr>

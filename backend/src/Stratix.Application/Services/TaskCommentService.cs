@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Stratix.Application.Common;
 using Stratix.Application.DTOs.TaskComments;
 using Stratix.Application.Interfaces;
 using Stratix.Application.Mapping;
@@ -14,11 +15,13 @@ public class TaskCommentService : ITaskCommentService
 
     private readonly IApplicationDbContext _db;
     private readonly ICurrentUserService _currentUser;
+    private readonly TenantRelationGuard _tenantGuard;
 
-    public TaskCommentService(IApplicationDbContext db, ICurrentUserService currentUser)
+    public TaskCommentService(IApplicationDbContext db, ICurrentUserService currentUser, TenantRelationGuard tenantGuard)
     {
         _db = db;
         _currentUser = currentUser;
+        _tenantGuard = tenantGuard;
     }
 
     private IQueryable<TaskComment> Query() => _db.TaskComments.Include(c => c.User);
@@ -38,11 +41,14 @@ public class TaskCommentService : ITaskCommentService
             throw new UnauthorizedAccessException("Not authenticated");
         if (string.IsNullOrWhiteSpace(request.Comment))
             throw new ArgumentException("Comment text is required.");
-        if (!await _db.Tasks.AnyAsync(t => t.Id == request.TaskId, ct))
-            throw new ArgumentException("Task not found");
+
+        var task = await _db.Tasks.FirstOrDefaultAsync(t => t.Id == request.TaskId, ct)
+            ?? throw new ArgumentException("Task not found");
+        await _tenantGuard.EnsureUserRequiredAsync(userId, task.OrganizationId, ct);
 
         var comment = new TaskComment
         {
+            OrganizationId = task.OrganizationId,
             TaskId = request.TaskId,
             UserId = userId,
             Comment = request.Comment.Trim(),

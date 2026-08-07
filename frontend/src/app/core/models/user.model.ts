@@ -22,6 +22,18 @@ export interface User {
   updatedAt: string;
 }
 
+/** Lightweight directory entry for assignee/manager pickers (no admin timestamps). */
+export interface UserDirectoryItem {
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
+  jobTitle: string | null;
+  status: UserStatus;
+  departmentId: number | null;
+  departmentName: string | null;
+}
+
 export interface HealthResponse {
   status: string;
   application: string;

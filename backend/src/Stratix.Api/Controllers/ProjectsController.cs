@@ -1,13 +1,15 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Stratix.Application.Common;
 using Stratix.Application.DTOs.Projects;
 using Stratix.Application.Interfaces;
+using Stratix.Api.Auth;
 
 namespace Stratix.Api.Controllers;
 
 [ApiController]
 [Route("api/projects")]
-[Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN,PROJECT_MANAGER,EMPLOYEE,TEAM_LEADER,EXECUTIVE_VIEWER")]
+[Authorize(Policy = AuthPolicies.AllTenantUsers)]
 public class ProjectsController : ControllerBase
 {
     private readonly IProjectService _projects;
@@ -15,22 +17,25 @@ public class ProjectsController : ControllerBase
     public ProjectsController(IProjectService projects) => _projects = projects;
 
     [HttpGet]
-    public async Task<IReadOnlyList<ProjectResponse>> GetAll([FromQuery] int? page, [FromQuery] int? pageSize, CancellationToken ct)
+    [ProducesResponseType(typeof(PagedResponse<ProjectResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IReadOnlyList<ProjectResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAll([FromQuery] int? page, [FromQuery] int? pageSize, CancellationToken ct)
     {
         if (pageSize is > 0)
         {
             var paged = await _projects.GetPagedAsync(page ?? 1, pageSize.Value, ct);
-            PagingHeaders.Apply(Response, paged.Total, paged.Page, paged.PageSize, paged.TotalPages);
-            return paged.Items;
+            PagingHeaders.Apply(Response, paged);
+            return Ok(paged.ToResponse());
         }
-        return await _projects.GetAllAsync(ct);
+
+        return Ok(await _projects.GetAllAsync(ct));
     }
 
     [HttpGet("{id:long}")]
     public async Task<ProjectResponse> Get(long id, CancellationToken ct) => await _projects.GetByIdAsync(id, ct);
 
     [HttpPost]
-    [Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN,PROJECT_MANAGER")]
+    [Authorize(Policy = AuthPolicies.ProjectManagers)]
     public async Task<ActionResult<ProjectResponse>> Create([FromBody] CreateProjectRequest request, CancellationToken ct)
     {
         var project = await _projects.CreateAsync(request, ct);
@@ -38,12 +43,12 @@ public class ProjectsController : ControllerBase
     }
 
     [HttpPut("{id:long}")]
-    [Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN,PROJECT_MANAGER")]
+    [Authorize(Policy = AuthPolicies.ProjectManagers)]
     public async Task<ProjectResponse> Update(long id, [FromBody] UpdateProjectRequest request, CancellationToken ct) =>
         await _projects.UpdateAsync(id, request, ct);
 
     [HttpDelete("{id:long}")]
-    [Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN,PROJECT_MANAGER")]
+    [Authorize(Policy = AuthPolicies.ProjectManagers)]
     public async Task<IActionResult> Delete(long id, CancellationToken ct)
     {
         await _projects.DeleteAsync(id, ct);

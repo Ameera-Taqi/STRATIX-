@@ -12,10 +12,20 @@ public enum RiskProbability { LOW, MEDIUM, HIGH }
 public enum RiskLevel { LOW, MEDIUM, HIGH, CRITICAL }
 public enum RiskStatus { OPEN, MITIGATING, CLOSED }
 public enum AuditAction { CREATE, UPDATE, DELETE, STATUS_CHANGE, ASSIGNMENT_CHANGE, PRIORITY_CHANGE }
-public enum AuditEntityType { PROJECT, STAGE, TASK, RISK, USER, MILESTONE }
+public enum AuditEntityType { PROJECT, STAGE, TASK, RISK, USER, MILESTONE, REPORT }
 public enum HealthClassification { HEALTHY, WARNING, CRITICAL }
 public enum DeliveryRisk { LOW, MEDIUM, HIGH }
 public enum NotificationType { INFO, SUCCESS, WARNING, ERROR }
 public enum OrganizationStatus { ACTIVE, SUSPENDED, CANCELLED }
 public enum SubscriptionPlan { FREE, PRO, ENTERPRISE }
 public enum SubscriptionStatus { TRIALING, ACTIVE, PAST_DUE, CANCELLED }
+public enum ReportType
+{
+    PROJECTS_PROGRESS,
+    TASKS_STATUS,
+    EMPLOYEE_PERFORMANCE,
+    DELAYED_TASKS,
+    KPI_SUMMARY,
+    CUSTOM
+}
+public enum ReportFormat { PDF, EXCEL }

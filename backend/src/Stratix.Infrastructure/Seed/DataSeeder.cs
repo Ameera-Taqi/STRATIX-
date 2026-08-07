@@ -165,6 +165,15 @@ public static class DataSeeder
 
     private static async Task SyncSeedPasswordsAsync(StratixDbContext db, IPasswordHasher hasher, CancellationToken ct)
     {
+        // Local DX: if the classic admin email was renamed, restore it so login aliases keep working.
+        if (!await db.UserSet.AnyAsync(u => u.Email == "admin@stratix.local", ct))
+        {
+            var renamed = await db.UserSet.FirstOrDefaultAsync(
+                u => u.Role == UserRole.ADMIN && u.Name == "Admin", ct);
+            if (renamed != null)
+                renamed.Email = "admin@stratix.local";
+        }
+
         var seeds = new Dictionary<string, string>
         {
             ["superadmin@stratix.local"] = "1234",

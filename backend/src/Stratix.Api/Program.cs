@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Stratix.Api.Auth;
+using Stratix.Api.Filters;
 using Stratix.Application;
 using Stratix.Infrastructure;
 using Stratix.Infrastructure.Seed;
@@ -12,7 +14,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.WebHost.UseUrls(builder.Configuration["ASPNETCORE_URLS"] ?? "http://0.0.0.0:8080");
 
-builder.Services.AddControllers()
+builder.Services.AddControllers(options =>
+    {
+        options.Filters.Add<FluentValidationActionFilter>();
+    })
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
@@ -35,12 +40,20 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
-var jwtSecret = builder.Configuration["Stratix:Jwt:Secret"] ?? "change-this-secret-in-production-min-256-bits-long";
+var jwtSecret = builder.Configuration["Stratix:Jwt:Secret"];
+var jwtIssuer = builder.Configuration["Stratix:Jwt:Issuer"] ?? "stratix";
+var jwtAudience = builder.Configuration["Stratix:Jwt:Audience"] ?? "stratix-api";
+var validateIssuerAudience = builder.Environment.IsProduction()
+    || string.Equals(builder.Configuration["Stratix:Jwt:ValidateIssuerAudience"], "true", StringComparison.OrdinalIgnoreCase);
 
-// Fail fast on an insecure JWT secret in Production; warn loudly elsewhere.
+// Fail fast on a missing/insecure JWT secret in Production; warn loudly elsewhere.
 var secretIsWeak = string.IsNullOrWhiteSpace(jwtSecret)
     || jwtSecret.Contains("change-this", StringComparison.OrdinalIgnoreCase)
+    || jwtSecret.Contains("dev-only", StringComparison.OrdinalIgnoreCase)
     || Encoding.UTF8.GetByteCount(jwtSecret) < 32;
+if (string.IsNullOrWhiteSpace(jwtSecret))
+    throw new InvalidOperationException(
+        "Stratix:Jwt:Secret is required. Set it via environment (STRATIX_JWT_SECRET / Stratix__Jwt__Secret), user-secrets, or a gitignored Development settings file.");
 if (secretIsWeak)
 {
     if (builder.Environment.IsProduction())
@@ -54,15 +67,34 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = false,
-            ValidateAudience = false,
+            ValidateIssuer = validateIssuerAudience,
+            ValidateAudience = validateIssuerAudience,
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
             ClockSkew = TimeSpan.FromMinutes(1)
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(AuthPolicies.SuperAdmin, p => p.RequireRole("SUPER_ADMIN"));
+    options.AddPolicy(AuthPolicies.OrgAdmins, p =>
+        p.RequireRole("SUPER_ADMIN", "ORG_ADMIN", "ADMIN"));
+    options.AddPolicy(AuthPolicies.ProjectManagers, p =>
+        p.RequireRole("SUPER_ADMIN", "ORG_ADMIN", "ADMIN", "PROJECT_MANAGER"));
+    options.AddPolicy(AuthPolicies.TeamLeaders, p =>
+        p.RequireRole("SUPER_ADMIN", "ORG_ADMIN", "ADMIN", "PROJECT_MANAGER", "TEAM_LEADER"));
+    options.AddPolicy(AuthPolicies.TaskContributors, p =>
+        p.RequireRole("SUPER_ADMIN", "ORG_ADMIN", "ADMIN", "PROJECT_MANAGER", "TEAM_LEADER", "EMPLOYEE"));
+    options.AddPolicy(AuthPolicies.LeadersAndExecutives, p =>
+        p.RequireRole("SUPER_ADMIN", "ORG_ADMIN", "ADMIN", "PROJECT_MANAGER", "TEAM_LEADER", "EXECUTIVE_VIEWER"));
+    options.AddPolicy(AuthPolicies.AiAnalysts, p =>
+        p.RequireRole("SUPER_ADMIN", "ORG_ADMIN", "ADMIN", "PROJECT_MANAGER", "TEAM_LEADER", "EXECUTIVE_VIEWER"));
+    options.AddPolicy(AuthPolicies.AllTenantUsers, p =>
+        p.RequireRole("SUPER_ADMIN", "ORG_ADMIN", "ADMIN", "PROJECT_MANAGER", "TEAM_LEADER", "EMPLOYEE", "EXECUTIVE_VIEWER"));
+});
 
 // Rate limiting — throttles abuse. The "auth" policy caps sign-in/refresh attempts per IP
 // to blunt brute-force, on top of per-account lockout.
@@ -94,7 +126,8 @@ builder.Services.AddCors(options =>
     options.AddPolicy("Frontend", policy =>
         policy.WithOrigins(builder.Configuration["Stratix:Cors:Origins"]?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? ["http://localhost:4200"])
             .AllowAnyHeader()
-            .AllowAnyMethod());
+            .AllowAnyMethod()
+            .WithExposedHeaders(Stratix.Api.PagingHeaders.ExposedNames));
 });
 
 var app = builder.Build();
@@ -119,3 +152,5 @@ if (builder.Configuration.GetValue("Stratix:SeedData", true))
 }
 
 app.Run();
+
+public partial class Program;

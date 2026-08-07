@@ -131,8 +131,6 @@ export class TeamComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    if (!this.store.loaded()) {
-      this.store.loadFromApi();
-    }
+    this.store.loadAdministrationFromApi();
   }
 }

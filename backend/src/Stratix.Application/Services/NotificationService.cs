@@ -28,9 +28,11 @@ public class NotificationService : INotificationService
 
     public async Task<NotificationResponse> CreateAsync(CreateNotificationRequest request, CancellationToken ct = default)
     {
-        if (!await _db.Users.AnyAsync(u => u.Id == request.UserId, ct)) throw new ArgumentException("Recipient not found");
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == request.UserId, ct)
+            ?? throw new ArgumentException("Recipient not found");
         var entity = new Notification
         {
+            OrganizationId = user.OrganizationId,
             UserId = request.UserId,
             Title = request.Title.Trim(),
             Message = request.Message,

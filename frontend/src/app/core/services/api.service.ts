@@ -26,7 +26,7 @@ import {
 
 } from '../models/risk.model';
 
-import { HealthResponse, User } from '../models/user.model';
+import { HealthResponse, User, UserDirectoryItem } from '../models/user.model';
 
 import { ProjectRow, StageRow, TaskCard } from '../data/mock-data';
 
@@ -81,6 +81,7 @@ import {
   OrganizationBranding,
   OrganizationLogoUploadResult,
 } from '../models/branding.model';
+import { CreateReportPayload, ReportResponse } from '../models/report.model';
 
 
 
@@ -134,10 +135,14 @@ export class ApiService {
 
 
 
+  /** Full user administration list (OrgAdmins). Prefer getDirectoryUsers for pickers. */
   getUsers(): Observable<User[]> {
-
     return this.http.get<User[]>(`${this.base}/users`);
+  }
 
+  /** Active tenant directory for assignee/manager pickers (all tenant roles). */
+  getDirectoryUsers(): Observable<UserDirectoryItem[]> {
+    return this.http.get<UserDirectoryItem[]>(`${this.base}/directory/users`);
   }
 
   getDepartments(): Observable<DepartmentRow[]> {
@@ -195,34 +200,28 @@ export class ApiService {
     return this.http
 
       .get<{
-
-        content: AuditLogApiRow[];
-
-        totalElements: number;
-
+        content?: AuditLogApiRow[];
+        items?: AuditLogApiRow[];
+        totalElements?: number;
+        total?: number;
         totalPages: number;
-
         page: number;
-
-        size: number;
-
+        size?: number;
+        pageSize?: number;
       }>(`${this.base}/audit-logs`, { params })
 
       .pipe(
 
-        map((response) => ({
-
-          content: response.content.map((row) => mapAuditLogRow(row)),
-
-          totalElements: response.totalElements,
-
-          totalPages: response.totalPages,
-
-          page: response.page,
-
-          size: response.size,
-
-        })),
+        map((response) => {
+          const rows = response.content ?? response.items ?? [];
+          return {
+            content: rows.map((row) => mapAuditLogRow(row)),
+            totalElements: response.totalElements ?? response.total ?? 0,
+            totalPages: response.totalPages,
+            page: response.page,
+            size: response.size ?? response.pageSize ?? 25,
+          };
+        }),
 
       );
 
@@ -554,6 +553,32 @@ export class ApiService {
 
   clearOrganizationLogo(): Observable<void> {
     return this.http.delete<void>(`${this.base}/organization/logo`);
+  }
+
+  getReports(): Observable<ReportResponse[]> {
+    return this.http.get<ReportResponse[]>(`${this.base}/reports`);
+  }
+
+  createReport(meta: CreateReportPayload, file: File): Observable<ReportResponse> {
+    const form = new FormData();
+    form.append('Title', meta.title);
+    form.append('ReportType', meta.reportType);
+    form.append('Format', meta.format);
+    if (meta.projectId != null) form.append('ProjectId', String(meta.projectId));
+    if (meta.departmentId != null) form.append('DepartmentId', String(meta.departmentId));
+    if (meta.employeeId != null) form.append('EmployeeId', String(meta.employeeId));
+    if (meta.dateFrom) form.append('DateFrom', meta.dateFrom);
+    if (meta.dateTo) form.append('DateTo', meta.dateTo);
+    form.append('file', file, file.name);
+    return this.http.post<ReportResponse>(`${this.base}/reports`, form);
+  }
+
+  deleteReport(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/reports/${id}`);
+  }
+
+  downloadReport(id: number): Observable<Blob> {
+    return this.http.get(`${this.base}/reports/${id}/download`, { responseType: 'blob' });
   }
 
 }

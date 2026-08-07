@@ -107,13 +107,24 @@ WHEN NOT MATCHED THEN
 GO
 
 -- -----------------------------------------------------------------------------
--- 3. FK from entity tables → lookup.code (drop CHECK first)
+-- 3. FK from entity tables → lookup.code (align lengths, drop CHECK first)
 -- -----------------------------------------------------------------------------
+
+-- Ensure lookup code columns are NVARCHAR(30) (matches CREATE above; older DBs may be 20)
+IF OBJECT_ID(N'dbo.project_statuses', N'U') IS NOT NULL
+    ALTER TABLE dbo.project_statuses ALTER COLUMN code NVARCHAR(30) NOT NULL;
+IF OBJECT_ID(N'dbo.task_statuses', N'U') IS NOT NULL
+    ALTER TABLE dbo.task_statuses ALTER COLUMN code NVARCHAR(30) NOT NULL;
+IF OBJECT_ID(N'dbo.risk_statuses', N'U') IS NOT NULL
+    ALTER TABLE dbo.risk_statuses ALTER COLUMN code NVARCHAR(30) NOT NULL;
+GO
 
 IF EXISTS (SELECT 1 FROM sys.tables WHERE name = 'projects')
 BEGIN
     IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_projects_status')
         ALTER TABLE projects DROP CONSTRAINT CK_projects_status;
+
+    ALTER TABLE projects ALTER COLUMN status NVARCHAR(30) NOT NULL;
 
     IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_projects_status')
         ALTER TABLE projects
@@ -126,6 +137,8 @@ IF EXISTS (SELECT 1 FROM sys.tables WHERE name = 'tasks')
 BEGIN
     IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_tasks_status')
         ALTER TABLE tasks DROP CONSTRAINT CK_tasks_status;
+
+    ALTER TABLE tasks ALTER COLUMN status NVARCHAR(30) NOT NULL;
 
     IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_tasks_status')
         ALTER TABLE tasks
@@ -140,6 +153,8 @@ BEGIN
         ALTER TABLE project_risks DROP CONSTRAINT ck_project_risks_status;
     IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_project_risks_status')
         ALTER TABLE project_risks DROP CONSTRAINT CK_project_risks_status;
+
+    ALTER TABLE project_risks ALTER COLUMN status NVARCHAR(30) NOT NULL;
 
     IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_project_risks_status')
         ALTER TABLE project_risks

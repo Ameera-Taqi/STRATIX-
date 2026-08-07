@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Stratix.Application.DTOs.Notifications;
 using Stratix.Application.Interfaces;
+using Stratix.Api.Auth;
 
 namespace Stratix.Api.Controllers;
 
@@ -19,7 +20,7 @@ public class NotificationsController : ControllerBase
     public async Task<IReadOnlyList<NotificationResponse>> GetMine(CancellationToken ct) => await _service.GetMineAsync(ct);
 
     [HttpPost]
-    [Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN,PROJECT_MANAGER,TEAM_LEADER")]
+    [Authorize(Policy = AuthPolicies.TeamLeaders)]
     public async Task<ActionResult<NotificationResponse>> Create([FromBody] CreateNotificationRequest request, CancellationToken ct)
     {
         var created = await _service.CreateAsync(request, ct);

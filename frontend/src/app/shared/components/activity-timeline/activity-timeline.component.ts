@@ -71,7 +71,7 @@ export class ActivityTimelineComponent implements OnInit {
   ngOnInit(): void {
     this.audit.loadFromApi({
       projectId: this.projectId(),
-      page: 0,
+      page: 1,
       size: this.limit(),
     });
   }

@@ -172,7 +172,7 @@ export class EmployeeDetailComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.employeesStore.loadFromApi();
+    this.employeesStore.loadAdministrationFromApi();
   }
 
   private resolveSaveError(err: unknown): string {

@@ -1,4 +1,5 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TopbarComponent } from '../../layout/topbar/topbar.component';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -11,7 +12,10 @@ import { ProjectsStore } from '../../core/services/projects.store';
 import { TasksStore } from '../../core/services/tasks.store';
 import { EmployeesStore } from '../../core/services/employees.store';
 import { ProjectHealthService } from '../../core/services/project-health.service';
+import { ReportsStore } from '../../core/services/reports.store';
+import { ApiService } from '../../core/services/api.service';
 import { TaskCard } from '../../core/data/mock-data';
+import { firstValueFrom } from 'rxjs';
 import { computeScheduleStatus } from '../../shared/utils/dashboard-insights.util';
 import {
   CHART_BUDGET_STATUS,
@@ -29,6 +33,7 @@ type DateRangeFilter = 'all' | '7d' | '30d' | '90d';
     TopbarComponent,
     TranslatePipe,
     FormsModule,
+    DatePipe,
     BarChartComponent,
     DonutChartComponent,
     KpiCardComponent,
@@ -42,6 +47,8 @@ export class ReportsComponent implements OnInit {
   private readonly tasksStore = inject(TasksStore);
   private readonly employeesStore = inject(EmployeesStore);
   private readonly health = inject(ProjectHealthService);
+  private readonly reportsStore = inject(ReportsStore);
+  private readonly api = inject(ApiService);
 
   readonly dateRange = signal<DateRangeFilter>('all');
   readonly projectFilter = signal<number | 'all'>('all');
@@ -206,7 +213,9 @@ export class ReportsComponent implements OnInit {
   }
 
   exportPdf(): void {
-    this.exportService.exportExecutivePdf();
+    const projectId = this.projectFilter() === 'all' ? null : this.projectFilter();
+    const employeeId = this.employeeFilter() === 'all' ? null : this.employeeFilter();
+    this.exportService.exportExecutivePdf({ projectId, employeeId });
   }
 
   exportExcel(): void {
@@ -233,6 +242,20 @@ export class ReportsComponent implements OnInit {
     a.download = 'stratix-executive-report.csv';
     a.click();
     URL.revokeObjectURL(a.href);
+
+    const projectId = this.projectFilter() === 'all' ? null : this.projectFilter();
+    const employeeId = this.employeeFilter() === 'all' ? null : this.employeeFilter();
+    const file = new File([blob], `executive-report-${Date.now()}.csv`, { type: 'text/csv' });
+    void this.reportsStore.saveExport(
+      {
+        title: this.lang.t('reports.executiveTitle'),
+        reportType: 'PROJECTS_PROGRESS',
+        format: 'EXCEL',
+        projectId,
+        employeeId,
+      },
+      file,
+    );
   }
 
   ngOnInit(): void {
@@ -242,6 +265,16 @@ export class ReportsComponent implements OnInit {
     if (!this.employeesStore.loaded()) {
       this.employeesStore.loadFromApi();
     }
+    void this.reportsStore.loadFromApi();
+  }
+
+  async downloadSaved(id: number, fileName: string): Promise<void> {
+    const blob = await firstValueFrom(this.api.downloadReport(id));
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fileName || `report-${id}`;
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 
   private shortLabel(text: string, max = 14): string {

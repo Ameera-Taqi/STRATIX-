@@ -1,11 +1,11 @@
--- Stratix SQL Server — full manual bootstrap (SSMS / sqlcmd against master, then StratixDB)
--- Step 1: run 00-create-database.sql against master
--- Step 2: run 01-schema.sql against StratixDB
--- Or use: docker compose up -d  (automatic via sqlserver-init)
+-- Stratix SQL Server — manual bootstrap pointer
+-- Preferred: docker compose up -d  (sqlserver-init applies schema/000_run_all sequence)
+--
+-- Manual:
+--   1) Against master: 00-create-database.sql  (set $(DatabaseName) or edit)
+--   2) Against StratixDB: database/schema/000_run_all.sql
 
 :r 00-create-database.sql
 GO
-USE StratixDB;
-GO
-:r 01-schema.sql
+PRINT N'Next: run database/schema/000_run_all.sql against StratixDB (not this folder''s old 01-schema.sql).';
 GO

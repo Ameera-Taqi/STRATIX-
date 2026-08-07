@@ -1,14 +1,50 @@
 #!/usr/bin/env bash
 # Stratix — one-shot SQL Server database initialization (Docker Compose)
+# Creates StratixDB, then applies database/schema migrations in order
+# (same sequence as schema/000_run_all.sql).
 set -eu
 
 SQLCMD="/opt/mssql-tools18/bin/sqlcmd"
 HOST="${MSSQL_HOST:-sqlserver}"
 SA_PASSWORD="${MSSQL_SA_PASSWORD:?MSSQL_SA_PASSWORD is required}"
 DATABASE="${MSSQL_DATABASE:-StratixDB}"
-SCRIPTS_DIR="/scripts/sql"
+CREATE_DB_SCRIPT="${CREATE_DB_SCRIPT:-/scripts/00-create-database.sql}"
+SCHEMA_DIR="${SCHEMA_DIR:-/scripts/schema}"
 MAX_ATTEMPTS=30
 SLEEP_SECONDS=5
+
+# Keep in sync with database/schema/000_run_all.sql
+SCHEMA_SCRIPTS=(
+  001_departments.sql
+  002_users.sql
+  003_projects.sql
+  004_project_stages.sql
+  005_tasks.sql
+  006_task_comments.sql
+  010_reports.sql
+  011_project_risks.sqlserver.sql
+  012_status_lookups.sqlserver.sql
+  014_drop_project_milestones.sqlserver.sql
+  015_password_reset_tokens.sqlserver.sql
+  016_multitenancy.sqlserver.sql
+  017_subscription_plans.sqlserver.sql
+  018_subscriptions.sqlserver.sql
+  019_refresh_tokens.sqlserver.sql
+  020_login_lockout.sqlserver.sql
+  021_wave2_entities.sqlserver.sql
+  022_task_comments_org.sql
+  023_platform_module_permissions.sql
+  024_organization_logo.sql
+  025_organization_roles.sql
+  026_drop_change_requests.sql
+  027_project_file_details.sql
+  028_soft_delete.sql
+  029_plan_truth_and_token_org.sql
+  030_reports_module.sql
+  031_employee_kpi_unique_period.sql
+  032_tenant_indexes_and_user_soft_delete.sql
+  033_global_unique_email.sql
+)
 
 echo "[stratix-init] Waiting for SQL Server at ${HOST}..."
 attempt=1
@@ -28,12 +64,22 @@ done
 echo "[stratix-init] Creating database '${DATABASE}' if not exists..."
 ${SQLCMD} -S "${HOST}" -U sa -P "${SA_PASSWORD}" -C -d master \
   -v DatabaseName="${DATABASE}" \
-  -i "${SCRIPTS_DIR}/00-create-database.sql"
+  -i "${CREATE_DB_SCRIPT}"
 
-if [ -f "${SCRIPTS_DIR}/01-schema.sql" ]; then
-  echo "[stratix-init] Applying optional schema script..."
-  ${SQLCMD} -S "${HOST}" -U sa -P "${SA_PASSWORD}" -C -d "${DATABASE}" \
-    -i "${SCRIPTS_DIR}/01-schema.sql"
+if [ ! -d "${SCHEMA_DIR}" ]; then
+  echo "[stratix-init] ERROR: schema directory not found: ${SCHEMA_DIR}" >&2
+  exit 1
 fi
+
+echo "[stratix-init] Applying schema migrations from ${SCHEMA_DIR}..."
+for script in "${SCHEMA_SCRIPTS[@]}"; do
+  path="${SCHEMA_DIR}/${script}"
+  if [ ! -f "${path}" ]; then
+    echo "[stratix-init] ERROR: missing migration: ${path}" >&2
+    exit 1
+  fi
+  echo "[stratix-init] -> ${script}"
+  ${SQLCMD} -S "${HOST}" -U sa -P "${SA_PASSWORD}" -C -I -b -d "${DATABASE}" -i "${path}"
+done
 
 echo "[stratix-init] Database initialization completed successfully."

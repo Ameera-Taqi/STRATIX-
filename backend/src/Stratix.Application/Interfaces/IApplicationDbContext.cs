@@ -18,6 +18,7 @@ public interface IApplicationDbContext
     IQueryable<EmployeeKpi> EmployeeKpis { get; }
     IQueryable<Notification> Notifications { get; }
     IQueryable<ProjectFile> ProjectFiles { get; }
+    IQueryable<Report> Reports { get; }
     IQueryable<AuditLog> AuditLogs { get; }
     IQueryable<PasswordResetToken> PasswordResetTokens { get; }
     IQueryable<RefreshToken> RefreshTokens { get; }

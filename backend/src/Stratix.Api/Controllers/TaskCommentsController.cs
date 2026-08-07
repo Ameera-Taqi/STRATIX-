@@ -2,12 +2,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Stratix.Application.DTOs.TaskComments;
 using Stratix.Application.Interfaces;
+using Stratix.Api.Auth;
 
 namespace Stratix.Api.Controllers;
 
 [ApiController]
 [Route("api")]
-[Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN,PROJECT_MANAGER,EMPLOYEE,TEAM_LEADER,EXECUTIVE_VIEWER")]
+[Authorize(Policy = AuthPolicies.AllTenantUsers)]
 public class TaskCommentsController : ControllerBase
 {
     private readonly ITaskCommentService _comments;

@@ -3,7 +3,7 @@ using Stratix.Domain.Enums;
 namespace Stratix.Domain.Entities;
 
 /// <summary>An in-app notification addressed to a single user within an organization.</summary>
-public class Notification : ITenantScoped
+public class Notification : ITenantScoped, ISoftDeletable, IHasCreatedAt
 {
     public long Id { get; set; }
     public long OrganizationId { get; set; }
@@ -15,4 +15,6 @@ public class Notification : ITenantScoped
     public bool IsRead { get; set; }
     public string? Link { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTimeOffset? DeletedAt { get; set; }
 }

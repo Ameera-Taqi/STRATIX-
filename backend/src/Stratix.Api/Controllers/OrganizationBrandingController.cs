@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Stratix.Application.DTOs.Branding;
 using Stratix.Application.Interfaces;
+using Stratix.Api.Auth;
 
 namespace Stratix.Api.Controllers;
 
@@ -27,7 +28,7 @@ public class OrganizationBrandingController : ControllerBase
     }
 
     [HttpPost("logo")]
-    [Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN")]
+    [Authorize(Policy = AuthPolicies.OrgAdmins)]
     [RequestSizeLimit(2_500_000)]
     public async Task<ActionResult<OrganizationLogoUploadResult>> UploadLogo(IFormFile file, CancellationToken ct)
     {
@@ -50,7 +51,7 @@ public class OrganizationBrandingController : ControllerBase
     }
 
     [HttpDelete("logo")]
-    [Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN")]
+    [Authorize(Policy = AuthPolicies.OrgAdmins)]
     public async Task<IActionResult> ClearLogo(CancellationToken ct)
     {
         try

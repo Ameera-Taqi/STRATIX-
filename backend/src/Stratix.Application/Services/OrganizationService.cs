@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Stratix.Application.Common;
 using Stratix.Application.DTOs.Organizations;
 using Stratix.Application.Interfaces;
 using Stratix.Domain.Entities;
@@ -28,8 +29,9 @@ public class OrganizationService : IOrganizationService
 
         var users = await _db.Users.CountAsync(ct);
         var projects = await _db.Projects.CountAsync(ct);
+        var plan = await ResolvePlanDisplayAsync(org, ct);
         return new OrganizationResponse(org.Id, org.Name, org.Slug, org.Status.ToString(),
-            org.SubscriptionPlan.ToString(), org.CreatedAt, users, projects);
+            plan, org.CreatedAt, users, projects);
     }
 
     // Platform-wide list — only reachable by SUPER_ADMIN (see controller). The tenant filter
@@ -41,8 +43,19 @@ public class OrganizationService : IOrganizationService
             .Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
         var projectCounts = await _db.Projects.GroupBy(p => p.OrganizationId)
             .Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+        var planByOrg = await _db.Subscriptions
+            .Select(s => new { s.OrganizationId, s.PlanCode })
+            .ToDictionaryAsync(x => x.OrganizationId, x => x.PlanCode, ct);
 
-        return orgs.Select(o => ToResponse(o, userCounts.GetValueOrDefault(o.Id), projectCounts.GetValueOrDefault(o.Id))).ToList();
+        return orgs.Select(o =>
+        {
+            var planCode = planByOrg.GetValueOrDefault(o.Id);
+            var plan = planCode != null
+                ? PlanCodes.ToOrganizationPlan(planCode).ToString()
+                : o.SubscriptionPlan.ToString();
+            return new OrganizationResponse(o.Id, o.Name, o.Slug, o.Status.ToString(), plan, o.CreatedAt,
+                userCounts.GetValueOrDefault(o.Id), projectCounts.GetValueOrDefault(o.Id));
+        }).ToList();
     }
 
     public async Task<OrganizationResponse> CreateAsync(CreateOrganizationRequest request, CancellationToken ct = default)
@@ -96,7 +109,7 @@ public class OrganizationService : IOrganizationService
             _db.Add(new Subscription
             {
                 OrganizationId = org.Id,
-                PlanCode = plan.ToString(),
+                PlanCode = PlanCodes.FromOrganizationPlan(plan),
                 Status = SubscriptionStatus.ACTIVE,
                 StartedAt = now,
                 CreatedAt = now
@@ -104,7 +117,8 @@ public class OrganizationService : IOrganizationService
             await _db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
 
-            return ToResponse(org, 1, 0);
+            return new OrganizationResponse(org.Id, org.Name, org.Slug, org.Status.ToString(),
+                plan.ToString(), org.CreatedAt, 1, 0);
         }
         catch
         {
@@ -129,15 +143,28 @@ public class OrganizationService : IOrganizationService
         {
             if (!Enum.TryParse<SubscriptionPlan>(request.SubscriptionPlan.Trim(), ignoreCase: true, out var plan))
                 throw new ArgumentException($"Invalid subscription plan: {request.SubscriptionPlan}");
-            org.SubscriptionPlan = plan;
 
+            // Subscription is the source of truth; org.SubscriptionPlan is a denormalized mirror.
             var subscription = await _db.Subscriptions.FirstOrDefaultAsync(s => s.OrganizationId == id, ct);
             if (subscription != null)
             {
-                subscription.PlanCode = plan.ToString();
-                if (subscription.Status is SubscriptionStatus.CANCELLED or SubscriptionStatus.PAST_DUE)
+                subscription.PlanCode = PlanCodes.FromOrganizationPlan(plan);
+                if (subscription.Status is SubscriptionStatus.CANCELLED or SubscriptionStatus.PAST_DUE or SubscriptionStatus.TRIALING)
                     subscription.Status = SubscriptionStatus.ACTIVE;
             }
+            else
+            {
+                _db.Add(new Subscription
+                {
+                    OrganizationId = id,
+                    PlanCode = PlanCodes.FromOrganizationPlan(plan),
+                    Status = SubscriptionStatus.ACTIVE,
+                    StartedAt = DateTimeOffset.UtcNow,
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            }
+
+            org.SubscriptionPlan = plan;
         }
 
         org.UpdatedAt = DateTimeOffset.UtcNow;
@@ -145,7 +172,8 @@ public class OrganizationService : IOrganizationService
 
         var users = await _db.Users.CountAsync(u => u.OrganizationId == id, ct);
         var projects = await _db.Projects.CountAsync(p => p.OrganizationId == id, ct);
-        return ToResponse(org, users, projects);
+        return new OrganizationResponse(org.Id, org.Name, org.Slug, org.Status.ToString(),
+            await ResolvePlanDisplayAsync(org, ct), org.CreatedAt, users, projects);
     }
 
     // Soft-delete: mark the organization CANCELLED and cancel its subscription rather than
@@ -165,6 +193,13 @@ public class OrganizationService : IOrganizationService
             subscription.EndsAt = DateTimeOffset.UtcNow;
         }
 
+        var now = DateTimeOffset.UtcNow;
+        var tokens = await _db.RefreshTokens
+            .Where(t => t.OrganizationId == id && t.RevokedAt == null)
+            .ToListAsync(ct);
+        foreach (var token in tokens)
+            token.RevokedAt = now;
+
         await _db.SaveChangesAsync(ct);
     }
 
@@ -183,6 +218,17 @@ public class OrganizationService : IOrganizationService
             .ToListAsync(ct);
     }
 
+    private async Task<string> ResolvePlanDisplayAsync(Organization org, CancellationToken ct)
+    {
+        var planCode = await _db.Subscriptions
+            .Where(s => s.OrganizationId == org.Id)
+            .Select(s => s.PlanCode)
+            .FirstOrDefaultAsync(ct);
+        return planCode != null
+            ? PlanCodes.ToOrganizationPlan(planCode).ToString()
+            : org.SubscriptionPlan.ToString();
+    }
+
     private async Task<string> GenerateUniqueSlugAsync(string? requestedSlug, string name, CancellationToken ct)
     {
         var source = !string.IsNullOrWhiteSpace(requestedSlug) ? requestedSlug! : name;
@@ -197,7 +243,4 @@ public class OrganizationService : IOrganizationService
             slug = $"{baseSlug}-{++suffix}";
         return slug;
     }
-
-    private static OrganizationResponse ToResponse(Organization o, int users, int projects) =>
-        new(o.Id, o.Name, o.Slug, o.Status.ToString(), o.SubscriptionPlan.ToString(), o.CreatedAt, users, projects);
 }

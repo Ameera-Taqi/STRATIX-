@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Stratix.Application.DTOs.Organizations;
 using Stratix.Application.Interfaces;
+using Stratix.Api.Auth;
 
 namespace Stratix.Api.Controllers;
 
@@ -24,13 +25,13 @@ public class OrganizationsController : ControllerBase
 
     // Platform-wide list — super-admins only.
     [HttpGet("organizations")]
-    [Authorize(Roles = "SUPER_ADMIN")]
+    [Authorize(Policy = AuthPolicies.SuperAdmin)]
     public async Task<IReadOnlyList<OrganizationResponse>> All(CancellationToken ct) =>
         await _organizations.GetAllAsync(ct);
 
     // Create company + org admin — super-admins only.
     [HttpPost("organizations")]
-    [Authorize(Roles = "SUPER_ADMIN")]
+    [Authorize(Policy = AuthPolicies.SuperAdmin)]
     public async Task<ActionResult<OrganizationResponse>> Create([FromBody] CreateOrganizationRequest request, CancellationToken ct)
     {
         try
@@ -50,7 +51,7 @@ public class OrganizationsController : ControllerBase
 
     // Update status / plan — super-admins only.
     [HttpPatch("organizations/{id:long}")]
-    [Authorize(Roles = "SUPER_ADMIN")]
+    [Authorize(Policy = AuthPolicies.SuperAdmin)]
     public async Task<ActionResult<OrganizationResponse>> Update(long id, [FromBody] UpdateOrganizationRequest request, CancellationToken ct)
     {
         try
@@ -66,7 +67,7 @@ public class OrganizationsController : ControllerBase
 
     // Cancel (soft-delete) an organization — super-admins only.
     [HttpDelete("organizations/{id:long}")]
-    [Authorize(Roles = "SUPER_ADMIN")]
+    [Authorize(Policy = AuthPolicies.SuperAdmin)]
     public async Task<IActionResult> Delete(long id, CancellationToken ct)
     {
         await _organizations.DeleteAsync(id, ct);

@@ -2,7 +2,7 @@ using Stratix.Domain.Enums;
 
 namespace Stratix.Domain.Entities;
 
-public class ProjectStage : ITenantScoped
+public class ProjectStage : ITenantScoped, ISoftDeletable, IHasCreatedAt, IHasUpdatedAt
 {
     public long Id { get; set; }
     public long OrganizationId { get; set; }
@@ -17,4 +17,6 @@ public class ProjectStage : ITenantScoped
     public int OrderNumber { get; set; } = 1;
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTimeOffset? DeletedAt { get; set; }
 }

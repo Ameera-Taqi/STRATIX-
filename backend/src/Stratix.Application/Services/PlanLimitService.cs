@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Stratix.Application.Common;
 using Stratix.Application.Interfaces;
 using Stratix.Domain.Entities;
 
@@ -58,7 +59,9 @@ public class PlanLimitService : IPlanLimitService
         var plan = await ResolvePlanAsync(ct);
         if (plan is null) return;
 
-        var usedBytes = await _db.ProjectFiles.SumAsync(f => (long?)f.SizeBytes, ct) ?? 0;
+        var usedFiles = await _db.ProjectFiles.SumAsync(f => (long?)f.SizeBytes, ct) ?? 0;
+        var usedReports = await _db.Reports.SumAsync(r => (long?)r.SizeBytes, ct) ?? 0;
+        var usedBytes = usedFiles + usedReports;
         var limitBytes = plan.StorageLimitMb * 1024 * 1024;
         if (usedBytes + additionalBytes > limitBytes)
             throw new PlanLimitExceededException($"Your plan ({plan.Name}) allows up to {plan.StorageLimitMb} MB of storage. Upgrade to add more.");
@@ -66,21 +69,15 @@ public class PlanLimitService : IPlanLimitService
 
     // Resolves the tier (and its quotas) for the caller's organization. Returns null when
     // there is no tenant scope (super-admin/system) or no matching tier — i.e. no limit.
+    // Source of truth: subscriptions.plan_code → subscription_plans (PlanTier) catalog.
     private async Task<PlanTier?> ResolvePlanAsync(CancellationToken ct)
     {
         if (!_tenant.HasTenantScope) return null;
 
         var subscription = await _db.Subscriptions.FirstOrDefaultAsync(ct);
-        var tierName = MapPlanCodeToTier(subscription?.PlanCode);
+        var tierName = PlanCodes.ToTierName(subscription?.PlanCode);
         return await _db.Plans.FirstOrDefaultAsync(p => p.Name == tierName, ct);
     }
-
-    private static string MapPlanCodeToTier(string? planCode) => (planCode ?? "").ToUpperInvariant() switch
-    {
-        "ENTERPRISE" => "Enterprise",
-        "PRO" or "TRIAL" => "Professional",
-        _ => "Starter",
-    };
 }
 
 /// <summary>Raised when an action would exceed the organization's plan quota (maps to HTTP 402/409).</summary>

@@ -1,3 +1,4 @@
+-- LEGACY v1 shape — do not include in 000_run_all.sql. Superseded by 021_wave2_entities.sqlserver.sql (create + upgrade).
 -- Stratix v1 — project_files
 
 IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'project_files')

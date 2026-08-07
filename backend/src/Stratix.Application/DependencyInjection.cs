@@ -1,6 +1,9 @@
+using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
+using Stratix.Application.Common;
 using Stratix.Application.Interfaces;
 using Stratix.Application.Services;
+using Stratix.Application.Validators;
 
 namespace Stratix.Application;
 
@@ -8,6 +11,9 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
+        services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
+        services.AddScoped<OrganizationAccessService>();
+        services.AddScoped<TenantRelationGuard>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IOrganizationService, OrganizationService>();
         services.AddScoped<IPlanLimitService, PlanLimitService>();
@@ -20,6 +26,9 @@ public static class DependencyInjection
         services.AddScoped<IEmployeeKpiService, EmployeeKpiService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IProjectFileService, ProjectFileService>();
+        services.AddSingleton<ITenantFileStorage, TenantFileStorage>();
+        services.AddScoped<IReportFileStorage, ReportFileStorage>();
+        services.AddScoped<IReportService, ReportService>();
         services.AddScoped<IAuditTrailService, AuditTrailService>();
         services.AddScoped<IDepartmentService, DepartmentService>();
         services.AddScoped<IOrganizationRoleService, OrganizationRoleService>();

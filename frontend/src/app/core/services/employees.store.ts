@@ -1,7 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, catchError, map, tap, throwError } from 'rxjs';
 import { EmployeeRow, EmployeeStatus, ProjectRow, TaskCard } from '../data/mock-data';
-import { User, UserRole, UserStatus } from '../models/user.model';
+import { User, UserDirectoryItem, UserRole, UserStatus } from '../models/user.model';
 import { ApiService } from './api.service';
 import { computeEmployeeTaskStats } from '../../shared/utils/employee-stats.util';
 
@@ -56,7 +56,34 @@ export class EmployeesStore {
       },
     });
   }
+  /** Active users for pickers / bootstrap (directory API — all tenant roles). */
   loadFromApi(onReady?: () => void): void {
+    this.api.getDepartments().subscribe({
+      next: (departments) => {
+        const map: Record<string, number> = {};
+        for (const dept of departments) {
+          map[dept.name] = dept.id;
+        }
+        this._departmentsByName.set(map);
+      },
+    });
+
+    this.api.getDirectoryUsers().subscribe({
+      next: (users) => {
+        this._employees.set(users.map((u) => this.fromUser(u)));
+        this._loaded.set(true);
+        this.recomputeStats();
+        onReady?.();
+      },
+      error: () => {
+        this._loaded.set(true);
+        onReady?.();
+      },
+    });
+  }
+
+  /** Full user list for Team administration (OrgAdmins only). */
+  loadAdministrationFromApi(onReady?: () => void): void {
     this.api.getDepartments().subscribe({
       next: (departments) => {
         const map: Record<string, number> = {};
@@ -223,7 +250,7 @@ export class EmployeesStore {
     );
   }
 
-  private fromUser(user: User): EmployeeRow {
+  private fromUser(user: User | UserDirectoryItem): EmployeeRow {
     return {
       id: user.id,
       name: user.name,

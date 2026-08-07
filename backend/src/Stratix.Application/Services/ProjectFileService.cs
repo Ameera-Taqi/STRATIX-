@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Stratix.Application.Common;
 using Stratix.Application.DTOs.ProjectFiles;
 using Stratix.Application.Interfaces;
 using Stratix.Application.Mapping;
@@ -11,12 +12,18 @@ public class ProjectFileService : IProjectFileService
     private readonly IApplicationDbContext _db;
     private readonly ICurrentUserService _currentUser;
     private readonly IPlanLimitService _planLimits;
+    private readonly TenantRelationGuard _tenantGuard;
 
-    public ProjectFileService(IApplicationDbContext db, ICurrentUserService currentUser, IPlanLimitService planLimits)
+    public ProjectFileService(
+        IApplicationDbContext db,
+        ICurrentUserService currentUser,
+        IPlanLimitService planLimits,
+        TenantRelationGuard tenantGuard)
     {
         _db = db;
         _currentUser = currentUser;
         _planLimits = planLimits;
+        _tenantGuard = tenantGuard;
     }
 
     private IQueryable<ProjectFile> Query() => _db.ProjectFiles.Include(f => f.Project).Include(f => f.UploadedBy);
@@ -30,11 +37,14 @@ public class ProjectFileService : IProjectFileService
 
     public async Task<ProjectFileResponse> CreateAsync(CreateProjectFileRequest request, CancellationToken ct = default)
     {
-        if (!await _db.Projects.AnyAsync(p => p.Id == request.ProjectId, ct)) throw new ArgumentException("Project not found");
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == request.ProjectId, ct)
+            ?? throw new ArgumentException("Project not found");
         if (_currentUser.UserId is not long userId) throw new UnauthorizedAccessException("Not authenticated");
+        await _tenantGuard.EnsureUserRequiredAsync(userId, project.OrganizationId, ct);
         await _planLimits.EnsureStorageAvailableAsync(request.SizeBytes, ct);
         var entity = new ProjectFile
         {
+            OrganizationId = project.OrganizationId,
             ProjectId = request.ProjectId,
             FileName = request.FileName.Trim(),
             Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),

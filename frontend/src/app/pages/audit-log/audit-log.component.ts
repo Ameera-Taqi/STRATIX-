@@ -31,7 +31,7 @@ export class AuditLogComponent implements OnInit {
   readonly search = signal('');
   readonly startDate = signal('');
   readonly endDate = signal('');
-  readonly page = signal(0);
+  readonly page = signal(1);
 
   readonly loading = this.audit.loading;
   readonly error = this.audit.error;
@@ -85,24 +85,24 @@ export class AuditLogComponent implements OnInit {
   }
 
   onFilterChange(): void {
-    this.page.set(0);
+    this.page.set(1);
     this.reload();
   }
 
   onSearchInput(value: string): void {
     this.search.set(value);
-    this.page.set(0);
+    this.page.set(1);
     this.reload();
   }
 
   prevPage(): void {
-    if (this.page() <= 0) return;
+    if (this.page() <= 1) return;
     this.page.update((p) => p - 1);
     this.reload();
   }
 
   nextPage(): void {
-    if (this.page() >= this.totalPages() - 1) return;
+    if (this.page() >= this.totalPages()) return;
     this.page.update((p) => p + 1);
     this.reload();
   }

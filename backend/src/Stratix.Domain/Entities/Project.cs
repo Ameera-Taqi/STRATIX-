@@ -2,7 +2,7 @@ using Stratix.Domain.Enums;
 
 namespace Stratix.Domain.Entities;
 
-public class Project : ITenantScoped
+public class Project : ITenantScoped, ISoftDeletable, IHasCreatedAt
 {
     public long Id { get; set; }
     public long OrganizationId { get; set; }
@@ -18,6 +18,8 @@ public class Project : ITenantScoped
     public long? DepartmentId { get; set; }
     public Department? Department { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTimeOffset? DeletedAt { get; set; }
     public ICollection<ProjectStage> Stages { get; set; } = new List<ProjectStage>();
     public ICollection<TaskItem> Tasks { get; set; } = new List<TaskItem>();
     public ICollection<ProjectRisk> Risks { get; set; } = new List<ProjectRisk>();

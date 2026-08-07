@@ -1,8 +1,9 @@
 namespace Stratix.Domain.Entities;
 
-public class PasswordResetToken
+public class PasswordResetToken : ITenantScoped
 {
     public long Id { get; set; }
+    public long OrganizationId { get; set; }
     public long UserId { get; set; }
     public User User { get; set; } = null!;
     public string TokenHash { get; set; } = string.Empty;

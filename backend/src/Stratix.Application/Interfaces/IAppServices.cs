@@ -42,6 +42,21 @@ public interface IProjectFileService
     Task DeleteAsync(long id, CancellationToken ct = default);
 }
 
+public interface IReportService
+{
+    Task<IReadOnlyList<Stratix.Application.DTOs.Reports.ReportResponse>> GetAllAsync(CancellationToken ct = default);
+    Task<Stratix.Application.DTOs.Reports.ReportResponse> GetByIdAsync(long id, CancellationToken ct = default);
+    Task<Stratix.Application.DTOs.Reports.ReportResponse> CreateAsync(
+        Stratix.Application.DTOs.Reports.CreateReportRequest request,
+        Stream content,
+        string contentType,
+        string originalFileName,
+        long length,
+        CancellationToken ct = default);
+    Task<(Stream Stream, string ContentType, string FileName)> DownloadAsync(long id, CancellationToken ct = default);
+    Task DeleteAsync(long id, CancellationToken ct = default);
+}
+
 public interface IOrganizationService
 {
     Task<Stratix.Application.DTOs.Organizations.OrganizationResponse?> GetCurrentAsync(CancellationToken ct = default);
@@ -73,9 +88,12 @@ public interface IUserService
 {
     Task<IReadOnlyList<UserResponse>> GetAllAsync(CancellationToken ct = default);
     Task<Stratix.Application.Common.PagedResult<UserResponse>> GetPagedAsync(int page, int pageSize, CancellationToken ct = default);
+    Task<IReadOnlyList<UserDirectoryItem>> GetDirectoryAsync(CancellationToken ct = default);
+    Task<Stratix.Application.Common.PagedResult<UserDirectoryItem>> GetDirectoryPagedAsync(int page, int pageSize, CancellationToken ct = default);
     Task<UserResponse> GetByIdAsync(long id, CancellationToken ct = default);
     Task<UserResponse> CreateAsync(CreateUserRequest request, CancellationToken ct = default);
     Task<UserResponse> UpdateAsync(long id, UpdateUserRequest request, CancellationToken ct = default);
+    Task DeleteAsync(long id, CancellationToken ct = default);
 }
 
 public interface IProjectService
@@ -134,6 +152,7 @@ public interface IAuditTrailService
 {
     Task<AuditLogPageResponse> SearchAsync(AuditLogQuery query, CancellationToken ct = default);
     Task RecordCreateAsync(AuditEntityType entityType, long entityId, string entityName, string? snapshot, string description, long? projectId, string? projectName, CancellationToken ct = default);
+    Task RecordUpdateAsync(AuditEntityType entityType, long entityId, string entityName, string? oldValues, string? newValues, string description, long? projectId, string? projectName, CancellationToken ct = default);
     Task RecordDeleteAsync(AuditEntityType entityType, long entityId, string entityName, string? snapshot, string description, long? projectId, string? projectName, CancellationToken ct = default);
 }
 

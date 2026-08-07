@@ -1,7 +1,7 @@
 namespace Stratix.Domain.Entities;
 
 /// <summary>Metadata for a file attached to a project (the binary lives in external storage).</summary>
-public class ProjectFile : ITenantScoped
+public class ProjectFile : ITenantScoped, ISoftDeletable, IHasCreatedAt
 {
     public long Id { get; set; }
     public long OrganizationId { get; set; }
@@ -16,4 +16,6 @@ public class ProjectFile : ITenantScoped
     public long UploadedById { get; set; }
     public User? UploadedBy { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTimeOffset? DeletedAt { get; set; }
 }

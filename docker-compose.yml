@@ -49,7 +49,8 @@ services:
       MSSQL_DATABASE: ${MSSQL_DATABASE:-StratixDB}
     volumes:
       - ./database/docker/sqlserver/init-db.sh:/scripts/init-db.sh:ro
-      - ./database/init/sqlserver:/scripts/sql:ro
+      - ./database/init/sqlserver/00-create-database.sql:/scripts/00-create-database.sql:ro
+      - ./database/schema:/scripts/schema:ro
     entrypoint: ["/bin/bash", "/scripts/init-db.sh"]
     networks:
       - stratix-net
@@ -81,8 +82,14 @@ services:
         condition: service_started
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
-      ConnectionStrings__DefaultConnection: Server=sqlserver,1433;Database=${MSSQL_DATABASE:-StratixDB};User Id=sa;Password=${MSSQL_SA_PASSWORD:-YourStrong!Passw0rd};TrustServerCertificate=True;Encrypt=False
-      Stratix__Jwt__Secret: ${STRATIX_JWT_SECRET:-change-this-secret-in-production-min-256-bits-long-enough}
+      ConnectionStrings__DefaultConnection: Server=sqlserver,1433;Database=${MSSQL_DATABASE:-StratixDB};User Id=sa;Password=${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in .env};TrustServerCertificate=True;Encrypt=False
+      Stratix__Jwt__Secret: ${STRATIX_JWT_SECRET:?Set STRATIX_JWT_SECRET in .env}
+      Stratix__Jwt__Issuer: ${STRATIX_JWT_ISSUER:-stratix}
+      Stratix__Jwt__Audience: ${STRATIX_JWT_AUDIENCE:-stratix-api}
+      Stratix__Jwt__ValidateIssuerAudience: ${STRATIX_JWT_VALIDATE_ISS_AUD:-false}
+      Stratix__Jwt__ExpirationMs: ${STRATIX_JWT_EXPIRATION_MS:-900000}
+      Stratix__PasswordReset__TokenPepper: ${STRATIX_RESET_PEPPER:?Set STRATIX_RESET_PEPPER in .env}
+      Stratix__AllowLoginAliases: ${STRATIX_ALLOW_LOGIN_ALIASES:-false}
       Stratix__FrontendUrl: ${FRONTEND_URL:-http://localhost:4200}
       Stratix__Cors__Origins: ${FRONTEND_URL:-http://localhost:4200}
       Stratix__SyncSeedPasswords: ${STRATIX_SYNC_SEED_PASSWORDS:-true}

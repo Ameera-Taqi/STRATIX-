@@ -10,7 +10,7 @@ COPY src/Stratix.Api/Stratix.Api.csproj src/Stratix.Api/
 RUN dotnet restore
 
 COPY src/ ./src/
-RUN dotnet publish src/Stratix.Api/Stratix.Api.csproj -c Release -o /app/publish --no-restore
+RUN dotnet publish src/Stratix.Api/Stratix.Api.csproj -c Release -o /app/publish
 
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
@@ -21,12 +21,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && useradd -r -u 1001 stratix
 
 COPY --from=build /app/publish .
-RUN mkdir -p /app/data/org-logos \
+RUN mkdir -p /app/data/org-logos /app/data/reports \
     && chown -R stratix:stratix /app
 USER stratix
 
 ENV ASPNETCORE_URLS=http://0.0.0.0:8080
 ENV ASPNETCORE_ENVIRONMENT=Docker
+ENV Stratix__Storage__Root=/app/data
 
 EXPOSE 8080
 

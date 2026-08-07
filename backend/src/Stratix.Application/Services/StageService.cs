@@ -29,11 +29,13 @@ public class StageService : IStageService
 
     public async Task<StageResponse> CreateAsync(long projectId, CreateStageRequest request, CancellationToken ct = default)
     {
-        await EnsureProjectExistsAsync(projectId, ct);
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId, ct)
+            ?? throw new KeyNotFoundException("Project not found");
         var order = request.OrderNumber ?? await _db.ProjectStages.Where(s => s.ProjectId == projectId).CountAsync(ct) + 1;
         var now = DateTimeOffset.UtcNow;
         var stage = new ProjectStage
         {
+            OrganizationId = project.OrganizationId,
             ProjectId = projectId,
             Name = request.Name.Trim(),
             Description = request.Description,
@@ -47,8 +49,7 @@ public class StageService : IStageService
         };
         _db.Add(stage);
         await _db.SaveChangesAsync(ct);
-        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId, ct);
-        await _audit.RecordCreateAsync(AuditEntityType.STAGE, stage.Id, stage.Name, null, $"Feature created: {stage.Name}", projectId, project?.Name, ct);
+        await _audit.RecordCreateAsync(AuditEntityType.STAGE, stage.Id, stage.Name, null, $"Feature created: {stage.Name}", projectId, project.Name, ct);
         return EntityMappers.ToResponse(stage);
     }
 

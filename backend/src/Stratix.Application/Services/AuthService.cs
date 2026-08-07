@@ -1,7 +1,8 @@
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Configuration;
+using Stratix.Application.Common;
 using Stratix.Application.DTOs.Auth;
 using Stratix.Application.Interfaces;
 using Stratix.Application.Mapping;
@@ -15,6 +16,7 @@ public class AuthService : IAuthService
     private const int MaxFailedAttempts = 5;
     private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
 
+    /// <summary>Dev-only short names → seed emails. Disabled unless Stratix:AllowLoginAliases=true.</summary>
     private static readonly Dictionary<string, string> LoginAliases = new(StringComparer.OrdinalIgnoreCase)
     {
         ["superadmin"] = "superadmin@stratix.local",
@@ -28,13 +30,24 @@ public class AuthService : IAuthService
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtTokenService _jwt;
     private readonly ICurrentUserService _currentUser;
+    private readonly OrganizationAccessService _orgAccess;
+    private readonly bool _allowLoginAliases;
 
-    public AuthService(IApplicationDbContext db, IPasswordHasher passwordHasher, IJwtTokenService jwt, ICurrentUserService currentUser)
+    public AuthService(
+        IApplicationDbContext db,
+        IPasswordHasher passwordHasher,
+        IJwtTokenService jwt,
+        ICurrentUserService currentUser,
+        OrganizationAccessService orgAccess,
+        IConfiguration configuration)
     {
         _db = db;
         _passwordHasher = passwordHasher;
         _jwt = jwt;
         _currentUser = currentUser;
+        _orgAccess = orgAccess;
+        _allowLoginAliases = string.Equals(
+            configuration["Stratix:AllowLoginAliases"], "true", StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task<LoginResponse> RegisterOrganizationAsync(RegisterOrganizationRequest request, CancellationToken ct = default)
@@ -50,8 +63,6 @@ public class AuthService : IAuthService
 
         var now = DateTimeOffset.UtcNow;
 
-        // Organization + first ORG_ADMIN + trial subscription are created atomically:
-        // if any part fails, nothing is persisted (no half-registered tenant).
         await using var tx = await _db.BeginTransactionAsync(ct);
         try
         {
@@ -60,7 +71,7 @@ public class AuthService : IAuthService
                 Name = name,
                 Slug = await GenerateUniqueSlugAsync(request.Slug, name, ct),
                 Status = OrganizationStatus.ACTIVE,
-                SubscriptionPlan = SubscriptionPlan.FREE,
+                SubscriptionPlan = PlanCodes.ToOrganizationPlan("TRIAL"),
                 CreatedAt = now,
                 UpdatedAt = now
             };
@@ -93,7 +104,7 @@ public class AuthService : IAuthService
             _db.Add(subscription);
             await _db.SaveChangesAsync(ct);
 
-            var refresh = await IssueRefreshTokenAsync(admin.Id, ct);
+            var refresh = await IssueRefreshTokenAsync(admin.Id, admin.OrganizationId, ct);
             await tx.CommitAsync(ct);
             return new LoginResponse(_jwt.GenerateToken(admin), _jwt.GetExpirationSeconds(), EntityMappers.ToProfile(admin), refresh);
         }
@@ -147,27 +158,10 @@ public class AuthService : IAuthService
             await _db.SaveChangesAsync(ct);
         }
 
-        await EnsureOrganizationActiveAsync(user, ct);
+        await _orgAccess.EnsureCanAuthenticateAsync(user, ct);
 
-        var refresh = await IssueRefreshTokenAsync(user.Id, ct);
+        var refresh = await IssueRefreshTokenAsync(user.Id, user.OrganizationId, ct);
         return new LoginResponse(_jwt.GenerateToken(user), _jwt.GetExpirationSeconds(), EntityMappers.ToProfile(user), refresh);
-    }
-
-    // Platform owners (SUPER_ADMIN) are exempt — they are attached to a tenant only for FK
-    // integrity and must always be able to sign in regardless of that tenant's billing state.
-    private async Task EnsureOrganizationActiveAsync(User user, CancellationToken ct)
-    {
-        if (user.Role == UserRole.SUPER_ADMIN) return;
-
-        var org = await _db.Organizations.FirstOrDefaultAsync(o => o.Id == user.OrganizationId, ct);
-        if (org == null) return;
-
-        if (org.Status is OrganizationStatus.SUSPENDED or OrganizationStatus.CANCELLED)
-            throw new UnauthorizedAccessException($"Your organization's account is {org.Status.ToString().ToLowerInvariant()}. Contact your administrator or support.");
-
-        var subscription = await _db.Subscriptions.FirstOrDefaultAsync(s => s.OrganizationId == user.OrganizationId, ct);
-        if (subscription?.Status == SubscriptionStatus.CANCELLED)
-            throw new UnauthorizedAccessException("Your organization's subscription has been cancelled. Contact your administrator or support.");
     }
 
     public async Task<LoginResponse> RefreshAsync(string refreshToken, CancellationToken ct = default)
@@ -177,15 +171,30 @@ public class AuthService : IAuthService
             .FirstOrDefaultAsync(t => t.TokenHash == hash && t.RevokedAt == null && t.ExpiresAt > DateTimeOffset.UtcNow, ct)
             ?? throw new UnauthorizedAccessException("Invalid refresh token");
 
-        if (token.User.Status != UserStatus.ACTIVE)
+        if (token.User is null || token.User.Status != UserStatus.ACTIVE || token.User.IsDeleted)
             throw new UnauthorizedAccessException("Invalid refresh token");
 
-        // Rotate: the presented token is single-use.
-        token.RevokedAt = DateTimeOffset.UtcNow;
-        await _db.SaveChangesAsync(ct);
+        await _orgAccess.EnsureCanAuthenticateAsync(token.User, ct);
 
-        var newRefresh = await IssueRefreshTokenAsync(token.User.Id, ct);
-        return new LoginResponse(_jwt.GenerateToken(token.User), _jwt.GetExpirationSeconds(), EntityMappers.ToProfile(token.User), newRefresh);
+        // Rotate atomically: revoke presented token + issue replacement in one transaction.
+        await using var tx = await _db.BeginTransactionAsync(ct);
+        try
+        {
+            token.RevokedAt = DateTimeOffset.UtcNow;
+            var newRefresh = IssueRefreshToken(token.User.Id, token.User.OrganizationId);
+            await _db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return new LoginResponse(
+                _jwt.GenerateToken(token.User),
+                _jwt.GetExpirationSeconds(),
+                EntityMappers.ToProfile(token.User),
+                newRefresh);
+        }
+        catch
+        {
+            await tx.RollbackAsync(ct);
+            throw;
+        }
     }
 
     public async Task LogoutAsync(string refreshToken, CancellationToken ct = default)
@@ -200,17 +209,24 @@ public class AuthService : IAuthService
         }
     }
 
-    private async Task<string> IssueRefreshTokenAsync(long userId, CancellationToken ct)
+    private async Task<string> IssueRefreshTokenAsync(long userId, long organizationId, CancellationToken ct)
+    {
+        var raw = IssueRefreshToken(userId, organizationId);
+        await _db.SaveChangesAsync(ct);
+        return raw;
+    }
+
+    private string IssueRefreshToken(long userId, long organizationId)
     {
         var raw = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
         _db.Add(new RefreshToken
         {
+            OrganizationId = organizationId,
             UserId = userId,
             TokenHash = HashToken(raw),
             ExpiresAt = DateTimeOffset.UtcNow.AddDays(30),
             CreatedAt = DateTimeOffset.UtcNow
         });
-        await _db.SaveChangesAsync(ct);
         return raw;
     }
 
@@ -226,8 +242,12 @@ public class AuthService : IAuthService
     public async Task<AuthUserProfile> UpdateMyProfileAsync(UpdateMyProfileRequest request, CancellationToken ct = default)
     {
         var user = await GetCurrentUserEntityAsync(ct);
+        var email = request.Email.Trim().ToLowerInvariant();
+        if (await _db.Users.AnyAsync(u => u.Email == email && u.Id != user.Id, ct))
+            throw new InvalidOperationException("Email already in use.");
+
         user.Name = request.Name.Trim();
-        user.Email = request.Email.Trim().ToLowerInvariant();
+        user.Email = email;
         user.UpdatedAt = DateTimeOffset.UtcNow;
 
         if (!string.IsNullOrWhiteSpace(request.Department))
@@ -250,28 +270,18 @@ public class AuthService : IAuthService
             ?? throw new UnauthorizedAccessException("User not found");
     }
 
+    /// <summary>
+    /// Settled policy: active emails are globally unique, so login is email → single user.
+    /// Optional org-agnostic aliases exist only when Stratix:AllowLoginAliases is enabled (non-production).
+    /// </summary>
     private async Task<User?> ResolveUserAsync(string username, CancellationToken ct)
     {
-        var trimmed = username.Trim();
-        var lower = trimmed.ToLowerInvariant();
+        var lower = username.Trim().ToLowerInvariant();
 
-        if (LoginAliases.TryGetValue(lower, out var aliasEmail))
-        {
-            var byAlias = await _db.Users.Include(u => u.Department).FirstOrDefaultAsync(u => u.Email == aliasEmail, ct);
-            if (byAlias != null) return byAlias;
-            return await ResolveAliasFallbackAsync(lower, ct);
-        }
+        if (_allowLoginAliases && LoginAliases.TryGetValue(lower, out var aliasEmail))
+            lower = aliasEmail;
 
         return await _db.Users.Include(u => u.Department)
             .FirstOrDefaultAsync(u => u.Email == lower, ct);
     }
-
-    private async Task<User?> ResolveAliasFallbackAsync(string alias, CancellationToken ct) => alias switch
-    {
-        "superadmin" or "super" => await _db.Users.Include(u => u.Department).FirstOrDefaultAsync(u => u.Role == UserRole.SUPER_ADMIN, ct),
-        "admin" => await _db.Users.Include(u => u.Department).FirstOrDefaultAsync(u => u.Role == UserRole.ADMIN, ct),
-        "sara" => await _db.Users.Include(u => u.Department).FirstOrDefaultAsync(u => u.Role == UserRole.PROJECT_MANAGER, ct),
-        "employee" => await _db.Users.Include(u => u.Department).FirstOrDefaultAsync(u => u.Role == UserRole.EMPLOYEE, ct),
-        _ => null
-    };
 }

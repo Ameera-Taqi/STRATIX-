@@ -143,7 +143,7 @@
     @if (totalPages() > 1) {
       <div class="mt-4 flex items-center justify-between text-sm">
         <p class="stratix-muted">
-          {{ 'audit.page' | t }} {{ page() + 1 }} / {{ totalPages() }} · {{ totalElements() }} {{ 'audit.entries' | t }}
+          {{ 'audit.page' | t }} {{ page() }} / {{ totalPages() }} · {{ totalElements() }} {{ 'audit.entries' | t }}
         </p>
         <div class="flex gap-2">
           <button type="button" class="stratix-btn-ghost px-3 py-1.5" [disabled]="page() === 0" (click)="prevPage()">

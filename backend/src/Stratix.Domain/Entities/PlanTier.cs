@@ -1,8 +1,9 @@
 namespace Stratix.Domain.Entities;
 
 /// <summary>
-/// A subscription tier available to organizations (Starter / Professional / Enterprise).
-/// Defines the quotas and capabilities granted to a tenant on that plan.
+/// Catalog of subscription tiers (Starter / Professional / Enterprise).
+/// <b>Source of truth</b> for quotas and capabilities (max users/projects, AI, storage).
+/// Not tenant-scoped — shared across the platform.
 /// </summary>
 public class PlanTier
 {

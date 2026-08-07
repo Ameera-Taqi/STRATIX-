@@ -5,7 +5,7 @@
 ```
 ┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
 │  sqlserver-init │────▶│    sqlserver     │◀────│   stratix-api   │
-│   (one-shot)    │     │  SQL Server 2022 │     │  Spring Boot 3  │
+│   (one-shot)    │     │  SQL Server 2022 │     │  ASP.NET Core 8 │
 └─────────────────┘     │   StratixDB      │     └─────────────────┘
                         └──────────────────┘
                               :1433                :8080
@@ -15,7 +15,8 @@
 |---------|-------|---------|
 | `sqlserver` | `mcr.microsoft.com/mssql/server:2022-latest` | Database engine |
 | `sqlserver-init` | same (one-shot) | Creates `StratixDB` + baseline schema |
-| `stratix-api` | built from `backend/Dockerfile` | REST API + Hibernate |
+| `stratix-api` | built from `backend/Dockerfile` | REST API (.NET 8) |
+| `mailpit` | `axllent/mailpit` | Local SMTP inbox (`:8025`) |
 
 ## Quick start
 
@@ -23,7 +24,7 @@
 # 1. Configure environment (optional)
 cp .env.example .env
 
-# 2. Start all services
+# 2. Start API + SQL Server + Mailpit
 docker compose up -d --build
 
 # 3. Verify SQL Server
@@ -32,9 +33,9 @@ docker compose exec sqlserver /opt/mssql-tools18/bin/sqlcmd \
   -S localhost -U sa -P 'YourStrong!Passw0rd' -C \
   -Q "SELECT name FROM sys.databases WHERE name = N'StratixDB'"
 
-# 4. Verify Spring Boot + database connection
-curl -s http://localhost:8080/api/health | python3 -m json.tool
-# Expected: "databaseProduct": "Microsoft SQL Server", "database": "UP"
+# 4. Verify API + database connection
+curl -s http://localhost:8080/api/health
+# Expected: database UP
 
 # 5. Login
 curl -s -X POST http://localhost:8080/api/auth/login \
@@ -47,7 +48,7 @@ curl -s -X POST http://localhost:8080/api/auth/login \
 | Component | User | Password |
 |-----------|------|----------|
 | SQL Server SA | `sa` | `YourStrong!Passw0rd` (override via `MSSQL_SA_PASSWORD`) |
-| App login (seed) | `superadmin` / `admin` | `1234` |
+| App login (seed) | `superadmin` / `admin` / `sara` | `1234` |
 
 > SQL Server requires a strong SA password (8+ chars, upper, lower, digit, symbol).
 
@@ -56,17 +57,24 @@ curl -s -X POST http://localhost:8080/api/auth/login \
 | File | Role |
 |------|------|
 | `docker-compose.yml` | Service orchestration |
-| `backend/src/main/resources/application.properties` | JDBC + JPA (SQL Server) |
-| `backend/src/main/resources/application-docker.yml` | Docker profile overrides |
+| `backend/src/Stratix.Api/appsettings.json` | API config (JWT, connection string) |
+| `database/schema/` | **Schema source of truth** (`000_run_all.sql`) |
 | `database/init/sqlserver/00-create-database.sql` | Creates `StratixDB` |
-| `database/init/sqlserver/01-schema.sql` | Optional baseline tables |
-| `database/docker/sqlserver/init-db.sh` | Init container entrypoint |
+| `database/docker/sqlserver/init-db.sh` | Init: create DB + apply `schema/` in order |
+| `database/README.md` | Database bootstrap notes |
 
 ## Schema management
 
-- **Docker default:** `JPA_DDL_AUTO=update` — Hibernate creates/updates tables on startup.
-- **Production:** set `JPA_DDL_AUTO=validate` and apply `database/init/sqlserver/01-schema.sql` manually.
+`sqlserver-init` applies the same ordered list as `database/schema/000_run_all.sql` (001→029).  
+Do not use the deprecated `init/sqlserver/01-schema.sql` stub. The API maps tables with EF Core; schema changes ship as SQL migrations under `database/schema/`.
 
+### Plan / subscription source of truth
+
+| Concern | Source |
+|---------|--------|
+| Active plan code + billing status | `subscriptions` (`plan_code`, `status`) |
+| Quotas / AI / storage limits | `subscription_plans` (`PlanTier`) |
+| `organizations.subscription_plan` | Denormalized mirror only (kept in sync) |
 ## Useful commands
 
 ```bash
@@ -76,19 +84,13 @@ docker compose down          # stop
 docker compose down -v       # stop + delete DB volume (fresh start)
 ```
 
-## Local development without Docker
+## Local development
 
 ```bash
-# H2 in-memory (no SQL Server)
-cd backend && mvn spring-boot:run -Dspring-boot.run.profiles=dev
+# Backend stack
+docker compose up -d --build
 
-# Native SQL Server on localhost:1433
-cd backend && mvn spring-boot:run -Dspring-boot.run.profiles=sqlserver
-```
-
-## Frontend
-
-```bash
-cd frontend && npx ng serve --port 4200
-# API proxied to http://localhost:8080
+# Frontend
+cd frontend && npm start
+# UI http://localhost:4200 — API proxied to http://localhost:8080
 ```

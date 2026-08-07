@@ -1,12 +1,7 @@
 import { Component, inject, input, signal } from '@angular/core';
 import { ProjectHealthAnalysisResponse } from '../../../core/models/ai-health-analysis.model';
 import { ApiService } from '../../../core/services/api.service';
-import { ProjectsStore } from '../../../core/services/projects.store';
-import { ProjectHealthService } from '../../../core/services/project-health.service';
-import { RisksStore } from '../../../core/services/risks.store';
-import { TasksStore } from '../../../core/services/tasks.store';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
-import { buildProjectHealthAnalysisRequest } from '../../utils/project-ai-metrics.util';
 import { healthStatusClass } from '../../utils/project-health.util';
 import { UiIconComponent } from '../ui-icon/ui-icon.component';
 
@@ -150,10 +145,6 @@ export class ProjectAiInsightsComponent {
   readonly embedded = input(false);
 
   private readonly api = inject(ApiService);
-  private readonly projectsStore = inject(ProjectsStore);
-  private readonly tasksStore = inject(TasksStore);
-  private readonly risksStore = inject(RisksStore);
-  private readonly healthService = inject(ProjectHealthService);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
@@ -171,24 +162,16 @@ export class ProjectAiInsightsComponent {
   }
 
   analyze(): void {
-    const project = this.projectsStore.getById(this.projectId());
-    if (!project) {
+    const projectId = this.projectId();
+    if (!projectId) {
       this.error.set('Project not found');
       return;
     }
 
-    const request = buildProjectHealthAnalysisRequest(
-      project,
-      this.tasksStore.getByProject(this.projectId()),
-      this.risksStore.getByProject(this.projectId()),
-      this.projectsStore.getStages(this.projectId()),
-      this.healthService.getByProjectId(this.projectId()),
-    );
-
     this.loading.set(true);
     this.error.set(null);
 
-    this.api.analyzeProjectHealth(request).subscribe({
+    this.api.analyzeProjectHealth({ projectId }).subscribe({
       next: (response) => {
         this.result.set(response);
         this.loading.set(false);

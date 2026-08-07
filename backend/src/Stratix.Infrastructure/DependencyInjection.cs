@@ -26,6 +26,7 @@ public static class DependencyInjection
         services.AddScoped<ITenantContext, TenantContext>();
         services.AddScoped<IPasswordResetMailService, SmtpPasswordResetMailService>();
         services.AddHttpContextAccessor();
+        services.AddHostedService<Background.ReportOrphanCleanupService>();
 
         return services;
     }

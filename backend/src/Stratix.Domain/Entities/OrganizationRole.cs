@@ -4,7 +4,7 @@ namespace Stratix.Domain.Entities;
 /// Tenant-defined role. Access follows <see cref="BaseRole"/> (a system UserRole code)
 /// so existing JWT / [Authorize(Roles=…)] checks keep working.
 /// </summary>
-public class OrganizationRole : ITenantScoped
+public class OrganizationRole : ITenantScoped, ISoftDeletable, IHasCreatedAt
 {
     public long Id { get; set; }
     public long OrganizationId { get; set; }
@@ -15,4 +15,6 @@ public class OrganizationRole : ITenantScoped
     public string BaseRole { get; set; } = "EMPLOYEE";
     public bool IsSystem { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTimeOffset? DeletedAt { get; set; }
 }

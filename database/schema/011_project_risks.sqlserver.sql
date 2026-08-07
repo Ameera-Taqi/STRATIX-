@@ -1,5 +1,6 @@
 -- Stratix — project risks (SQL Server)
 -- Requires: users, projects
+-- organization_id → 016_multitenancy.sqlserver.sql · soft-delete → 028_soft_delete.sql
 
 IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = N'project_risks')
 BEGIN

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Stratix.Application.Common;
 using Stratix.Application.DTOs.Tasks;
 using Stratix.Application.Interfaces;
 using Stratix.Application.Mapping;
@@ -13,12 +14,18 @@ public class TaskService : ITaskService
     private readonly IApplicationDbContext _db;
     private readonly IAuditTrailService _audit;
     private readonly ICurrentUserService _currentUser;
+    private readonly TenantRelationGuard _tenantGuard;
 
-    public TaskService(IApplicationDbContext db, IAuditTrailService audit, ICurrentUserService currentUser)
+    public TaskService(
+        IApplicationDbContext db,
+        IAuditTrailService audit,
+        ICurrentUserService currentUser,
+        TenantRelationGuard tenantGuard)
     {
         _db = db;
         _audit = audit;
         _currentUser = currentUser;
+        _tenantGuard = tenantGuard;
     }
 
     public async Task<IReadOnlyList<TaskResponse>> GetAllAsync(long? projectId, CancellationToken ct = default)
@@ -75,13 +82,22 @@ public class TaskService : ITaskService
         _db.Add(task);
         await _db.SaveChangesAsync(ct);
         task = await FindAsync(task.Id, ct);
-        await _audit.RecordCreateAsync(AuditEntityType.TASK, task.Id, task.Title, null, $"Task created: {task.Title}", task.ProjectId, task.Project.Name, ct);
+        await _audit.RecordCreateAsync(
+            AuditEntityType.TASK,
+            task.Id,
+            task.Title,
+            AuditSnapshot.Serialize(Snapshot(task)),
+            $"Task created: {task.Title}",
+            task.ProjectId,
+            task.Project.Name,
+            ct);
         return EntityMappers.ToResponse(task);
     }
 
     public async Task<TaskResponse> UpdateAsync(long id, UpdateTaskRequest request, CancellationToken ct = default)
     {
         var task = await FindAsync(id, ct);
+        var oldValues = AuditSnapshot.Serialize(Snapshot(task));
         task.ProjectId = request.ProjectId;
         task.StageId = request.StageId;
         task.Title = request.Title.Trim();
@@ -95,6 +111,16 @@ public class TaskService : ITaskService
         ApplyCompletion(task, request.Status);
         await ValidateRelationsAsync(task, ct);
         await _db.SaveChangesAsync(ct);
+        await _audit.RecordUpdateAsync(
+            AuditEntityType.TASK,
+            task.Id,
+            task.Title,
+            oldValues,
+            AuditSnapshot.Serialize(Snapshot(task)),
+            $"Task updated: {task.Title}",
+            task.ProjectId,
+            task.Project.Name,
+            ct);
         return EntityMappers.ToResponse(await FindAsync(id, ct));
     }
 
@@ -106,10 +132,21 @@ public class TaskService : ITaskService
         if (_currentUser.Role == UserRole.EMPLOYEE && task.AssigneeId != _currentUser.UserId)
             throw new UnauthorizedAccessException("You can only update the status of tasks assigned to you.");
 
+        var oldValues = AuditSnapshot.Serialize(new { Status = task.Status.ToString() });
         task.Status = request.Status;
         task.UpdatedAt = DateTimeOffset.UtcNow;
         ApplyCompletion(task, request.Status);
         await _db.SaveChangesAsync(ct);
+        await _audit.RecordUpdateAsync(
+            AuditEntityType.TASK,
+            task.Id,
+            task.Title,
+            oldValues,
+            AuditSnapshot.Serialize(new { Status = task.Status.ToString() }),
+            $"Task status → {request.Status}",
+            task.ProjectId,
+            task.Project?.Name,
+            ct);
         return EntityMappers.ToResponse(task);
     }
 
@@ -119,10 +156,25 @@ public class TaskService : ITaskService
         var title = task.Title;
         var projectId = task.ProjectId;
         var projectName = task.Project.Name;
+        var snapshot = AuditSnapshot.Serialize(Snapshot(task));
         _db.Remove(task);
         await _db.SaveChangesAsync(ct);
-        await _audit.RecordDeleteAsync(AuditEntityType.TASK, id, title, null, $"Task deleted: {title}", projectId, projectName, ct);
+        await _audit.RecordDeleteAsync(AuditEntityType.TASK, id, title, snapshot, $"Task deleted: {title}", projectId, projectName, ct);
     }
+
+    private static object Snapshot(TaskItem t) => new
+    {
+        t.ProjectId,
+        t.StageId,
+        t.Title,
+        t.Description,
+        Status = t.Status.ToString(),
+        Priority = t.Priority.ToString(),
+        t.AssigneeId,
+        t.StartDate,
+        t.DueDate,
+        t.Progress
+    };
 
     private static void ApplyCompletion(TaskItem task, DomainTaskStatus status)
     {
@@ -146,18 +198,13 @@ public class TaskService : ITaskService
 
     private async Task ValidateRelationsAsync(TaskItem task, CancellationToken ct)
     {
-        if (!await _db.Projects.AnyAsync(p => p.Id == task.ProjectId, ct))
-            throw new ArgumentException("Project not found");
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == task.ProjectId, ct)
+            ?? throw new ArgumentException("Project not found");
 
-        if (task.StageId.HasValue)
-        {
-            var stage = await _db.ProjectStages.FirstOrDefaultAsync(s => s.Id == task.StageId, ct)
-                ?? throw new ArgumentException("Stage not found");
-            if (stage.ProjectId != task.ProjectId)
-                throw new ArgumentException("Stage does not belong to project");
-        }
+        // Child rows inherit the project's tenant (critical for unscoped SUPER_ADMIN writers).
+        task.OrganizationId = project.OrganizationId;
 
-        if (task.AssigneeId.HasValue && !await _db.Users.AnyAsync(u => u.Id == task.AssigneeId, ct))
-            throw new ArgumentException("Assignee not found");
+        await _tenantGuard.EnsureStageInProjectAsync(task.StageId, task.ProjectId, project.OrganizationId, ct);
+        await _tenantGuard.EnsureUserAsync(task.AssigneeId, project.OrganizationId, ct);
     }
 }

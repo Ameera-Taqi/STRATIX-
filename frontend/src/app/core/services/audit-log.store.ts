@@ -24,7 +24,7 @@ export class AuditLogStore {
   private readonly _loaded = signal(false);
   private readonly _totalElements = signal(0);
   private readonly _totalPages = signal(0);
-  private readonly _page = signal(0);
+  private readonly _page = signal(1);
   private readonly _localEntries = signal<AuditEntry[]>([]);
   private _localNextId = 1;
 
@@ -131,7 +131,7 @@ export class AuditLogStore {
 
   private toParams(query: AuditLogQuery): Record<string, string | number> {
     const params: Record<string, string | number> = {
-      page: query.page ?? 0,
+      page: query.page ?? 1,
       size: query.size ?? 25,
     };
     if (query.entityType && query.entityType !== 'ALL') params['entityType'] = query.entityType;

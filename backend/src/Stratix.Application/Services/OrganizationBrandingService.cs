@@ -22,20 +22,20 @@ public class OrganizationBrandingService : IOrganizationBrandingService
     private readonly ITenantContext _tenant;
     private readonly ICurrentUserService _currentUser;
     private readonly IPlatformCmsService _cms;
-    private readonly string _logoRoot;
+    private readonly ITenantFileStorage _files;
 
     public OrganizationBrandingService(
         IApplicationDbContext db,
         ITenantContext tenant,
         ICurrentUserService currentUser,
-        IPlatformCmsService cms)
+        IPlatformCmsService cms,
+        ITenantFileStorage files)
     {
         _db = db;
         _tenant = tenant;
         _currentUser = currentUser;
         _cms = cms;
-        _logoRoot = Path.Combine(AppContext.BaseDirectory, "data", "org-logos");
-        Directory.CreateDirectory(_logoRoot);
+        _files = files;
     }
 
     public async Task<OrganizationBrandingResponse> GetAsync(CancellationToken ct = default)
@@ -53,12 +53,18 @@ public class OrganizationBrandingService : IOrganizationBrandingService
         var org = await RequireCurrentOrgAsync(ct);
         if (string.IsNullOrWhiteSpace(org.LogoFileName)) return null;
 
-        var path = Path.Combine(_logoRoot, org.LogoFileName);
-        if (!File.Exists(path)) return null;
+        var key = NormalizeLogoKey(org.Id, org.LogoFileName);
+        var opened = await _files.OpenAsync(org.Id, StorageCategories.OrgLogos, key, GuessContentType(org.LogoFileName), ct);
+        if (opened is null)
+        {
+            // Legacy flat layout: data/org-logos/org-{id}.ext
+            var legacy = Path.Combine(_files.Root, StorageCategories.OrgLogos, Path.GetFileName(org.LogoFileName));
+            if (!File.Exists(legacy)) return null;
+            Stream stream = File.OpenRead(legacy);
+            return (stream, GuessContentType(org.LogoFileName), Path.GetFileName(org.LogoFileName));
+        }
 
-        var contentType = GuessContentType(org.LogoFileName);
-        Stream stream = File.OpenRead(path);
-        return (stream, contentType, org.LogoFileName);
+        return (opened.Value.Stream, opened.Value.ContentType, Path.GetFileName(org.LogoFileName));
     }
 
     public async Task<OrganizationLogoUploadResult> UploadAsync(
@@ -75,27 +81,22 @@ public class OrganizationBrandingService : IOrganizationBrandingService
             throw new ArgumentException("Logo file is required.");
         if (length > MaxBytes)
             throw new ArgumentException("Logo must be 2 MB or smaller.");
-        if (!AllowedContentTypes.Contains(contentType))
+        if (!AllowedContentTypes.Contains(contentType.Split(';', 2)[0].Trim()))
             throw new ArgumentException("Logo must be PNG, JPEG, WebP, or SVG.");
 
         var org = await RequireCurrentOrgAsync(ct);
         var ext = ExtensionFor(contentType, originalFileName);
         var fileName = $"org-{org.Id}{ext}";
-        var path = Path.Combine(_logoRoot, fileName);
 
-        if (!string.IsNullOrWhiteSpace(org.LogoFileName) &&
-            !string.Equals(org.LogoFileName, fileName, StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(org.LogoFileName))
         {
-            var oldPath = Path.Combine(_logoRoot, org.LogoFileName);
-            if (File.Exists(oldPath)) File.Delete(oldPath);
+            _files.Delete(org.Id, StorageCategories.OrgLogos, NormalizeLogoKey(org.Id, org.LogoFileName));
+            var legacy = Path.Combine(_files.Root, StorageCategories.OrgLogos, Path.GetFileName(org.LogoFileName));
+            if (File.Exists(legacy)) File.Delete(legacy);
         }
 
-        await using (var fs = File.Create(path))
-        {
-            await content.CopyToAsync(fs, ct);
-        }
-
-        org.LogoFileName = fileName;
+        var storageKey = await _files.SaveAsync(org.Id, StorageCategories.OrgLogos, fileName, content, ct);
+        org.LogoFileName = storageKey;
         org.UpdatedAt = DateTimeOffset.UtcNow;
         await _db.SaveChangesAsync(ct);
 
@@ -110,13 +111,17 @@ public class OrganizationBrandingService : IOrganizationBrandingService
         var org = await RequireCurrentOrgAsync(ct);
         if (string.IsNullOrWhiteSpace(org.LogoFileName)) return;
 
-        var path = Path.Combine(_logoRoot, org.LogoFileName);
-        if (File.Exists(path)) File.Delete(path);
+        _files.Delete(org.Id, StorageCategories.OrgLogos, NormalizeLogoKey(org.Id, org.LogoFileName));
+        var legacy = Path.Combine(_files.Root, StorageCategories.OrgLogos, Path.GetFileName(org.LogoFileName));
+        if (File.Exists(legacy)) File.Delete(legacy);
 
         org.LogoFileName = null;
         org.UpdatedAt = DateTimeOffset.UtcNow;
         await _db.SaveChangesAsync(ct);
     }
+
+    private static string NormalizeLogoKey(long organizationId, string stored) =>
+        stored.Contains('/') ? stored : $"org-{organizationId}/{Path.GetFileName(stored)}";
 
     private async Task<bool> CanUploadAsync(CancellationToken ct)
     {
@@ -140,7 +145,7 @@ public class OrganizationBrandingService : IOrganizationBrandingService
 
     private static string ExtensionFor(string contentType, string originalName)
     {
-        return contentType.ToLowerInvariant() switch
+        return contentType.Split(';', 2)[0].Trim().ToLowerInvariant() switch
         {
             "image/png" => ".png",
             "image/jpeg" or "image/jpg" => ".jpg",

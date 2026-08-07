@@ -2,7 +2,7 @@ using Stratix.Domain.Enums;
 
 namespace Stratix.Domain.Entities;
 
-public class TaskItem : ITenantScoped
+public class TaskItem : ITenantScoped, ISoftDeletable, IHasCreatedAt, IHasUpdatedAt
 {
     public long Id { get; set; }
     public long OrganizationId { get; set; }
@@ -22,4 +22,6 @@ public class TaskItem : ITenantScoped
     public decimal Progress { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTimeOffset? DeletedAt { get; set; }
 }

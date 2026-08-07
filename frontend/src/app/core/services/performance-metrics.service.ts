@@ -85,7 +85,7 @@ export class PerformanceMetricsService {
 
     forkJoin({
       health: this.api.health(),
-      users: this.api.getUsers(),
+      users: this.api.getDirectoryUsers(),
       projects: this.api.getProjects(),
       tasks: this.api.getTasks(),
       risks: this.api.getRisks(),

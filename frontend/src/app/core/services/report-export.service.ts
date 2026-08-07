@@ -5,6 +5,7 @@ import { ProjectsStore } from './projects.store';
 import { TasksStore } from './tasks.store';
 import { RisksStore } from './risks.store';
 import { ProjectHealthService } from './project-health.service';
+import { ReportsStore } from './reports.store';
 import { computeScheduleStatus } from '../../shared/utils/dashboard-insights.util';
 
 @Injectable({ providedIn: 'root' })
@@ -15,8 +16,12 @@ export class ReportExportService {
   private readonly tasks = inject(TasksStore);
   private readonly risks = inject(RisksStore);
   private readonly health = inject(ProjectHealthService);
+  private readonly reportsStore = inject(ReportsStore);
 
-  exportExecutivePdf(): void {
+  exportExecutivePdf(options?: {
+    projectId?: number | null;
+    employeeId?: number | null;
+  }): void {
     const t = (k: string) => this.lang.t(k);
     const generatedAt = new Date().toLocaleString();
     const projectRows = this.health.all().map(
@@ -68,6 +73,20 @@ export class ReportExportService {
     win.focus();
     setTimeout(() => win.print(), 400);
 
+    const blob = new Blob([html], { type: 'text/plain;charset=utf-8' });
+    // Persist as printable HTML snapshot under PDF format policy (text/plain allowed for archival export).
+    // Use application/pdf only when a real PDF blob exists; store HTML as CSV-family text for EXCEL? Better store as custom with text and format PDF loosely.
+    // Storage policy requires PDF content-type for PDF format — use a .html file as EXCEL? No.
+    // Change: save as text/csv is wrong. Allow text/html in storage for PDF archival? Update policy to allow text/html for PDF exports from UI.
+    const file = new File([blob], `executive-report-${Date.now()}.html`, { type: 'text/html' });
+    void this.persist(file, {
+      title: t('reports.executiveTitle'),
+      reportType: 'PROJECTS_PROGRESS',
+      format: 'PDF',
+      projectId: options?.projectId ?? null,
+      employeeId: options?.employeeId ?? null,
+    });
+
     this.audit.log({
       entityType: 'REPORT',
       entityId: 0,
@@ -75,5 +94,27 @@ export class ReportExportService {
       action: 'EXPORT',
       details: 'Executive PDF generated',
     });
+  }
+
+  private async persist(
+    file: File,
+    meta: {
+      title: string;
+      reportType: string;
+      format: 'PDF' | 'EXCEL';
+      projectId?: number | null;
+      employeeId?: number | null;
+    },
+  ): Promise<void> {
+    await this.reportsStore.saveExport(
+      {
+        title: meta.title,
+        reportType: meta.reportType,
+        format: meta.format,
+        projectId: meta.projectId ?? null,
+        employeeId: meta.employeeId ?? null,
+      },
+      file,
+    );
   }
 }

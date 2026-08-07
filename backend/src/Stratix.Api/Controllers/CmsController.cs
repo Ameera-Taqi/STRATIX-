@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Stratix.Application.DTOs.Cms;
 using Stratix.Application.Interfaces;
+using Stratix.Api.Auth;
 
 namespace Stratix.Api.Controllers;
 
@@ -21,7 +22,7 @@ public class CmsController : ControllerBase
 
     /// <summary>Update company-admin module permissions — Super Admin only.</summary>
     [HttpPut("company-admin-permissions")]
-    [Authorize(Roles = "SUPER_ADMIN")]
+    [Authorize(Policy = AuthPolicies.SuperAdmin)]
     public async Task<ActionResult<IReadOnlyList<CompanyAdminModulePermissionResponse>>> Update(
         [FromBody] UpdateCompanyAdminPermissionsRequest request,
         CancellationToken ct)

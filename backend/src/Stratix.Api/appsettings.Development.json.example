@@ -1,0 +1,26 @@
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=localhost,1433;Database=StratixDB;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False"
+  },
+  "Stratix": {
+    "Jwt": {
+      "Secret": "dev-only-change-me-use-user-secrets-or-dotenv-32b+",
+      "Issuer": "stratix",
+      "Audience": "stratix-api",
+      "ValidateIssuerAudience": false,
+      "ExpirationMs": "900000"
+    },
+    "AllowLoginAliases": true,
+    "SyncSeedPasswords": true,
+    "SeedData": true,
+    "PasswordReset": {
+      "TokenPepper": "dev-only-reset-pepper-change-me"
+    },
+    "Mail": {
+      "Host": "localhost",
+      "Port": "1025",
+      "From": "noreply@stratix.local",
+      "SmtpAuth": false
+    }
+  }
+}

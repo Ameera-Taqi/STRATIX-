@@ -77,7 +77,7 @@ export class ActivityFeedComponent implements OnInit {
       entityType: type,
       entityId: id ?? undefined,
       projectId: pid ?? undefined,
-      page: 0,
+      page: 1,
       size: this.limit(),
     });
   }

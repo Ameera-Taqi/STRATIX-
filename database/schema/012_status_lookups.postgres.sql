@@ -1,6 +1,6 @@
 -- =============================================================================
 -- Stratix — Status lookup tables (PostgreSQL)
--- Run after: 003_projects.sql, 005_tasks.sql, 011_project_risks.sql
+-- Run after: 003_projects.sql, 005_tasks.sql, 011_project_risks.sqlserver.sql
 --
 -- No application code changes required:
 --   • Existing columns stay VARCHAR (status)

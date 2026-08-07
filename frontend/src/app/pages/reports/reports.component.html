@@ -179,4 +179,45 @@
       </div>
     </section>
   </div>
+
+  <section class="stratix-card mt-6 overflow-hidden">
+    <div class="stratix-card-header flex items-center justify-between gap-3">
+      <div>
+        <h3 class="stratix-heading text-sm">{{ 'reports.savedTitle' | t }}</h3>
+        <p class="mt-1 text-xs stratix-muted">{{ 'reports.savedHint' | t }}</p>
+      </div>
+    </div>
+    <div class="overflow-x-auto p-4">
+      @if (reportsStore.reports().length === 0) {
+        <p class="py-6 text-center text-sm stratix-muted">{{ 'reports.noSaved' | t }}</p>
+      } @else {
+        <table class="w-full min-w-[640px] text-start text-sm">
+          <thead>
+            <tr class="border-b border-slate-200 text-xs uppercase tracking-wide stratix-muted dark:border-slate-700">
+              <th class="px-2 py-2 font-medium">{{ 'common.title' | t }}</th>
+              <th class="px-2 py-2 font-medium">{{ 'common.type' | t }}</th>
+              <th class="px-2 py-2 font-medium">{{ 'common.format' | t }}</th>
+              <th class="px-2 py-2 font-medium">{{ 'common.created' | t }}</th>
+              <th class="px-2 py-2 font-medium"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of reportsStore.reports(); track r.id) {
+              <tr class="border-b border-slate-100 dark:border-slate-800">
+                <td class="px-2 py-2.5 font-medium text-dark dark:text-slate-100">{{ r.title }}</td>
+                <td class="px-2 py-2.5">{{ r.reportType }}</td>
+                <td class="px-2 py-2.5">{{ r.format }}</td>
+                <td class="px-2 py-2.5 stratix-muted">{{ r.createdAt | date: 'medium' }}</td>
+                <td class="px-2 py-2.5 text-end">
+                  <button type="button" class="text-primary hover:underline" (click)="downloadSaved(r.id, r.fileName)">
+                    {{ 'common.download' | t }}
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </section>
 </main>

@@ -1,7 +1,7 @@
 namespace Stratix.Domain.Entities;
 
 /// <summary>A stored performance snapshot for an employee over a period (e.g. "2026-07").</summary>
-public class EmployeeKpi : ITenantScoped
+public class EmployeeKpi : ITenantScoped, ISoftDeletable, IHasCreatedAt, IHasUpdatedAt
 {
     public long Id { get; set; }
     public long OrganizationId { get; set; }
@@ -14,4 +14,6 @@ public class EmployeeKpi : ITenantScoped
     public string? Notes { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTimeOffset? DeletedAt { get; set; }
 }

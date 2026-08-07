@@ -2,12 +2,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Stratix.Application.DTOs.ProjectFiles;
 using Stratix.Application.Interfaces;
+using Stratix.Api.Auth;
 
 namespace Stratix.Api.Controllers;
 
 [ApiController]
 [Route("api")]
-[Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN,PROJECT_MANAGER,EMPLOYEE,TEAM_LEADER,EXECUTIVE_VIEWER")]
+[Authorize(Policy = AuthPolicies.AllTenantUsers)]
 public class ProjectFilesController : ControllerBase
 {
     private readonly IProjectFileService _service;
@@ -19,7 +20,7 @@ public class ProjectFilesController : ControllerBase
         await _service.GetByProjectAsync(projectId, ct);
 
     [HttpPost("project-files")]
-    [Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN,PROJECT_MANAGER,TEAM_LEADER,EMPLOYEE")]
+    [Authorize(Policy = AuthPolicies.TaskContributors)]
     public async Task<ActionResult<ProjectFileResponse>> Create([FromBody] CreateProjectFileRequest request, CancellationToken ct)
     {
         var created = await _service.CreateAsync(request, ct);
@@ -27,7 +28,7 @@ public class ProjectFilesController : ControllerBase
     }
 
     [HttpDelete("project-files/{id:long}")]
-    [Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN,PROJECT_MANAGER")]
+    [Authorize(Policy = AuthPolicies.ProjectManagers)]
     public async Task<IActionResult> Delete(long id, CancellationToken ct)
     {
         await _service.DeleteAsync(id, ct);

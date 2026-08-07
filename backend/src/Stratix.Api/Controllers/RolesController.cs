@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Stratix.Application.DTOs.Roles;
 using Stratix.Application.Interfaces;
+using Stratix.Api.Auth;
 
 namespace Stratix.Api.Controllers;
 
@@ -19,7 +20,7 @@ public class RolesController : ControllerBase
         await _roles.GetAllAsync(ct);
 
     [HttpPost]
-    [Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN")]
+    [Authorize(Policy = AuthPolicies.OrgAdmins)]
     public async Task<ActionResult<OrganizationRoleResponse>> Create(
         [FromBody] CreateOrganizationRoleRequest request,
         CancellationToken ct)
@@ -40,7 +41,7 @@ public class RolesController : ControllerBase
     }
 
     [HttpPut("{id:long}")]
-    [Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN")]
+    [Authorize(Policy = AuthPolicies.OrgAdmins)]
     public async Task<ActionResult<OrganizationRoleResponse>> Update(
         long id,
         [FromBody] UpdateOrganizationRoleRequest request,
@@ -65,7 +66,7 @@ public class RolesController : ControllerBase
     }
 
     [HttpDelete("{id:long}")]
-    [Authorize(Roles = "SUPER_ADMIN,ORG_ADMIN,ADMIN")]
+    [Authorize(Policy = AuthPolicies.OrgAdmins)]
     public async Task<IActionResult> Delete(long id, CancellationToken ct)
     {
         try

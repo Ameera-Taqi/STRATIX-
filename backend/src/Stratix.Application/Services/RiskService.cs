@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Stratix.Application.Common;
 using Stratix.Application.DTOs.Risks;
 using Stratix.Application.Interfaces;
 using Stratix.Application.Mapping;
@@ -12,11 +13,13 @@ public class RiskService : IRiskService
 {
     private readonly IApplicationDbContext _db;
     private readonly IAuditTrailService _audit;
+    private readonly TenantRelationGuard _tenantGuard;
 
-    public RiskService(IApplicationDbContext db, IAuditTrailService audit)
+    public RiskService(IApplicationDbContext db, IAuditTrailService audit, TenantRelationGuard tenantGuard)
     {
         _db = db;
         _audit = audit;
+        _tenantGuard = tenantGuard;
     }
 
     public async Task<IReadOnlyList<RiskResponse>> GetAllAsync(CancellationToken ct = default) =>
@@ -46,13 +49,22 @@ public class RiskService : IRiskService
         _db.Add(risk);
         await _db.SaveChangesAsync(ct);
         risk = await FindAsync(risk.Id, ct);
-        await _audit.RecordCreateAsync(AuditEntityType.RISK, risk.Id, risk.Title, null, $"Risk created: {risk.Title}", risk.ProjectId, risk.Project.Name, ct);
+        await _audit.RecordCreateAsync(
+            AuditEntityType.RISK,
+            risk.Id,
+            risk.Title,
+            AuditSnapshot.Serialize(Snapshot(risk)),
+            $"Risk created: {risk.Title}",
+            risk.ProjectId,
+            risk.Project.Name,
+            ct);
         return EntityMappers.ToResponse(risk);
     }
 
     public async Task<RiskResponse> UpdateAsync(long id, UpdateRiskRequest request, CancellationToken ct = default)
     {
         var risk = await FindAsync(id, ct);
+        var oldValues = AuditSnapshot.Serialize(Snapshot(risk));
         risk.Title = request.Title.Trim();
         risk.Description = request.Description;
         risk.Impact = request.Impact;
@@ -65,6 +77,16 @@ public class RiskService : IRiskService
         risk.UpdatedAt = DateTimeOffset.UtcNow;
         await ValidateRelationsAsync(risk, ct);
         await _db.SaveChangesAsync(ct);
+        await _audit.RecordUpdateAsync(
+            AuditEntityType.RISK,
+            risk.Id,
+            risk.Title,
+            oldValues,
+            AuditSnapshot.Serialize(Snapshot(risk)),
+            $"Risk updated: {risk.Title}",
+            risk.ProjectId,
+            risk.Project.Name,
+            ct);
         return EntityMappers.ToResponse(await FindAsync(id, ct));
     }
 
@@ -74,9 +96,10 @@ public class RiskService : IRiskService
         var projectId = risk.ProjectId;
         var projectName = risk.Project.Name;
         var title = risk.Title;
+        var snapshot = AuditSnapshot.Serialize(Snapshot(risk));
         _db.Remove(risk);
         await _db.SaveChangesAsync(ct);
-        await _audit.RecordDeleteAsync(AuditEntityType.RISK, id, title, null, $"Risk deleted: {title}", projectId, projectName, ct);
+        await _audit.RecordDeleteAsync(AuditEntityType.RISK, id, title, snapshot, $"Risk deleted: {title}", projectId, projectName, ct);
     }
 
     public async Task<RiskDashboardStatsResponse> GetDashboardStatsAsync(CancellationToken ct = default)
@@ -122,6 +145,19 @@ public class RiskService : IRiskService
         await Query().Where(r => r.RiskLevel == RiskLevel.CRITICAL).OrderByDescending(r => r.CreatedAt)
             .Select(r => EntityMappers.ToResponse(r)).ToListAsync(ct);
 
+    private static object Snapshot(ProjectRisk r) => new
+    {
+        r.Title,
+        r.Description,
+        Impact = r.Impact.ToString(),
+        Probability = r.Probability.ToString(),
+        RiskLevel = r.RiskLevel.ToString(),
+        r.MitigationPlan,
+        Status = r.Status.ToString(),
+        r.ProjectId,
+        r.OwnerId
+    };
+
     private IQueryable<ProjectRisk> Query() =>
         _db.ProjectRisks.Include(r => r.Project).Include(r => r.Owner);
 
@@ -131,10 +167,10 @@ public class RiskService : IRiskService
 
     private async Task ValidateRelationsAsync(ProjectRisk risk, CancellationToken ct)
     {
-        if (!await _db.Projects.AnyAsync(p => p.Id == risk.ProjectId, ct))
-            throw new ArgumentException("Project not found");
-        if (!await _db.Users.AnyAsync(u => u.Id == risk.OwnerId, ct))
-            throw new ArgumentException("Owner not found");
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == risk.ProjectId, ct)
+            ?? throw new ArgumentException("Project not found");
+        risk.OrganizationId = project.OrganizationId;
+        await _tenantGuard.EnsureUserRequiredAsync(risk.OwnerId, project.OrganizationId, ct);
     }
 
     private async Task EnsureProjectExistsAsync(long projectId, CancellationToken ct)

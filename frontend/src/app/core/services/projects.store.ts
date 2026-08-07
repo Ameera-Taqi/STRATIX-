@@ -96,11 +96,11 @@ export class ProjectsStore {
     this._loading.set(true);
     this._loadError.set(null);
 
-    this.api.getUsers().subscribe({
+    this.api.getDirectoryUsers().subscribe({
 
       next: (users) => {
         if (generation !== this.loadGeneration) return;
-        this._users.set(users);
+        this._users.set(users as User[]);
         this.loadProjects(generation, onReady);
       },
 
@@ -550,9 +550,9 @@ export class ProjectsStore {
   }
 
   reloadUsers(): void {
-    this.api.getUsers().subscribe({
+    this.api.getDirectoryUsers().subscribe({
       next: (users) => {
-        this._users.set(users);
+        this._users.set(users as User[]);
         const namesById = new Map(users.map((u) => [u.id, u.name]));
         this._projects.update((list) =>
           list.map((p) => {

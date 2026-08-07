@@ -25,7 +25,9 @@ public class PasswordResetService : IPasswordResetService
         _db = db;
         _passwordHasher = passwordHasher;
         _mail = mail;
-        _tokenPepper = configuration["Stratix:PasswordReset:TokenPepper"] ?? "stratix-reset-pepper";
+        _tokenPepper = configuration["Stratix:PasswordReset:TokenPepper"]
+            ?? throw new InvalidOperationException(
+                "Stratix:PasswordReset:TokenPepper must be configured (environment / user-secrets / .env).");
         _frontendUrl = configuration["Stratix:FrontendUrl"] ?? "http://localhost:4200";
         _maxPerHour = int.TryParse(configuration["Stratix:PasswordReset:MaxPerHour"], out var m) ? m : 3;
     }
@@ -33,6 +35,7 @@ public class PasswordResetService : IPasswordResetService
     public async Task<MessageResponse> ForgotPasswordAsync(ForgotPasswordRequest request, string? ip, CancellationToken ct = default)
     {
         var email = request.Email.Trim().ToLowerInvariant();
+        // Global unique active email → at most one user.
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email, ct);
         if (user == null)
             return new MessageResponse("If an account exists, a reset link has been sent.");
@@ -47,6 +50,7 @@ public class PasswordResetService : IPasswordResetService
         var hash = HashToken(rawToken);
         _db.Add(new PasswordResetToken
         {
+            OrganizationId = user.OrganizationId,
             UserId = user.Id,
             TokenHash = hash,
             ExpiresAt = DateTimeOffset.UtcNow.AddHours(1),
@@ -71,11 +75,31 @@ public class PasswordResetService : IPasswordResetService
             .FirstOrDefaultAsync(t => t.TokenHash == hash && t.UsedAt == null && t.ExpiresAt > DateTimeOffset.UtcNow, ct)
             ?? throw new ArgumentException("Invalid or expired reset token");
 
-        token.User.Password = _passwordHasher.Hash(request.Password);
-        token.User.UpdatedAt = DateTimeOffset.UtcNow;
-        token.UsedAt = DateTimeOffset.UtcNow;
-        await _db.SaveChangesAsync(ct);
-        return new MessageResponse("Password has been reset successfully.");
+        await using var tx = await _db.BeginTransactionAsync(ct);
+        try
+        {
+            token.User.Password = _passwordHasher.Hash(request.Password);
+            token.User.UpdatedAt = DateTimeOffset.UtcNow;
+            token.User.FailedLoginAttempts = 0;
+            token.User.LockoutUntil = null;
+            token.UsedAt = DateTimeOffset.UtcNow;
+
+            var now = DateTimeOffset.UtcNow;
+            var sessions = await _db.RefreshTokens
+                .Where(t => t.UserId == token.UserId && t.RevokedAt == null)
+                .ToListAsync(ct);
+            foreach (var session in sessions)
+                session.RevokedAt = now;
+
+            await _db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return new MessageResponse("Password has been reset successfully.");
+        }
+        catch
+        {
+            await tx.RollbackAsync(ct);
+            throw;
+        }
     }
 
     private string HashToken(string token)

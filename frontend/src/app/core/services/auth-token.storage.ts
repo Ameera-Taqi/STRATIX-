@@ -1,26 +1,56 @@
-const TOKEN_KEY = 'stratix.token';
+const ACCESS_TOKEN_KEY = 'stratix.token';
+const REFRESH_TOKEN_KEY = 'stratix.refreshToken';
 const REMEMBER_KEY = 'stratix.rememberMe';
 
-export function getAuthToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
+function read(key: string): string | null {
+  return localStorage.getItem(key) ?? sessionStorage.getItem(key);
 }
 
-export function setAuthToken(token: string, remember: boolean): void {
+function write(key: string, value: string, remember: boolean): void {
   if (remember) {
-    localStorage.setItem(TOKEN_KEY, token);
-    localStorage.setItem(REMEMBER_KEY, '1');
-    sessionStorage.removeItem(TOKEN_KEY);
+    localStorage.setItem(key, value);
+    sessionStorage.removeItem(key);
     return;
   }
+  sessionStorage.setItem(key, value);
+  localStorage.removeItem(key);
+}
 
-  sessionStorage.setItem(TOKEN_KEY, token);
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(REMEMBER_KEY);
+function remove(key: string): void {
+  localStorage.removeItem(key);
+  sessionStorage.removeItem(key);
+}
+
+export function getAuthToken(): string | null {
+  return read(ACCESS_TOKEN_KEY);
+}
+
+export function getRefreshToken(): string | null {
+  return read(REFRESH_TOKEN_KEY);
+}
+
+export function setAuthTokens(accessToken: string, refreshToken: string | null | undefined, remember: boolean): void {
+  write(ACCESS_TOKEN_KEY, accessToken, remember);
+  if (refreshToken) {
+    write(REFRESH_TOKEN_KEY, refreshToken, remember);
+  } else {
+    remove(REFRESH_TOKEN_KEY);
+  }
+  if (remember) {
+    localStorage.setItem(REMEMBER_KEY, '1');
+  } else {
+    localStorage.removeItem(REMEMBER_KEY);
+  }
+}
+
+/** @deprecated Prefer setAuthTokens — kept for call-site compatibility during migration. */
+export function setAuthToken(token: string, remember: boolean): void {
+  setAuthTokens(token, getRefreshToken(), remember);
 }
 
 export function clearAuthToken(): void {
-  localStorage.removeItem(TOKEN_KEY);
-  sessionStorage.removeItem(TOKEN_KEY);
+  remove(ACCESS_TOKEN_KEY);
+  remove(REFRESH_TOKEN_KEY);
   localStorage.removeItem(REMEMBER_KEY);
 }
 

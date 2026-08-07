@@ -6,7 +6,7 @@ import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 
-import { LoginRequest, LoginResponse, RegisterOrganizationRequest, AuthUserProfile, ForgotPasswordRequest, ResetPasswordRequest, MessageResponse, UpdateMyProfileRequest } from '../models/auth.model';
+import { LoginRequest, LoginResponse, RegisterOrganizationRequest, AuthUserProfile, ForgotPasswordRequest, ResetPasswordRequest, MessageResponse, UpdateMyProfileRequest, RefreshTokenRequest } from '../models/auth.model';
 
 import {
 
@@ -18,17 +18,24 @@ import {
 
 import {
 
+  CreateRiskRequest,
   ProjectRisk,
 
   RiskDashboardStats,
 
   RiskHeatMapData,
+  UpdateRiskRequest,
 
 } from '../models/risk.model';
 
-import { HealthResponse, User, UserDirectoryItem } from '../models/user.model';
+import { CreateUserRequest, HealthResponse, UpdateUserRequest, User, UserDirectoryItem } from '../models/user.model';
 
-import { ProjectRow, StageRow, TaskCard } from '../data/mock-data';
+import { CreateProjectRequest, ProjectRow, UpdateProjectRequest } from '../models/project.model';
+import { CreateStageRequest, StageRow, UpdateStageRequest } from '../models/stage.model';
+import { CreateTaskRequest, TaskCard, UpdateTaskRequest } from '../models/task.model';
+import { AuthApiService } from '../api/auth-api.service';
+import { UsersApiService } from '../api/users-api.service';
+import { ProjectsApiService } from '../api/projects-api.service';
 
 import { AuditLogApiRow, AuditLogPage } from '../models/audit.model';
 
@@ -90,6 +97,9 @@ import { CreateReportPayload, ReportResponse } from '../models/report.model';
 export class ApiService {
 
   private readonly http = inject(HttpClient);
+  private readonly authApi = inject(AuthApiService);
+  private readonly usersApi = inject(UsersApiService);
+  private readonly projectsApi = inject(ProjectsApiService);
 
   private readonly base = environment.apiUrl;
 
@@ -104,45 +114,49 @@ export class ApiService {
 
 
   login(body: LoginRequest): Observable<LoginResponse> {
-
-    return this.http.post<LoginResponse>(`${this.base}/auth/login`, body);
-
+    return this.authApi.login(body);
   }
 
   registerOrganization(body: RegisterOrganizationRequest): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${this.base}/auth/register`, body);
+    return this.authApi.registerOrganization(body);
+  }
+
+  refresh(body: RefreshTokenRequest): Observable<LoginResponse> {
+    return this.authApi.refresh(body);
+  }
+
+  logout(body: RefreshTokenRequest): Observable<void> {
+    return this.authApi.logout(body);
   }
 
   forgotPassword(body: ForgotPasswordRequest): Observable<MessageResponse> {
-    return this.http.post<MessageResponse>(`${this.base}/auth/forgot-password`, body);
+    return this.authApi.forgotPassword(body);
   }
 
   resetPassword(body: ResetPasswordRequest): Observable<MessageResponse> {
-    return this.http.post<MessageResponse>(`${this.base}/auth/reset-password`, body);
+    return this.authApi.resetPassword(body);
   }
 
 
 
   me(): Observable<AuthUserProfile> {
-
-    return this.http.get<AuthUserProfile>(`${this.base}/auth/me`);
-
+    return this.authApi.me();
   }
 
   updateMyProfile(body: UpdateMyProfileRequest): Observable<AuthUserProfile> {
-    return this.http.patch<AuthUserProfile>(`${this.base}/auth/me`, body);
+    return this.authApi.updateMyProfile(body);
   }
 
 
 
   /** Full user administration list (OrgAdmins). Prefer getDirectoryUsers for pickers. */
   getUsers(): Observable<User[]> {
-    return this.http.get<User[]>(`${this.base}/users`);
+    return this.usersApi.getUsers();
   }
 
   /** Active tenant directory for assignee/manager pickers (all tenant roles). */
   getDirectoryUsers(): Observable<UserDirectoryItem[]> {
-    return this.http.get<UserDirectoryItem[]>(`${this.base}/directory/users`);
+    return this.usersApi.getDirectoryUsers();
   }
 
   getDepartments(): Observable<DepartmentRow[]> {
@@ -178,21 +192,15 @@ export class ApiService {
   }
 
   getUser(id: number): Observable<User> {
-
-    return this.http.get<User>(`${this.base}/users/${id}`);
-
+    return this.usersApi.getUser(id);
   }
 
-  createUser(body: unknown): Observable<User> {
-
-    return this.http.post<User>(`${this.base}/users`, body);
-
+  createUser(body: CreateUserRequest): Observable<User> {
+    return this.usersApi.createUser(body);
   }
 
-  updateUser(id: number, body: unknown): Observable<User> {
-
-    return this.http.put<User>(`${this.base}/users/${id}`, body);
-
+  updateUser(id: number, body: UpdateUserRequest): Observable<User> {
+    return this.usersApi.updateUser(id, body);
   }
 
   getAuditLogs(params: Record<string, string | number>): Observable<AuditLogPage> {
@@ -230,137 +238,67 @@ export class ApiService {
 
 
   getProjects(): Observable<ProjectRow[]> {
-
-    return this.http.get<ProjectRow[]>(`${this.base}/projects`);
-
+    return this.projectsApi.getProjects();
   }
-
-
 
   getProject(id: number): Observable<ProjectRow> {
-
-    return this.http.get<ProjectRow>(`${this.base}/projects/${id}`);
-
+    return this.projectsApi.getProject(id);
   }
 
-
-
-  createProject(body: unknown): Observable<ProjectRow> {
-
-    return this.http.post<ProjectRow>(`${this.base}/projects`, body);
-
+  createProject(body: CreateProjectRequest): Observable<ProjectRow> {
+    return this.projectsApi.createProject(body);
   }
 
-
-
-  updateProject(id: number, body: unknown): Observable<ProjectRow> {
-
-    return this.http.put<ProjectRow>(`${this.base}/projects/${id}`, body);
-
+  updateProject(id: number, body: UpdateProjectRequest): Observable<ProjectRow> {
+    return this.projectsApi.updateProject(id, body);
   }
-
-
 
   deleteProject(id: number): Observable<void> {
-
-    return this.http.delete<void>(`${this.base}/projects/${id}`);
-
+    return this.projectsApi.deleteProject(id);
   }
-
-
 
   getStages(projectId: number): Observable<StageRow[]> {
-
-    return this.http.get<StageRow[]>(`${this.base}/projects/${projectId}/stages`);
-
+    return this.projectsApi.getStages(projectId);
   }
 
-
-
-  createStage(projectId: number, body: unknown): Observable<StageRow> {
-
-    return this.http.post<StageRow>(`${this.base}/projects/${projectId}/stages`, body);
-
+  createStage(projectId: number, body: CreateStageRequest): Observable<StageRow> {
+    return this.projectsApi.createStage(projectId, body);
   }
 
-
-
-  updateStage(id: number, body: unknown): Observable<StageRow> {
-
-    return this.http.put<StageRow>(`${this.base}/stages/${id}`, body);
-
+  updateStage(id: number, body: UpdateStageRequest): Observable<StageRow> {
+    return this.projectsApi.updateStage(id, body);
   }
-
-
 
   completeStage(id: number): Observable<StageRow> {
-
     return this.http.patch<StageRow>(`${this.base}/stages/${id}/complete`, {});
-
   }
-
-
 
   deleteStage(id: number): Observable<void> {
-
-    return this.http.delete<void>(`${this.base}/stages/${id}`);
-
+    return this.projectsApi.deleteStage(id);
   }
-
-
 
   getTasks(projectId?: number): Observable<TaskCard[]> {
-
-    const url =
-
-      projectId != null
-
-        ? `${this.base}/tasks?projectId=${projectId}`
-
-        : `${this.base}/tasks`;
-
-    return this.http.get<TaskCard[]>(url);
-
+    return this.projectsApi.getTasks(projectId);
   }
-
-
 
   getTask(id: number): Observable<TaskCard> {
-
-    return this.http.get<TaskCard>(`${this.base}/tasks/${id}`);
-
+    return this.projectsApi.getTask(id);
   }
 
-
-
-  createTask(body: unknown): Observable<TaskCard> {
-
-    return this.http.post<TaskCard>(`${this.base}/tasks`, body);
-
+  createTask(body: CreateTaskRequest): Observable<TaskCard> {
+    return this.projectsApi.createTask(body);
   }
 
-
-
-  updateTask(id: number, body: unknown): Observable<TaskCard> {
-
-    return this.http.put<TaskCard>(`${this.base}/tasks/${id}`, body);
-
+  updateTask(id: number, body: UpdateTaskRequest): Observable<TaskCard> {
+    return this.projectsApi.updateTask(id, body);
   }
-
-
 
   updateTaskStatus(id: number, status: string): Observable<TaskCard> {
-
     return this.http.patch<TaskCard>(`${this.base}/tasks/${id}/status`, { status });
-
   }
 
-
-
   deleteTask(id: number): Observable<void> {
-
-    return this.http.delete<void>(`${this.base}/tasks/${id}`);
-
+    return this.projectsApi.deleteTask(id);
   }
 
 
@@ -429,7 +367,7 @@ export class ApiService {
 
 
 
-  createRisk(body: unknown): Observable<ProjectRisk> {
+  createRisk(body: CreateRiskRequest): Observable<ProjectRisk> {
 
     return this.http.post<ProjectRisk>(`${this.base}/risks`, body);
 
@@ -437,7 +375,7 @@ export class ApiService {
 
 
 
-  updateRisk(id: number, body: unknown): Observable<ProjectRisk> {
+  updateRisk(id: number, body: UpdateRiskRequest): Observable<ProjectRisk> {
 
     return this.http.put<ProjectRisk>(`${this.base}/risks/${id}`, body);
 

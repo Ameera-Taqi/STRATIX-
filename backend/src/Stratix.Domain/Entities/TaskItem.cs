@@ -20,6 +20,12 @@ public class TaskItem : ITenantScoped, ISoftDeletable, IHasCreatedAt, IHasUpdate
     public DateOnly? DueDate { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
     public decimal Progress { get; set; }
+    /// <summary>Effort weight in hours (defaults to 1). Used by <c>ProjectProgressCalculator</c>.</summary>
+    public decimal EstimatedHours { get; set; } = 1m;
+    public decimal? ActualHours { get; set; }
+    public string? BlockedReason { get; set; }
+    public string? ReopenReason { get; set; }
+    public string? ReviewReason { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public bool IsDeleted { get; set; }

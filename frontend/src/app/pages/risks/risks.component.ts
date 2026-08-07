@@ -189,7 +189,7 @@ export class RisksComponent implements OnInit {
       mitigationPlan: '',
       status: 'OPEN',
       projectId: this.projects()[0]?.id ?? 1,
-      ownerId: profile.employeeId,
+      ownerId: profile?.employeeId ?? 0,
     };
   }
 }

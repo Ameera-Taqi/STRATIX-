@@ -16,6 +16,7 @@ import { ReportsStore } from '../../core/services/reports.store';
 import { ApiService } from '../../core/services/api.service';
 import { TaskCard } from '../../core/data/mock-data';
 import { firstValueFrom } from 'rxjs';
+import { downloadBlob, readBlobErrorMessage } from '../../shared/utils/blob-download.util';
 import { computeScheduleStatus } from '../../shared/utils/dashboard-insights.util';
 import {
   CHART_BUDGET_STATUS,
@@ -47,7 +48,7 @@ export class ReportsComponent implements OnInit {
   private readonly tasksStore = inject(TasksStore);
   private readonly employeesStore = inject(EmployeesStore);
   private readonly health = inject(ProjectHealthService);
-  private readonly reportsStore = inject(ReportsStore);
+  readonly reportsStore = inject(ReportsStore);
   private readonly api = inject(ApiService);
 
   readonly dateRange = signal<DateRangeFilter>('all');
@@ -213,8 +214,10 @@ export class ReportsComponent implements OnInit {
   }
 
   exportPdf(): void {
-    const projectId = this.projectFilter() === 'all' ? null : this.projectFilter();
-    const employeeId = this.employeeFilter() === 'all' ? null : this.employeeFilter();
+    const projectFilter = this.projectFilter();
+    const employeeFilter = this.employeeFilter();
+    const projectId = projectFilter === 'all' ? null : projectFilter;
+    const employeeId = employeeFilter === 'all' ? null : employeeFilter;
     this.exportService.exportExecutivePdf({ projectId, employeeId });
   }
 
@@ -237,14 +240,12 @@ export class ReportsComponent implements OnInit {
     ];
     const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'stratix-executive-report.csv';
-    a.click();
-    URL.revokeObjectURL(a.href);
+    downloadBlob(blob, 'stratix-executive-report.csv');
 
-    const projectId = this.projectFilter() === 'all' ? null : this.projectFilter();
-    const employeeId = this.employeeFilter() === 'all' ? null : this.employeeFilter();
+    const projectFilter = this.projectFilter();
+    const employeeFilter = this.employeeFilter();
+    const projectId = projectFilter === 'all' ? null : projectFilter;
+    const employeeId = employeeFilter === 'all' ? null : employeeFilter;
     const file = new File([blob], `executive-report-${Date.now()}.csv`, { type: 'text/csv' });
     void this.reportsStore.saveExport(
       {
@@ -269,12 +270,16 @@ export class ReportsComponent implements OnInit {
   }
 
   async downloadSaved(id: number, fileName: string): Promise<void> {
-    const blob = await firstValueFrom(this.api.downloadReport(id));
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = fileName || `report-${id}`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+    try {
+      const blob = await firstValueFrom(this.api.downloadReport(id));
+      if (blob.type.includes('json')) {
+        const message = await readBlobErrorMessage(blob);
+        throw new Error(message ?? 'Download failed');
+      }
+      downloadBlob(blob, fileName || `report-${id}`);
+    } catch {
+      /* ApiErrorInterceptor surfaces server failures */
+    }
   }
 
   private shortLabel(text: string, max = 14): string {

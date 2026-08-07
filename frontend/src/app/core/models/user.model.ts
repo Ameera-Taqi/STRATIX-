@@ -38,3 +38,22 @@ export interface HealthResponse {
   status: string;
   application: string;
 }
+
+export interface CreateUserRequest {
+  name: string;
+  email: string;
+  password: string;
+  role: UserRole;
+  jobTitle: string | null;
+  status: UserStatus;
+  departmentId: number | null;
+}
+
+export interface UpdateUserRequest {
+  name: string;
+  email: string;
+  role: UserRole;
+  jobTitle: string | null;
+  status: UserStatus;
+  departmentId: number | null;
+}

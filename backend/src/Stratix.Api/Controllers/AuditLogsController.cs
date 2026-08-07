@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Stratix.Application.Common;
 using Stratix.Application.DTOs.Audit;
 using Stratix.Application.Interfaces;
 using Stratix.Api.Auth;
@@ -30,7 +31,7 @@ public class AuditLogsController : ControllerBase
         [FromQuery] int? size = null,
         CancellationToken ct = default)
     {
-        var resolvedSize = pageSize ?? size ?? 25;
+        var resolvedSize = pageSize ?? size ?? PageQuery.DefaultPageSize;
         return await _audit.SearchAsync(
             new AuditLogQuery(entityType, entityId, userId, action, projectId, startDate, endDate, search, page, resolvedSize),
             ct);

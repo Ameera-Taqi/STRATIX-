@@ -103,6 +103,7 @@ public interface IProjectService
     Task<ProjectResponse> GetByIdAsync(long id, CancellationToken ct = default);
     Task<ProjectResponse> CreateAsync(CreateProjectRequest request, CancellationToken ct = default);
     Task<ProjectResponse> UpdateAsync(long id, UpdateProjectRequest request, CancellationToken ct = default);
+    Task<ProjectResponse> CompleteAsync(long id, CancellationToken ct = default);
     Task DeleteAsync(long id, CancellationToken ct = default);
 }
 
@@ -179,6 +180,8 @@ public interface IOrganizationRoleService
 public interface IHealthService
 {
     Task<HealthResponse> GetHealthAsync(CancellationToken ct = default);
+    Task<LivenessResponse> GetLivenessAsync(CancellationToken ct = default);
+    Task<ReadinessResponse> GetReadinessAsync(CancellationToken ct = default);
 }
 
 public interface IProjectHealthAnalysisService

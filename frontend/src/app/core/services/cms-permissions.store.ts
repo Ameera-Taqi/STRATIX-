@@ -30,6 +30,10 @@ export class CmsPermissionsStore {
       this.loaded.set(true);
     } catch {
       this.error.set('cms.loadFailed');
+      // Fail closed: empty map + loaded so company-admin modules stay denied.
+      this.permissions.set([]);
+      this.map.set({});
+      this.loaded.set(true);
     } finally {
       this.loading.set(false);
     }

@@ -1,17 +1,16 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LangSwitcherComponent } from '../../layout/lang-switcher/lang-switcher.component';
 import { ThemeToggleComponent } from '../../layout/theme-toggle/theme-toggle.component';
 import { AuthService } from '../../core/services/auth.service';
 import { isRememberMeEnabled } from '../../core/services/auth-token.storage';
-import { DataBootstrapService } from '../../core/services/data-bootstrap.service';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [TranslatePipe, LangSwitcherComponent, ThemeToggleComponent, FormsModule, RouterLink],
+  imports: [TranslatePipe, LangSwitcherComponent, ThemeToggleComponent, ReactiveFormsModule, RouterLink],
   template: `
     <div class="stratix-auth-page">
       <div class="stratix-auth-wash"></div>
@@ -36,33 +35,31 @@ import { DataBootstrapService } from '../../core/services/data-bootstrap.service
 
         <div class="stratix-auth-card">
           @if (error()) {
-            <p class="stratix-auth-error">{{ error()! | t }}</p>
+            <p class="stratix-auth-error" role="alert">{{ error()! | t }}</p>
           }
 
-          <form class="space-y-5" (ngSubmit)="onSubmit()">
+          <form class="space-y-5" [formGroup]="form" (ngSubmit)="onSubmit()">
             <div>
-              <label class="stratix-auth-label">{{ 'module.username' | t }}</label>
+              <label class="stratix-auth-label" for="login-username">{{ 'module.username' | t }}</label>
               <input
+                id="login-username"
                 type="text"
                 class="stratix-auth-input"
                 [placeholder]="'auth.emailPlaceholder' | t"
-                [(ngModel)]="username"
-                name="username"
+                formControlName="username"
                 autocomplete="username"
-                required
               />
             </div>
             <div>
-              <label class="stratix-auth-label">{{ 'module.password' | t }}</label>
+              <label class="stratix-auth-label" for="login-password">{{ 'module.password' | t }}</label>
               <div class="relative">
                 <input
+                  id="login-password"
                   [type]="showPassword() ? 'text' : 'password'"
                   class="stratix-auth-input pe-10"
                   [placeholder]="'auth.passwordPlaceholder' | t"
-                  [(ngModel)]="password"
-                  name="password"
+                  formControlName="password"
                   autocomplete="current-password"
-                  required
                 />
                 <button
                   type="button"
@@ -94,8 +91,7 @@ import { DataBootstrapService } from '../../core/services/data-bootstrap.service
               <input
                 type="checkbox"
                 class="h-4 w-4 rounded border-slate-300 bg-white text-primary focus:ring-primary/30 dark:border-white/20 dark:bg-white/5"
-                [(ngModel)]="rememberMe"
-                name="rememberMe"
+                formControlName="rememberMe"
               />
               <span>{{ 'module.rememberMe' | t }}</span>
             </label>
@@ -103,7 +99,7 @@ import { DataBootstrapService } from '../../core/services/data-bootstrap.service
             <button
               type="submit"
               class="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/30 transition hover:bg-primary/90 hover:shadow-primary/40 disabled:cursor-not-allowed disabled:opacity-60"
-              [disabled]="submitting()"
+              [disabled]="submitting() || form.invalid"
             >
               {{ submitting() ? ('common.loading' | t) : ('module.signIn' | t) }}
             </button>
@@ -123,11 +119,14 @@ import { DataBootstrapService } from '../../core/services/data-bootstrap.service
 export class LoginComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
-  private readonly bootstrap = inject(DataBootstrapService);
+  private readonly fb = inject(FormBuilder);
 
-  username = '';
-  password = '';
-  rememberMe = isRememberMeEnabled();
+  readonly form = this.fb.nonNullable.group({
+    username: ['', [Validators.required]],
+    password: ['', [Validators.required]],
+    rememberMe: [isRememberMeEnabled()],
+  });
+
   readonly showPassword = signal(false);
   readonly error = signal<string | null>(null);
   readonly submitting = signal(false);
@@ -141,19 +140,22 @@ export class LoginComponent implements OnInit {
   }
 
   onSubmit(): void {
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
+
     this.error.set(null);
     this.submitting.set(true);
+    const { username, password, rememberMe } = this.form.getRawValue();
 
-    this.auth.login(this.username, this.password, this.rememberMe).subscribe((ok) => {
+    this.auth.login(username, password, rememberMe).subscribe((ok) => {
       this.submitting.set(false);
-
       if (!ok) {
         this.error.set('module.invalidCredentials');
         return;
       }
-
-      this.bootstrap.bootstrap();
-      this.router.navigate(['/dashboard']);
+      void this.router.navigate(['/dashboard']);
     });
   }
 }

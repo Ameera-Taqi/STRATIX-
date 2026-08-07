@@ -12,6 +12,7 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
+        services.AddSingleton<Stratix.Application.Observability.IStratixMetrics, Stratix.Application.Observability.StratixMetrics>();
         services.AddScoped<OrganizationAccessService>();
         services.AddScoped<TenantRelationGuard>();
         services.AddScoped<IAuthService, AuthService>();
@@ -37,6 +38,10 @@ public static class DependencyInjection
         services.AddScoped<IProjectHealthAnalysisService, ProjectHealthAnalysisService>();
         services.AddScoped<IPlatformCmsService, PlatformCmsService>();
         services.AddScoped<IOrganizationBrandingService, OrganizationBrandingService>();
+        services.AddScoped<IProgressRecalculationService, ProgressRecalculationService>();
+        services.AddScoped<IProjectHealthSnapshotService, ProjectHealthSnapshotService>();
+        services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
+        services.AddScoped<IKpiEvaluationService, KpiEvaluationService>();
         return services;
     }
 }

@@ -14,6 +14,16 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.WebHost.UseUrls(builder.Configuration["ASPNETCORE_URLS"] ?? "http://0.0.0.0:8080");
 
+builder.Logging.ClearProviders();
+builder.Logging.AddJsonConsole(options =>
+{
+    options.IncludeScopes = true;
+    options.TimestampFormat = "yyyy-MM-ddTHH:mm:ss.fffZ";
+    options.JsonWriterOptions = new System.Text.Json.JsonWriterOptions { Indented = false };
+});
+if (builder.Environment.IsDevelopment())
+    builder.Logging.AddSimpleConsole(o => o.TimestampFormat = "HH:mm:ss ");
+
 builder.Services.AddControllers(options =>
     {
         options.Filters.Add<FluentValidationActionFilter>();
@@ -132,6 +142,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+app.UseMiddleware<Stratix.Api.Middleware.RequestTelemetryMiddleware>();
 app.UseMiddleware<Stratix.Api.Middleware.ExceptionHandlingMiddleware>();
 
 if (app.Environment.IsDevelopment() || builder.Configuration.GetValue("Stratix:Swagger", false))
@@ -143,8 +154,12 @@ if (app.Environment.IsDevelopment() || builder.Configuration.GetValue("Stratix:S
 app.UseCors("Frontend");
 app.UseRateLimiter();
 app.UseAuthentication();
+app.UseMiddleware<Stratix.Api.Middleware.OrganizationAccessMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
+
+// Tenant files live under Stratix:Storage:Root and are served only through authenticated
+// controllers (reports/logo). Do NOT call UseStaticFiles on that directory.
 
 if (builder.Configuration.GetValue("Stratix:SeedData", true))
 {

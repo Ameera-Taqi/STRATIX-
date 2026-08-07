@@ -44,6 +44,10 @@ SCHEMA_SCRIPTS=(
   031_employee_kpi_unique_period.sql
   032_tenant_indexes_and_user_soft_delete.sql
   033_global_unique_email.sql
+  034_refresh_token_reuse_detection.sql
+  035_schema_migrations.sql
+  036_progress_health_execution.sql
+  037_kpi_evaluation_framework.sql
 )
 
 echo "[stratix-init] Waiting for SQL Server at ${HOST}..."
@@ -71,6 +75,15 @@ if [ ! -d "${SCHEMA_DIR}" ]; then
   exit 1
 fi
 
+record_migration() {
+  local script="$1"
+  ${SQLCMD} -S "${HOST}" -U sa -P "${SA_PASSWORD}" -C -I -b -d "${DATABASE}" -Q \
+    "IF OBJECT_ID(N'dbo.schema_migrations', N'U') IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM dbo.schema_migrations WHERE migration_id = N'${script}')
+     INSERT INTO dbo.schema_migrations (migration_id) VALUES (N'${script}');" \
+    || true
+}
+
 echo "[stratix-init] Applying schema migrations from ${SCHEMA_DIR}..."
 for script in "${SCHEMA_SCRIPTS[@]}"; do
   path="${SCHEMA_DIR}/${script}"
@@ -80,6 +93,7 @@ for script in "${SCHEMA_SCRIPTS[@]}"; do
   fi
   echo "[stratix-init] -> ${script}"
   ${SQLCMD} -S "${HOST}" -U sa -P "${SA_PASSWORD}" -C -I -b -d "${DATABASE}" -i "${path}"
+  record_migration "${script}"
 done
 
 echo "[stratix-init] Database initialization completed successfully."

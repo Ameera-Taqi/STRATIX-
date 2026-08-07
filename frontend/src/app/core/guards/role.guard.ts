@@ -3,7 +3,7 @@ import { CanActivateFn, Router } from '@angular/router';
 import { RoleAccessService } from '../services/role-access.service';
 import { SystemModuleCode } from '../config/stratix-modules';
 
-/** Blocks a route unless the current role can read the given module; redirects to /dashboard otherwise. */
+/** Blocks a route unless the current role can read the given module. */
 export function moduleGuard(moduleCode: SystemModuleCode): CanActivateFn {
   return () => {
     const roleAccess = inject(RoleAccessService);
@@ -13,7 +13,9 @@ export function moduleGuard(moduleCode: SystemModuleCode): CanActivateFn {
       return true;
     }
 
-    return router.createUrlTree(['/dashboard']);
+    return router.createUrlTree(['/forbidden'], {
+      queryParams: { module: moduleCode },
+    });
   };
 }
 

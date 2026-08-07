@@ -32,6 +32,6 @@ ENV Stratix__Storage__Root=/app/data
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=5 \
-  CMD curl -f http://localhost:8080/api/health || exit 1
+  CMD curl -f http://localhost:8080/api/health/ready || exit 1
 
 ENTRYPOINT ["dotnet", "Stratix.Api.dll"]

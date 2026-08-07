@@ -27,7 +27,7 @@ public class AuditTrailService : IAuditTrailService
 
     public async Task<AuditLogPageResponse> SearchAsync(AuditLogQuery query, CancellationToken ct = default)
     {
-        var (page, pageSize) = PageQuery.Normalize(query.Page, query.Size, defaultPageSize: 25);
+        var (page, pageSize) = PageQuery.Normalize(query.Page, query.Size);
         var q = _db.AuditLogs.AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(query.EntityType) && Enum.TryParse<AuditEntityType>(query.EntityType, true, out var entityType))

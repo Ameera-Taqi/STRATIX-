@@ -50,7 +50,10 @@ export class EmployeeDetailComponent implements OnInit {
   readonly submitting = signal(false);
 
   readonly departments = this.employeesStore.departmentOptions;
-  readonly roleOptions = computed(() => assignableRolesFor(this.roleAccess.role()));
+  readonly roleOptions = computed(() => {
+    const role = this.roleAccess.role();
+    return role ? assignableRolesFor(role) : [];
+  });
   readonly roleKey = roleLabelKey;
 
   form: EditEmployeeForm = {

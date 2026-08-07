@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FluentValidation;
+using Stratix.Api.Observability;
 
 namespace Stratix.Api.Middleware;
 
@@ -22,7 +23,8 @@ public class ExceptionHandlingMiddleware
         }
         catch (ValidationException ex)
         {
-            _logger.LogWarning(ex, "Validation failed for {Method} {Path}", context.Request.Method, context.Request.Path);
+            // Log shape only — not raw input values.
+            _logger.LogWarning("Validation failed for {Method} {Path}", context.Request.Method, context.Request.Path.Value);
             var errors = ex.Errors
                 .GroupBy(e => e.PropertyName)
                 .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray());
@@ -30,32 +32,32 @@ public class ExceptionHandlingMiddleware
         }
         catch (KeyNotFoundException ex)
         {
-            _logger.LogWarning(ex, "Not found: {Method} {Path}", context.Request.Method, context.Request.Path);
+            _logger.LogWarning("Not found: {Method} {Path}", context.Request.Method, context.Request.Path.Value);
             await WriteProblemAsync(context, StatusCodes.Status404NotFound, ex.Message);
         }
         catch (UnauthorizedAccessException ex)
         {
-            _logger.LogWarning(ex, "Unauthorized: {Method} {Path}", context.Request.Method, context.Request.Path);
+            _logger.LogWarning("Unauthorized: {Method} {Path}", context.Request.Method, context.Request.Path.Value);
             await WriteProblemAsync(context, StatusCodes.Status401Unauthorized, ex.Message);
         }
         catch (Stratix.Application.Services.PlanLimitExceededException ex)
         {
-            _logger.LogWarning(ex, "Plan limit exceeded: {Method} {Path}", context.Request.Method, context.Request.Path);
+            _logger.LogWarning("Plan limit exceeded: {Method} {Path}", context.Request.Method, context.Request.Path.Value);
             await WriteProblemAsync(context, StatusCodes.Status402PaymentRequired, ex.Message);
         }
         catch (ArgumentException ex)
         {
-            _logger.LogWarning(ex, "Bad request: {Method} {Path}", context.Request.Method, context.Request.Path);
+            _logger.LogWarning("Bad request: {Method} {Path}", context.Request.Method, context.Request.Path.Value);
             await WriteProblemAsync(context, StatusCodes.Status400BadRequest, ex.Message);
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "Conflict: {Method} {Path}", context.Request.Method, context.Request.Path);
+            _logger.LogWarning("Conflict: {Method} {Path}", context.Request.Method, context.Request.Path.Value);
             await WriteProblemAsync(context, StatusCodes.Status409Conflict, ex.Message);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unhandled exception for {Method} {Path}", context.Request.Method, context.Request.Path);
+            _logger.LogError(ex, "Unhandled exception for {Method} {Path}", context.Request.Method, context.Request.Path.Value);
             await WriteProblemAsync(
                 context,
                 StatusCodes.Status500InternalServerError,
@@ -71,14 +73,17 @@ public class ExceptionHandlingMiddleware
     {
         if (context.Response.HasStarted) return;
 
+        var correlationId = CorrelationId.GetOrCreate(context);
         context.Response.StatusCode = status;
         context.Response.ContentType = "application/problem+json";
+        context.Response.Headers[CorrelationId.HeaderName] = correlationId;
         var payload = new Dictionary<string, object?>
         {
             ["type"] = "about:blank",
             ["title"] = detail,
             ["status"] = status,
-            ["detail"] = detail
+            ["detail"] = detail,
+            ["correlationId"] = correlationId
         };
         if (errors is { Count: > 0 })
             payload["errors"] = errors;

@@ -57,6 +57,12 @@ public class StratixDbContext : DbContext, IApplicationDbContext
     public DbSet<PasswordResetToken> PasswordResetTokenSet => Set<PasswordResetToken>();
     public DbSet<RefreshToken> RefreshTokenSet => Set<RefreshToken>();
     public DbSet<PlatformModulePermission> PlatformModulePermissionSet => Set<PlatformModulePermission>();
+    public DbSet<ProjectHealthSnapshot> ProjectHealthSnapshotSet => Set<ProjectHealthSnapshot>();
+    public DbSet<EvaluationPeriod> EvaluationPeriodSet => Set<EvaluationPeriod>();
+    public DbSet<KpiDefinition> KpiDefinitionSet => Set<KpiDefinition>();
+    public DbSet<EmployeeEvaluation> EmployeeEvaluationSet => Set<EmployeeEvaluation>();
+    public DbSet<EmployeeKpiResult> EmployeeKpiResultSet => Set<EmployeeKpiResult>();
+    public DbSet<TaskQualityEvaluation> TaskQualityEvaluationSet => Set<TaskQualityEvaluation>();
 
     IQueryable<Organization> IApplicationDbContext.Organizations => OrganizationSet;
     IQueryable<Subscription> IApplicationDbContext.Subscriptions => SubscriptionSet;
@@ -77,6 +83,12 @@ public class StratixDbContext : DbContext, IApplicationDbContext
     IQueryable<PasswordResetToken> IApplicationDbContext.PasswordResetTokens => PasswordResetTokenSet;
     IQueryable<RefreshToken> IApplicationDbContext.RefreshTokens => RefreshTokenSet;
     IQueryable<PlatformModulePermission> IApplicationDbContext.PlatformModulePermissions => PlatformModulePermissionSet;
+    IQueryable<ProjectHealthSnapshot> IApplicationDbContext.ProjectHealthSnapshots => ProjectHealthSnapshotSet;
+    IQueryable<EvaluationPeriod> IApplicationDbContext.EvaluationPeriods => EvaluationPeriodSet;
+    IQueryable<KpiDefinition> IApplicationDbContext.KpiDefinitions => KpiDefinitionSet;
+    IQueryable<EmployeeEvaluation> IApplicationDbContext.EmployeeEvaluations => EmployeeEvaluationSet;
+    IQueryable<EmployeeKpiResult> IApplicationDbContext.EmployeeKpiResults => EmployeeKpiResultSet;
+    IQueryable<TaskQualityEvaluation> IApplicationDbContext.TaskQualityEvaluations => TaskQualityEvaluationSet;
 
     void IApplicationDbContext.Add<T>(T entity) => Set<T>().Add(entity);
     void IApplicationDbContext.Remove<T>(T entity) => Set<T>().Remove(entity);
@@ -84,8 +96,12 @@ public class StratixDbContext : DbContext, IApplicationDbContext
     public Task<bool> CanConnectAsync(CancellationToken cancellationToken = default) =>
         Database.CanConnectAsync(cancellationToken);
 
-    public Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default) =>
-        Database.BeginTransactionAsync(cancellationToken);
+    public Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
+    {
+        if (!Database.IsRelational())
+            return Task.FromResult<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction>(new NoOpDbContextTransaction());
+        return Database.BeginTransactionAsync(cancellationToken);
+    }
 
     public string? GetDatabaseProductName()
     {
@@ -219,5 +235,11 @@ public class StratixDbContext : DbContext, IApplicationDbContext
         modelBuilder.Entity<AuditLog>().HasQueryFilter(x => !_filterByTenant || x.OrganizationId == _tenantId);
         modelBuilder.Entity<RefreshToken>().HasQueryFilter(x => !_filterByTenant || x.OrganizationId == _tenantId);
         modelBuilder.Entity<PasswordResetToken>().HasQueryFilter(x => !_filterByTenant || x.OrganizationId == _tenantId);
+        modelBuilder.Entity<ProjectHealthSnapshot>().HasQueryFilter(x => !_filterByTenant || x.OrganizationId == _tenantId);
+        modelBuilder.Entity<EvaluationPeriod>().HasQueryFilter(x => (!_filterByTenant || x.OrganizationId == _tenantId) && !x.IsDeleted);
+        modelBuilder.Entity<KpiDefinition>().HasQueryFilter(x => (!_filterByTenant || x.OrganizationId == _tenantId) && !x.IsDeleted);
+        modelBuilder.Entity<EmployeeEvaluation>().HasQueryFilter(x => (!_filterByTenant || x.OrganizationId == _tenantId) && !x.IsDeleted);
+        modelBuilder.Entity<EmployeeKpiResult>().HasQueryFilter(x => (!_filterByTenant || x.OrganizationId == _tenantId) && !x.IsDeleted);
+        modelBuilder.Entity<TaskQualityEvaluation>().HasQueryFilter(x => (!_filterByTenant || x.OrganizationId == _tenantId) && !x.IsDeleted);
     }
 }

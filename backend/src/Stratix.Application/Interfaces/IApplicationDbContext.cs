@@ -23,6 +23,12 @@ public interface IApplicationDbContext
     IQueryable<PasswordResetToken> PasswordResetTokens { get; }
     IQueryable<RefreshToken> RefreshTokens { get; }
     IQueryable<PlatformModulePermission> PlatformModulePermissions { get; }
+    IQueryable<ProjectHealthSnapshot> ProjectHealthSnapshots { get; }
+    IQueryable<EvaluationPeriod> EvaluationPeriods { get; }
+    IQueryable<KpiDefinition> KpiDefinitions { get; }
+    IQueryable<EmployeeEvaluation> EmployeeEvaluations { get; }
+    IQueryable<EmployeeKpiResult> EmployeeKpiResults { get; }
+    IQueryable<TaskQualityEvaluation> TaskQualityEvaluations { get; }
 
     void Add<T>(T entity) where T : class;
     void Remove<T>(T entity) where T : class;

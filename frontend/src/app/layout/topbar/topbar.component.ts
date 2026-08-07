@@ -30,7 +30,7 @@ export class TopbarComponent {
   readonly titleKey = input.required<string>();
   readonly unreadCount = this.notificationsStore.unreadCount;
   readonly profile = this.currentUser.profile;
-  readonly initials = computed(() => employeeInitials(this.profile().name));
+  readonly initials = computed(() => employeeInitials(this.profile()?.name ?? ''));
   readonly roleKey = roleLabelKey;
   readonly menuOpen = signal(false);
   searchTerm = '';

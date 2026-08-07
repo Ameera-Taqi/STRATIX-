@@ -10,7 +10,7 @@
 
   <app-sidebar class="stratix-sidebar-drawer" [attr.data-open]="shellNav.open() ? 'true' : 'false'" />
 
-  <div class="dashboard-content flex min-h-0 min-w-0 flex-1 flex-col">
+  <main id="main-content" class="dashboard-content flex min-h-0 min-w-0 flex-1 flex-col" tabindex="-1">
     <router-outlet />
-  </div>
+  </main>
 </div>

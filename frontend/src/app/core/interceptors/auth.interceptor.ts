@@ -19,9 +19,12 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   }
 
   const isPublic =
-    req.url.endsWith('/health') ||
+    req.url.includes('/health') ||
+    req.url.includes('/metrics') ||
     req.url.includes('/auth/login') ||
     req.url.includes('/auth/register') ||
+    req.url.includes('/auth/refresh') ||
+    req.url.includes('/auth/logout') ||
     req.url.includes('/auth/forgot-password') ||
     req.url.includes('/auth/reset-password');
   if (isPublic) {

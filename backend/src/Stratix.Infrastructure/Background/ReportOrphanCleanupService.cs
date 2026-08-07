@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -10,21 +11,45 @@ namespace Stratix.Infrastructure.Background;
 /// <summary>
 /// Removes report files on disk that are not referenced by any report row
 /// (including soft-deleted rows that failed mid-delete, or create failures after SaveAsync).
+/// <para>
+/// <b>Single-instance OK.</b> With multiple API replicas this hosted loop would run on every
+/// node. For horizontal scale-out, either:
+/// </para>
+/// <list type="bullet">
+/// <item>Enable the job on only one instance via <c>Stratix:BackgroundJobs:ReportOrphanCleanup:Enabled</c></item>
+/// <item>Move cleanup to a dedicated worker process</item>
+/// <item>Later: add a distributed lock or a single scheduler (Hangfire/Quartz/cloud job)</item>
+/// </list>
 /// </summary>
 public sealed class ReportOrphanCleanupService : BackgroundService
 {
+    public const string EnabledConfigKey = "Stratix:BackgroundJobs:ReportOrphanCleanup:Enabled";
+
     private static readonly TimeSpan Interval = TimeSpan.FromHours(6);
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<ReportOrphanCleanupService> _logger;
 
-    public ReportOrphanCleanupService(IServiceScopeFactory scopeFactory, ILogger<ReportOrphanCleanupService> logger)
+    public ReportOrphanCleanupService(
+        IServiceScopeFactory scopeFactory,
+        IConfiguration configuration,
+        ILogger<ReportOrphanCleanupService> logger)
     {
         _scopeFactory = scopeFactory;
+        _configuration = configuration;
         _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        if (!_configuration.GetValue(EnabledConfigKey, true))
+        {
+            _logger.LogInformation(
+                "Report orphan cleanup hosted service is disabled ({ConfigKey}=false). Safe for multi-replica API when another node/worker owns the job.",
+                EnabledConfigKey);
+            return;
+        }
+
         // Delay first run so startup seeding/API warm-up finishes.
         try { await Task.Delay(TimeSpan.FromMinutes(2), stoppingToken); }
         catch (OperationCanceledException) { return; }
@@ -44,6 +69,9 @@ public sealed class ReportOrphanCleanupService : BackgroundService
             catch (OperationCanceledException) { break; }
         }
     }
+
+    /// <summary>Runs a single cleanup pass (used by the hosted loop and integration tests).</summary>
+    public Task RunCleanupAsync(CancellationToken ct = default) => CleanupOnceAsync(ct);
 
     private async Task CleanupOnceAsync(CancellationToken ct)
     {

@@ -2,10 +2,12 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Stratix.Application.Common;
 using Stratix.Application.DTOs.Auth;
 using Stratix.Application.Interfaces;
 using Stratix.Application.Mapping;
+using Stratix.Application.Observability;
 using Stratix.Domain.Entities;
 using Stratix.Domain.Enums;
 
@@ -31,6 +33,8 @@ public class AuthService : IAuthService
     private readonly IJwtTokenService _jwt;
     private readonly ICurrentUserService _currentUser;
     private readonly OrganizationAccessService _orgAccess;
+    private readonly IStratixMetrics _metrics;
+    private readonly ILogger<AuthService> _logger;
     private readonly bool _allowLoginAliases;
 
     public AuthService(
@@ -39,6 +43,8 @@ public class AuthService : IAuthService
         IJwtTokenService jwt,
         ICurrentUserService currentUser,
         OrganizationAccessService orgAccess,
+        IStratixMetrics metrics,
+        ILogger<AuthService> logger,
         IConfiguration configuration)
     {
         _db = db;
@@ -46,6 +52,8 @@ public class AuthService : IAuthService
         _jwt = jwt;
         _currentUser = currentUser;
         _orgAccess = orgAccess;
+        _metrics = metrics;
+        _logger = logger;
         _allowLoginAliases = string.Equals(
             configuration["Stratix:AllowLoginAliases"], "true", StringComparison.OrdinalIgnoreCase);
     }
@@ -132,11 +140,18 @@ public class AuthService : IAuthService
 
     public async Task<LoginResponse> LoginAsync(string username, string password, CancellationToken ct = default)
     {
-        var user = await ResolveUserAsync(username, ct)
-            ?? throw new UnauthorizedAccessException("Invalid credentials");
+        var user = await ResolveUserAsync(username, ct);
+        if (user is null)
+        {
+            RecordFailedLogin("unknown_user");
+            throw new UnauthorizedAccessException("Invalid credentials");
+        }
 
         if (user.LockoutUntil is { } until && until > DateTimeOffset.UtcNow)
+        {
+            RecordFailedLogin("locked");
             throw new UnauthorizedAccessException("Account temporarily locked due to repeated failed attempts. Try again later.");
+        }
 
         if (user.Status != UserStatus.ACTIVE || !_passwordHasher.Verify(password, user.Password))
         {
@@ -145,7 +160,13 @@ public class AuthService : IAuthService
             {
                 user.LockoutUntil = DateTimeOffset.UtcNow.Add(LockoutDuration);
                 user.FailedLoginAttempts = 0;
+                RecordFailedLogin("lockout_triggered");
             }
+            else
+            {
+                RecordFailedLogin("invalid_credentials");
+            }
+
             user.UpdatedAt = DateTimeOffset.UtcNow;
             await _db.SaveChangesAsync(ct);
             throw new UnauthorizedAccessException("Invalid credentials");
@@ -158,18 +179,47 @@ public class AuthService : IAuthService
             await _db.SaveChangesAsync(ct);
         }
 
-        await _orgAccess.EnsureCanAuthenticateAsync(user, ct);
+        try
+        {
+            await _orgAccess.EnsureCanAuthenticateAsync(user, ct);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            RecordFailedLogin("subscription_blocked");
+            throw;
+        }
 
         var refresh = await IssueRefreshTokenAsync(user.Id, user.OrganizationId, ct);
         return new LoginResponse(_jwt.GenerateToken(user), _jwt.GetExpirationSeconds(), EntityMappers.ToProfile(user), refresh);
+    }
+
+    private void RecordFailedLogin(string reason)
+    {
+        _metrics.RecordFailedLogin(reason);
+        // Username/password never logged — reason codes only.
+        _logger.LogWarning("Authentication failed ({Reason})", reason);
     }
 
     public async Task<LoginResponse> RefreshAsync(string refreshToken, CancellationToken ct = default)
     {
         var hash = HashToken(refreshToken ?? "");
         var token = await _db.RefreshTokens.Include(t => t.User).ThenInclude(u => u.Department)
-            .FirstOrDefaultAsync(t => t.TokenHash == hash && t.RevokedAt == null && t.ExpiresAt > DateTimeOffset.UtcNow, ct)
+            .FirstOrDefaultAsync(t => t.TokenHash == hash, ct)
             ?? throw new UnauthorizedAccessException("Invalid refresh token");
+
+        var now = DateTimeOffset.UtcNow;
+
+        // Reuse of a rotated/revoked token → revoke the whole family (possible theft).
+        if (token.RevokedAt != null || token.ReplacedByTokenHash != null)
+        {
+            token.ReuseDetectedAt ??= now;
+            await RevokeTokenFamilyAsync(token.TokenFamilyId, token.UserId, now, ct);
+            await _db.SaveChangesAsync(ct);
+            throw new UnauthorizedAccessException("Invalid refresh token");
+        }
+
+        if (token.ExpiresAt <= now)
+            throw new UnauthorizedAccessException("Invalid refresh token");
 
         if (token.User is null || token.User.Status != UserStatus.ACTIVE || token.User.IsDeleted)
             throw new UnauthorizedAccessException("Invalid refresh token");
@@ -180,8 +230,7 @@ public class AuthService : IAuthService
         await using var tx = await _db.BeginTransactionAsync(ct);
         try
         {
-            token.RevokedAt = DateTimeOffset.UtcNow;
-            var newRefresh = IssueRefreshToken(token.User.Id, token.User.OrganizationId);
+            var newRefresh = RotateRefreshToken(token, now);
             await _db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
             return new LoginResponse(
@@ -201,22 +250,41 @@ public class AuthService : IAuthService
     {
         if (string.IsNullOrWhiteSpace(refreshToken)) return;
         var hash = HashToken(refreshToken);
-        var token = await _db.RefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == hash && t.RevokedAt == null, ct);
-        if (token != null)
-        {
-            token.RevokedAt = DateTimeOffset.UtcNow;
-            await _db.SaveChangesAsync(ct);
-        }
+        var token = await _db.RefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == hash, ct);
+        if (token == null) return;
+
+        var now = DateTimeOffset.UtcNow;
+        await RevokeTokenFamilyAsync(token.TokenFamilyId, token.UserId, now, ct);
+        await _db.SaveChangesAsync(ct);
     }
 
     private async Task<string> IssueRefreshTokenAsync(long userId, long organizationId, CancellationToken ct)
     {
-        var raw = IssueRefreshToken(userId, organizationId);
+        var raw = IssueRefreshToken(userId, organizationId, Guid.NewGuid());
         await _db.SaveChangesAsync(ct);
         return raw;
     }
 
-    private string IssueRefreshToken(long userId, long organizationId)
+    /// <summary>Creates a new family member that replaces <paramref name="current"/>.</summary>
+    private string RotateRefreshToken(RefreshToken current, DateTimeOffset now)
+    {
+        var raw = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+        var newHash = HashToken(raw);
+        current.RevokedAt = now;
+        current.ReplacedByTokenHash = newHash;
+        _db.Add(new RefreshToken
+        {
+            OrganizationId = current.OrganizationId,
+            UserId = current.UserId,
+            TokenHash = newHash,
+            TokenFamilyId = current.TokenFamilyId,
+            ExpiresAt = now.AddDays(30),
+            CreatedAt = now
+        });
+        return raw;
+    }
+
+    private string IssueRefreshToken(long userId, long organizationId, Guid familyId)
     {
         var raw = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
         _db.Add(new RefreshToken
@@ -224,10 +292,20 @@ public class AuthService : IAuthService
             OrganizationId = organizationId,
             UserId = userId,
             TokenHash = HashToken(raw),
+            TokenFamilyId = familyId,
             ExpiresAt = DateTimeOffset.UtcNow.AddDays(30),
             CreatedAt = DateTimeOffset.UtcNow
         });
         return raw;
+    }
+
+    private async Task RevokeTokenFamilyAsync(Guid familyId, long userId, DateTimeOffset now, CancellationToken ct)
+    {
+        var siblings = await _db.RefreshTokens
+            .Where(t => t.TokenFamilyId == familyId && t.UserId == userId && t.RevokedAt == null)
+            .ToListAsync(ct);
+        foreach (var sibling in siblings)
+            sibling.RevokedAt = now;
     }
 
     private static string HashToken(string raw) =>

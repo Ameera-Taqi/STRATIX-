@@ -6,10 +6,9 @@ import { ProjectRow, StageRow } from '../data/mock-data';
 import { User } from '../models/user.model';
 
 import { ApiService } from './api.service';
-
 import { EmployeesStore } from './employees.store';
-
 import { NotificationsStore } from './notifications.store';
+import { asDateString, normalizeProjectRow, normalizeStageRow } from './project-normalize';
 
 import {
 
@@ -596,52 +595,20 @@ export class ProjectsStore {
 
 
   private normalizeProject(project: ProjectRow): ProjectRow {
-    const manager = project.manager?.trim() || project.owner?.trim() || '';
-    return {
-      ...project,
-      id: Number(project.id),
-      manager,
-      managerId: project.managerId == null ? null : Number(project.managerId),
-      owner: project.owner?.trim() || manager,
-      startDate: this.asDateString(project.startDate),
-      endDate: this.asDateString(project.endDate),
-      deadline: this.asDateString(project.deadline ?? project.endDate),
-      priority: (project.priority ?? 'MEDIUM') as ProjectRow['priority'],
-      progress: Number(project.progress) || 0,
-    };
+    return normalizeProjectRow(project);
   }
 
   private syncEmployeeProjectStats(): void {
     this.employeesStore.syncFromProjects(this._projects());
   }
 
-
-
   private normalizeStage(stage: StageRow): StageRow {
-
-    return {
-
-      ...stage,
-
-      startDate: this.asDateString(stage.startDate),
-
-      endDate: this.asDateString(stage.endDate),
-
-    };
-
+    return normalizeStageRow(stage);
   }
-
-
 
   private asDateString(value: string | null | undefined): string {
-
-    if (!value) return '';
-
-    return String(value).slice(0, 10);
-
+    return asDateString(value);
   }
-
-
 
   private resolveDepartmentId(name: string): number {
 

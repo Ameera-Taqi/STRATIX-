@@ -5,6 +5,9 @@ using Stratix.Application.Interfaces;
 using Stratix.Application.Mapping;
 using Stratix.Domain.Entities;
 using Stratix.Domain.Enums;
+using Stratix.Domain.Events;
+using Stratix.Domain.Workflow;
+using DomainTaskStatus = Stratix.Domain.Enums.TaskStatus;
 
 namespace Stratix.Application.Services;
 
@@ -14,26 +17,35 @@ public class ProjectService : IProjectService
     private readonly IAuditTrailService _audit;
     private readonly IPlanLimitService _planLimits;
     private readonly TenantRelationGuard _tenantGuard;
+    private readonly ICurrentUserService _currentUser;
+    private readonly IProgressRecalculationService _progress;
+    private readonly IDomainEventDispatcher _events;
 
     public ProjectService(
         IApplicationDbContext db,
         IAuditTrailService audit,
         IPlanLimitService planLimits,
-        TenantRelationGuard tenantGuard)
+        TenantRelationGuard tenantGuard,
+        ICurrentUserService currentUser,
+        IProgressRecalculationService progress,
+        IDomainEventDispatcher events)
     {
         _db = db;
         _audit = audit;
         _planLimits = planLimits;
         _tenantGuard = tenantGuard;
+        _currentUser = currentUser;
+        _progress = progress;
+        _events = events;
     }
 
     public async Task<IReadOnlyList<ProjectResponse>> GetAllAsync(CancellationToken ct = default) =>
-        await Query().OrderBy(p => p.Name).Select(p => EntityMappers.ToResponse(p)).ToListAsync(ct);
+        await ScopedQuery().OrderBy(p => p.Name).Select(p => EntityMappers.ToResponse(p)).ToListAsync(ct);
 
     public async Task<Common.PagedResult<ProjectResponse>> GetPagedAsync(int page, int pageSize, CancellationToken ct = default)
     {
         var (p, size) = Common.PageQuery.Normalize(page, pageSize);
-        var query = Query();
+        var query = ScopedQuery();
         var total = await query.CountAsync(ct);
         var items = await query.OrderBy(x => x.Name)
             .Skip((p - 1) * size).Take(size)
@@ -42,7 +54,7 @@ public class ProjectService : IProjectService
     }
 
     public async Task<ProjectResponse> GetByIdAsync(long id, CancellationToken ct = default) =>
-        EntityMappers.ToResponse(await FindAsync(id, ct));
+        EntityMappers.ToResponse(await FindScopedAsync(id, ct));
 
     public async Task<ProjectResponse> CreateAsync(CreateProjectRequest request, CancellationToken ct = default)
     {
@@ -95,8 +107,33 @@ public class ProjectService : IProjectService
         project.EndDate = request.EndDate;
         project.Status = request.Status;
         project.Priority = request.Priority;
-        if (request.Progress.HasValue) project.Progress = request.Progress.Value;
+        // Progress is derived from task effort — only allow manual seed when no tasks.
+        var hasTasks = await _db.Tasks.AnyAsync(t => t.ProjectId == id, ct);
+        if (!hasTasks && request.Progress.HasValue)
+            project.Progress = request.Progress.Value;
+
+        if (request.Status == ProjectStatus.COMPLETED)
+        {
+            var stageStatuses = await _db.ProjectStages.Where(s => s.ProjectId == id).Select(s => s.Status).ToListAsync(ct);
+            var taskStatuses = await _db.Tasks.Where(t => t.ProjectId == id).Select(t => t.Status).ToListAsync(ct);
+            ProjectCloseRules.EnsureCanComplete(stageStatuses, taskStatuses);
+        }
+
         await _db.SaveChangesAsync(ct);
+        if (hasTasks)
+            await _progress.RecalculateProjectAsync(id, ct);
+
+        if (request.Status == ProjectStatus.COMPLETED)
+        {
+            await _events.DispatchAsync(new ProjectCompletedEvent(
+                project.OrganizationId,
+                project.Id,
+                project.Name,
+                project.ProjectManagerId,
+                _currentUser.UserId ?? 0,
+                DateTimeOffset.UtcNow), ct);
+        }
+
         await _audit.RecordUpdateAsync(
             AuditEntityType.PROJECT,
             project.Id,
@@ -107,7 +144,27 @@ public class ProjectService : IProjectService
             project.Id,
             project.Name,
             ct);
-        return EntityMappers.ToResponse(project);
+        return EntityMappers.ToResponse(await FindAsync(id, ct));
+    }
+
+    public async Task<ProjectResponse> CompleteAsync(long id, CancellationToken ct = default)
+    {
+        var project = await FindScopedAsync(id, ct);
+        var stageStatuses = await _db.ProjectStages.Where(s => s.ProjectId == id).Select(s => s.Status).ToListAsync(ct);
+        var taskStatuses = await _db.Tasks.Where(t => t.ProjectId == id).Select(t => t.Status).ToListAsync(ct);
+        ProjectCloseRules.EnsureCanComplete(stageStatuses, taskStatuses);
+
+        project.Status = ProjectStatus.COMPLETED;
+        project.Progress = 100;
+        await _db.SaveChangesAsync(ct);
+        await _events.DispatchAsync(new ProjectCompletedEvent(
+            project.OrganizationId,
+            project.Id,
+            project.Name,
+            project.ProjectManagerId,
+            _currentUser.UserId ?? 0,
+            DateTimeOffset.UtcNow), ct);
+        return EntityMappers.ToResponse(await FindAsync(id, ct));
     }
 
     public async Task DeleteAsync(long id, CancellationToken ct = default)
@@ -163,8 +220,15 @@ public class ProjectService : IProjectService
     private IQueryable<Project> Query() =>
         _db.Projects.Include(p => p.Department).Include(p => p.ProjectManager);
 
+    private IQueryable<Project> ScopedQuery() =>
+        RoleDataScope.Apply(Query(), _currentUser.UserId, _currentUser.Role);
+
     private async Task<Project> FindAsync(long id, CancellationToken ct) =>
         await Query().FirstOrDefaultAsync(p => p.Id == id, ct)
+        ?? throw new KeyNotFoundException("Project not found");
+
+    private async Task<Project> FindScopedAsync(long id, CancellationToken ct) =>
+        await ScopedQuery().FirstOrDefaultAsync(p => p.Id == id, ct)
         ?? throw new KeyNotFoundException("Project not found");
 
     private async Task LoadNavigationsAsync(Project project, CancellationToken ct) =>

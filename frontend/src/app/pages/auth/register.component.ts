@@ -5,7 +5,6 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LangSwitcherComponent } from '../../layout/lang-switcher/lang-switcher.component';
 import { ThemeToggleComponent } from '../../layout/theme-toggle/theme-toggle.component';
 import { AuthService } from '../../core/services/auth.service';
-import { DataBootstrapService } from '../../core/services/data-bootstrap.service';
 
 @Component({
   selector: 'app-register',
@@ -127,7 +126,6 @@ import { DataBootstrapService } from '../../core/services/data-bootstrap.service
 export class RegisterComponent {
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
-  private readonly bootstrap = inject(DataBootstrapService);
 
   organizationName = '';
   adminName = '';
@@ -161,7 +159,6 @@ export class RegisterComponent {
           this.error.set(result.error ?? 'auth.registerError');
           return;
         }
-        this.bootstrap.bootstrap();
         this.router.navigate(['/dashboard']);
       });
   }

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Stratix.Application.Common;
 using Stratix.Application.DTOs.Branding;
 using Stratix.Application.Interfaces;
 using Stratix.Domain.Enums;
@@ -57,11 +58,16 @@ public class OrganizationBrandingService : IOrganizationBrandingService
         var opened = await _files.OpenAsync(org.Id, StorageCategories.OrgLogos, key, GuessContentType(org.LogoFileName), ct);
         if (opened is null)
         {
-            // Legacy flat layout: data/org-logos/org-{id}.ext
-            var legacy = Path.Combine(_files.Root, StorageCategories.OrgLogos, Path.GetFileName(org.LogoFileName));
-            if (!File.Exists(legacy)) return null;
+            // Legacy flat layout under storage root only (never path-escape).
+            var legacyName = Path.GetFileName(org.LogoFileName);
+            if (string.IsNullOrWhiteSpace(legacyName) || legacyName.Contains("..", StringComparison.Ordinal))
+                return null;
+            var legacy = Path.GetFullPath(Path.Combine(_files.Root, StorageCategories.OrgLogos, legacyName));
+            var legacyRoot = Path.GetFullPath(Path.Combine(_files.Root, StorageCategories.OrgLogos));
+            if (!legacy.StartsWith(legacyRoot, StringComparison.OrdinalIgnoreCase) || !File.Exists(legacy))
+                return null;
             Stream stream = File.OpenRead(legacy);
-            return (stream, GuessContentType(org.LogoFileName), Path.GetFileName(org.LogoFileName));
+            return (stream, GuessContentType(org.LogoFileName), legacyName);
         }
 
         return (opened.Value.Stream, opened.Value.ContentType, Path.GetFileName(org.LogoFileName));
@@ -81,26 +87,50 @@ public class OrganizationBrandingService : IOrganizationBrandingService
             throw new ArgumentException("Logo file is required.");
         if (length > MaxBytes)
             throw new ArgumentException("Logo must be 2 MB or smaller.");
-        if (!AllowedContentTypes.Contains(contentType.Split(';', 2)[0].Trim()))
+
+        var normalizedType = contentType.Split(';', 2)[0].Trim();
+        if (!AllowedContentTypes.Contains(normalizedType))
             throw new ArgumentException("Logo must be PNG, JPEG, WebP, or SVG.");
 
-        var org = await RequireCurrentOrgAsync(ct);
-        var ext = ExtensionFor(contentType, originalFileName);
-        var fileName = $"org-{org.Id}{ext}";
-
-        if (!string.IsNullOrWhiteSpace(org.LogoFileName))
+        Stream payload = content;
+        MemoryStream? owned = null;
+        if (!content.CanSeek)
         {
-            _files.Delete(org.Id, StorageCategories.OrgLogos, NormalizeLogoKey(org.Id, org.LogoFileName));
-            var legacy = Path.Combine(_files.Root, StorageCategories.OrgLogos, Path.GetFileName(org.LogoFileName));
-            if (File.Exists(legacy)) File.Delete(legacy);
+            owned = new MemoryStream();
+            await content.CopyToAsync(owned, ct);
+            owned.Position = 0;
+            payload = owned;
+            length = owned.Length;
         }
 
-        var storageKey = await _files.SaveAsync(org.Id, StorageCategories.OrgLogos, fileName, content, ct);
-        org.LogoFileName = storageKey;
-        org.UpdatedAt = DateTimeOffset.UtcNow;
-        await _db.SaveChangesAsync(ct);
+        try
+        {
+            FileSignatureValidator.EnsureMatches(payload, normalizedType);
+            if (payload.CanSeek) payload.Position = 0;
 
-        return new OrganizationLogoUploadResult($"/api/organization/logo?v={org.UpdatedAt.ToUnixTimeSeconds()}");
+            var org = await RequireCurrentOrgAsync(ct);
+            var ext = ExtensionFor(normalizedType, originalFileName);
+            var fileName = $"org-{org.Id}{ext}";
+
+            if (!string.IsNullOrWhiteSpace(org.LogoFileName))
+            {
+                _files.Delete(org.Id, StorageCategories.OrgLogos, NormalizeLogoKey(org.Id, org.LogoFileName));
+                var legacy = Path.Combine(_files.Root, StorageCategories.OrgLogos, Path.GetFileName(org.LogoFileName));
+                if (File.Exists(legacy)) File.Delete(legacy);
+            }
+
+            var storageKey = await _files.SaveAsync(org.Id, StorageCategories.OrgLogos, fileName, payload, ct);
+            org.LogoFileName = storageKey;
+            org.UpdatedAt = DateTimeOffset.UtcNow;
+            await _db.SaveChangesAsync(ct);
+
+            return new OrganizationLogoUploadResult($"/api/organization/logo?v={org.UpdatedAt.ToUnixTimeSeconds()}");
+        }
+        finally
+        {
+            if (owned != null)
+                await owned.DisposeAsync();
+        }
     }
 
     public async Task ClearAsync(CancellationToken ct = default)

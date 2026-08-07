@@ -8,17 +8,18 @@
 
     <!-- Profile -->
     <section class="stratix-card overflow-hidden">
+      @if (profile(); as user) {
       <div class="stratix-profile-hero">
         <div class="flex flex-wrap items-center gap-4">
           <span class="stratix-avatar stratix-avatar-lg ring-4 ring-white dark:ring-slate-800">
-            {{ initials(profile().name) }}
+            {{ initials(user.name) }}
           </span>
           <div class="min-w-0">
             <p class="text-xs font-medium uppercase tracking-wide stratix-muted">{{ 'settings.profile' | t }}</p>
-            <h3 class="truncate text-xl font-bold text-dark dark:text-slate-100">{{ profile().name }}</h3>
-            <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">{{ roleKey(profile().roleCode) | t }}</p>
-            @if (profile().department) {
-              <span class="stratix-badge mt-2 bg-primary/10 text-primary">{{ profile().department }}</span>
+            <h3 class="truncate text-xl font-bold text-dark dark:text-slate-100">{{ user.name }}</h3>
+            <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">{{ roleKey(user.roleCode) | t }}</p>
+            @if (user.department) {
+              <span class="stratix-badge mt-2 bg-primary/10 text-primary">{{ user.department }}</span>
             }
           </div>
         </div>
@@ -47,7 +48,7 @@
             <input
               type="text"
               class="stratix-input w-full bg-slate-50 px-3 py-2.5 text-sm dark:bg-slate-800/60"
-              [value]="roleKey(profile().roleCode) | t"
+              [value]="roleKey(user.roleCode) | t"
               readonly
             />
           </div>
@@ -64,7 +65,7 @@
         }
 
         <div class="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4 dark:border-slate-700">
-          <a [routerLink]="['/team', profile().employeeId]" class="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+          <a [routerLink]="['/team', user.employeeId]" class="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
             {{ 'settings.viewTeamProfile' | t }} <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span>
           </a>
           <button
@@ -80,6 +81,7 @@
           </button>
         </div>
       </form>
+      }
     </section>
 
     <!-- Logo -->

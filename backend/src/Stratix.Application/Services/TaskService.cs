@@ -4,6 +4,9 @@ using Stratix.Application.DTOs.Tasks;
 using Stratix.Application.Interfaces;
 using Stratix.Application.Mapping;
 using Stratix.Domain.Entities;
+using Stratix.Domain.Events;
+using Stratix.Domain.Progress;
+using Stratix.Domain.Workflow;
 using DomainTaskStatus = Stratix.Domain.Enums.TaskStatus;
 using Stratix.Domain.Enums;
 
@@ -15,25 +18,31 @@ public class TaskService : ITaskService
     private readonly IAuditTrailService _audit;
     private readonly ICurrentUserService _currentUser;
     private readonly TenantRelationGuard _tenantGuard;
+    private readonly IProgressRecalculationService _progress;
+    private readonly IDomainEventDispatcher _events;
 
     public TaskService(
         IApplicationDbContext db,
         IAuditTrailService audit,
         ICurrentUserService currentUser,
-        TenantRelationGuard tenantGuard)
+        TenantRelationGuard tenantGuard,
+        IProgressRecalculationService progress,
+        IDomainEventDispatcher events)
     {
         _db = db;
         _audit = audit;
         _currentUser = currentUser;
         _tenantGuard = tenantGuard;
+        _progress = progress;
+        _events = events;
     }
 
     public async Task<IReadOnlyList<TaskResponse>> GetAllAsync(long? projectId, CancellationToken ct = default)
     {
-        var query = Query();
+        var query = ScopedQuery();
         if (projectId.HasValue)
         {
-            if (!await _db.Projects.AnyAsync(p => p.Id == projectId, ct))
+            if (!await ScopedProjects().AnyAsync(p => p.Id == projectId, ct))
                 throw new KeyNotFoundException("Project not found");
             query = query.Where(t => t.ProjectId == projectId);
         }
@@ -44,10 +53,10 @@ public class TaskService : ITaskService
     public async Task<Common.PagedResult<TaskResponse>> GetPagedAsync(long? projectId, int page, int pageSize, CancellationToken ct = default)
     {
         var (p, size) = Common.PageQuery.Normalize(page, pageSize);
-        var query = Query();
+        var query = ScopedQuery();
         if (projectId.HasValue)
         {
-            if (!await _db.Projects.AnyAsync(x => x.Id == projectId, ct))
+            if (!await ScopedProjects().AnyAsync(x => x.Id == projectId, ct))
                 throw new KeyNotFoundException("Project not found");
             query = query.Where(t => t.ProjectId == projectId);
         }
@@ -59,7 +68,7 @@ public class TaskService : ITaskService
     }
 
     public async Task<TaskResponse> GetByIdAsync(long id, CancellationToken ct = default) =>
-        EntityMappers.ToResponse(await FindAsync(id, ct));
+        EntityMappers.ToResponse(await FindScopedAsync(id, ct));
 
     public async Task<TaskResponse> CreateAsync(CreateTaskRequest request, CancellationToken ct = default)
     {
@@ -75,6 +84,8 @@ public class TaskService : ITaskService
             AssigneeId = request.AssigneeId,
             StartDate = request.StartDate,
             DueDate = request.DueDate,
+            EstimatedHours = request.EstimatedHours is > 0 ? request.EstimatedHours.Value : ProjectProgressCalculator.DefaultEffortHours,
+            ActualHours = request.ActualHours,
             CreatedAt = now,
             UpdatedAt = now
         };
@@ -82,6 +93,7 @@ public class TaskService : ITaskService
         _db.Add(task);
         await _db.SaveChangesAsync(ct);
         task = await FindAsync(task.Id, ct);
+        await _progress.RecalculateProjectAsync(task.ProjectId, ct);
         await _audit.RecordCreateAsync(
             AuditEntityType.TASK,
             task.Id,
@@ -91,13 +103,18 @@ public class TaskService : ITaskService
             task.ProjectId,
             task.Project.Name,
             ct);
-        return EntityMappers.ToResponse(task);
+        return EntityMappers.ToResponse(await FindAsync(task.Id, ct));
     }
 
     public async Task<TaskResponse> UpdateAsync(long id, UpdateTaskRequest request, CancellationToken ct = default)
     {
         var task = await FindAsync(id, ct);
+        var oldStatus = task.Status;
         var oldValues = AuditSnapshot.Serialize(Snapshot(task));
+
+        TaskTransitionRules.EnsureTransition(
+            oldStatus, request.Status, request.BlockedReason, request.ReopenReason, request.ReviewReason);
+
         task.ProjectId = request.ProjectId;
         task.StageId = request.StageId;
         task.Title = request.Title.Trim();
@@ -107,10 +124,18 @@ public class TaskService : ITaskService
         task.AssigneeId = request.AssigneeId;
         task.StartDate = request.StartDate;
         task.DueDate = request.DueDate;
+        if (request.EstimatedHours is > 0) task.EstimatedHours = request.EstimatedHours.Value;
+        if (request.ActualHours.HasValue) task.ActualHours = request.ActualHours;
+        ApplyReasons(task, oldStatus, request.Status, request.BlockedReason, request.ReopenReason, request.ReviewReason);
         task.UpdatedAt = DateTimeOffset.UtcNow;
         ApplyCompletion(task, request.Status);
         await ValidateRelationsAsync(task, ct);
         await _db.SaveChangesAsync(ct);
+        await _progress.RecalculateProjectAsync(task.ProjectId, ct);
+
+        if (oldStatus != request.Status)
+            await DispatchStatusEventAsync(task, oldStatus, request.Status, ct);
+
         await _audit.RecordUpdateAsync(
             AuditEntityType.TASK,
             task.Id,
@@ -128,15 +153,24 @@ public class TaskService : ITaskService
     {
         var task = await FindAsync(id, ct);
 
-        // An EMPLOYEE may only move the status of tasks assigned to them.
         if (_currentUser.Role == UserRole.EMPLOYEE && task.AssigneeId != _currentUser.UserId)
             throw new UnauthorizedAccessException("You can only update the status of tasks assigned to you.");
 
+        var oldStatus = task.Status;
+        TaskTransitionRules.EnsureTransition(
+            oldStatus, request.Status, request.BlockedReason, request.ReopenReason, request.ReviewReason);
+
         var oldValues = AuditSnapshot.Serialize(new { Status = task.Status.ToString() });
         task.Status = request.Status;
+        ApplyReasons(task, oldStatus, request.Status, request.BlockedReason, request.ReopenReason, request.ReviewReason);
         task.UpdatedAt = DateTimeOffset.UtcNow;
         ApplyCompletion(task, request.Status);
         await _db.SaveChangesAsync(ct);
+        await _progress.RecalculateProjectAsync(task.ProjectId, ct);
+
+        if (oldStatus != request.Status)
+            await DispatchStatusEventAsync(task, oldStatus, request.Status, ct);
+
         await _audit.RecordUpdateAsync(
             AuditEntityType.TASK,
             task.Id,
@@ -147,7 +181,7 @@ public class TaskService : ITaskService
             task.ProjectId,
             task.Project?.Name,
             ct);
-        return EntityMappers.ToResponse(task);
+        return EntityMappers.ToResponse(await FindAsync(id, ct));
     }
 
     public async Task DeleteAsync(long id, CancellationToken ct = default)
@@ -159,7 +193,44 @@ public class TaskService : ITaskService
         var snapshot = AuditSnapshot.Serialize(Snapshot(task));
         _db.Remove(task);
         await _db.SaveChangesAsync(ct);
+        await _progress.RecalculateProjectAsync(projectId, ct);
         await _audit.RecordDeleteAsync(AuditEntityType.TASK, id, title, snapshot, $"Task deleted: {title}", projectId, projectName, ct);
+    }
+
+    private async Task DispatchStatusEventAsync(TaskItem task, DomainTaskStatus oldStatus, DomainTaskStatus newStatus, CancellationToken ct)
+    {
+        await _events.DispatchAsync(new TaskStatusChangedEvent(
+            task.OrganizationId,
+            task.ProjectId,
+            task.Project?.Name ?? "",
+            task.Id,
+            task.Title,
+            task.AssigneeId,
+            task.Project?.ProjectManagerId,
+            oldStatus,
+            newStatus,
+            _currentUser.UserId ?? 0,
+            DateTimeOffset.UtcNow), ct);
+    }
+
+    private static void ApplyReasons(
+        TaskItem task,
+        DomainTaskStatus from,
+        DomainTaskStatus to,
+        string? blockedReason,
+        string? reopenReason,
+        string? reviewReason)
+    {
+        if (to == DomainTaskStatus.BLOCKED)
+            task.BlockedReason = blockedReason?.Trim();
+        else if (from == DomainTaskStatus.BLOCKED)
+            task.BlockedReason = null;
+
+        if (from == DomainTaskStatus.DONE && to != DomainTaskStatus.DONE)
+            task.ReopenReason = reopenReason?.Trim();
+
+        if (to == DomainTaskStatus.REVIEW && !string.IsNullOrWhiteSpace(reviewReason))
+            task.ReviewReason = reviewReason.Trim();
     }
 
     private static object Snapshot(TaskItem t) => new
@@ -173,7 +244,11 @@ public class TaskService : ITaskService
         t.AssigneeId,
         t.StartDate,
         t.DueDate,
-        t.Progress
+        t.Progress,
+        t.EstimatedHours,
+        t.BlockedReason,
+        t.ReopenReason,
+        t.ReviewReason
     };
 
     private static void ApplyCompletion(TaskItem task, DomainTaskStatus status)
@@ -186,8 +261,18 @@ public class TaskService : ITaskService
         else
         {
             task.CompletedAt = null;
+            if (task.Progress >= 100) task.Progress = 0;
         }
     }
+
+    private IQueryable<Project> ScopedProjects() =>
+        RoleDataScope.Apply(_db.Projects, _currentUser.UserId, _currentUser.Role);
+
+    private IQueryable<TaskItem> ScopedQuery() =>
+        RoleDataScope.Apply(
+            _db.Tasks.Include(t => t.Project).Include(t => t.Stage).Include(t => t.Assignee),
+            _currentUser.UserId,
+            _currentUser.Role);
 
     private IQueryable<TaskItem> Query() =>
         _db.Tasks.Include(t => t.Project).Include(t => t.Stage).Include(t => t.Assignee);
@@ -196,12 +281,15 @@ public class TaskService : ITaskService
         await Query().FirstOrDefaultAsync(t => t.Id == id, ct)
         ?? throw new KeyNotFoundException("Task not found");
 
+    private async Task<TaskItem> FindScopedAsync(long id, CancellationToken ct) =>
+        await ScopedQuery().FirstOrDefaultAsync(t => t.Id == id, ct)
+        ?? throw new KeyNotFoundException("Task not found");
+
     private async Task ValidateRelationsAsync(TaskItem task, CancellationToken ct)
     {
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == task.ProjectId, ct)
             ?? throw new ArgumentException("Project not found");
 
-        // Child rows inherit the project's tenant (critical for unscoped SUPER_ADMIN writers).
         task.OrganizationId = project.OrganizationId;
 
         await _tenantGuard.EnsureStageInProjectAsync(task.StageId, task.ProjectId, project.OrganizationId, ct);

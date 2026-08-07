@@ -20,13 +20,18 @@ public static class DependencyInjection
             options.UseSqlServer(connectionString));
 
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<StratixDbContext>());
+        services.AddScoped<ISchemaHealthProbe, Health.SchemaHealthProbe>();
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<ITenantContext, TenantContext>();
         services.AddScoped<IPasswordResetMailService, SmtpPasswordResetMailService>();
         services.AddHttpContextAccessor();
-        services.AddHostedService<Background.ReportOrphanCleanupService>();
+
+        // Single-instance background job. Disable on extra API replicas or run a dedicated worker;
+        // multi-node needs a distributed lock / single scheduler (see ReportOrphanCleanupService docs).
+        if (configuration.GetValue(Background.ReportOrphanCleanupService.EnabledConfigKey, true))
+            services.AddHostedService<Background.ReportOrphanCleanupService>();
 
         return services;
     }

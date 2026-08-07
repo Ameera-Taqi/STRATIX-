@@ -49,3 +49,16 @@ export interface CreateRiskForm {
   projectId: number;
   ownerId: number;
 }
+
+export type CreateRiskRequest = CreateRiskForm;
+
+export interface UpdateRiskRequest {
+  title: string;
+  description: string;
+  impact: RiskImpact;
+  probability: RiskProbability;
+  mitigationPlan: string;
+  status: RiskStatus;
+  projectId: number;
+  ownerId: number;
+}

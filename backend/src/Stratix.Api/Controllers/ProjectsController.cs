@@ -47,6 +47,11 @@ public class ProjectsController : ControllerBase
     public async Task<ProjectResponse> Update(long id, [FromBody] UpdateProjectRequest request, CancellationToken ct) =>
         await _projects.UpdateAsync(id, request, ct);
 
+    [HttpPost("{id:long}/complete")]
+    [Authorize(Policy = AuthPolicies.ProjectManagers)]
+    public async Task<ProjectResponse> Complete(long id, CancellationToken ct) =>
+        await _projects.CompleteAsync(id, ct);
+
     [HttpDelete("{id:long}")]
     [Authorize(Policy = AuthPolicies.ProjectManagers)]
     public async Task<IActionResult> Delete(long id, CancellationToken ct)

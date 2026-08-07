@@ -62,75 +62,105 @@ public class ReportService : IReportService
         if (!Enum.TryParse<ReportFormat>(request.Format?.Trim(), ignoreCase: true, out var format))
             throw new ArgumentException($"Invalid report format: {request.Format}");
 
-        _storage.Validate(contentType, length, format.ToString());
-        await _planLimits.EnsureStorageAvailableAsync(length, ct);
-        await ValidateFiltersAsync(request, orgId, ct);
+        // Buffer non-seekable uploads so magic-byte checks can rewind safely.
+        Stream payload = content;
+        MemoryStream? owned = null;
+        if (!content.CanSeek)
+        {
+            owned = new MemoryStream(length > 0 && length <= int.MaxValue ? (int)length : 0);
+            await content.CopyToAsync(owned, ct);
+            owned.Position = 0;
+            payload = owned;
+            length = owned.Length;
+        }
 
-        var displayName = string.IsNullOrWhiteSpace(originalFileName)
-            ? $"report-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}.{(format == ReportFormat.PDF ? "pdf" : "csv")}"
-            : Path.GetFileName(originalFileName.Trim());
-
-        var storageFileName = $"{Guid.NewGuid():N}-{Sanitize(displayName)}";
-        string? storageKey = null;
         try
         {
-            storageKey = await _storage.SaveAsync(orgId, storageFileName, content, ct);
+            _storage.Validate(payload, contentType, length, format.ToString());
+            await _planLimits.EnsureStorageAvailableAsync(length, ct);
+            await ValidateFiltersAsync(request, orgId, ct);
 
-            var entity = new Report
+            if (payload.CanSeek)
+                payload.Position = 0;
+
+            var displayName = string.IsNullOrWhiteSpace(originalFileName)
+                ? $"report-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}.{(format == ReportFormat.PDF ? "pdf" : "csv")}"
+                : Path.GetFileName(originalFileName.Trim());
+
+            var storageFileName = $"{Guid.NewGuid():N}-{Sanitize(displayName)}";
+            string? storageKey = null;
+            try
             {
-                OrganizationId = orgId,
-                Title = request.Title.Trim(),
-                ReportType = reportType,
-                Format = format,
-                ProjectId = request.ProjectId,
-                DepartmentId = request.DepartmentId,
-                EmployeeId = request.EmployeeId,
-                DateFrom = request.DateFrom,
-                DateTo = request.DateTo,
-                FileName = displayName,
-                StorageKey = storageKey,
-                ContentType = contentType.Split(';', 2)[0].Trim(),
-                SizeBytes = length,
-                GeneratedById = userId,
-                CreatedAt = DateTimeOffset.UtcNow
-            };
+                storageKey = await _storage.SaveAsync(orgId, storageFileName, payload, ct);
 
-            _db.Add(entity);
-            await _db.SaveChangesAsync(ct);
-
-            var saved = await FindAsync(entity.Id, ct);
-            await _audit.RecordCreateAsync(
-                AuditEntityType.REPORT,
-                saved.Id,
-                saved.Title,
-                AuditSnapshot.Serialize(new
+                var entity = new Report
                 {
-                    saved.Title,
-                    ReportType = saved.ReportType.ToString(),
-                    Format = saved.Format.ToString(),
-                    saved.ProjectId,
-                    saved.FileName,
-                    saved.SizeBytes
-                }),
-                $"Report created: {saved.Title} ({saved.Format})",
-                saved.ProjectId,
-                saved.Project?.Name,
-                ct);
+                    OrganizationId = orgId,
+                    Title = request.Title.Trim(),
+                    ReportType = reportType,
+                    Format = format,
+                    ProjectId = request.ProjectId,
+                    DepartmentId = request.DepartmentId,
+                    EmployeeId = request.EmployeeId,
+                    DateFrom = request.DateFrom,
+                    DateTo = request.DateTo,
+                    FileName = displayName,
+                    StorageKey = storageKey,
+                    ContentType = contentType.Split(';', 2)[0].Trim(),
+                    SizeBytes = length,
+                    GeneratedById = userId,
+                    CreatedAt = DateTimeOffset.UtcNow
+                };
 
-            return ToResponse(saved);
+                _db.Add(entity);
+                await _db.SaveChangesAsync(ct);
+
+                var saved = await FindAsync(entity.Id, ct);
+                await _audit.RecordCreateAsync(
+                    AuditEntityType.REPORT,
+                    saved.Id,
+                    saved.Title,
+                    AuditSnapshot.Serialize(new
+                    {
+                        saved.Title,
+                        ReportType = saved.ReportType.ToString(),
+                        Format = saved.Format.ToString(),
+                        saved.ProjectId,
+                        saved.FileName,
+                        saved.SizeBytes
+                    }),
+                    $"Report created: {saved.Title} ({saved.Format})",
+                    saved.ProjectId,
+                    saved.Project?.Name,
+                    ct);
+
+                return ToResponse(saved);
+            }
+            catch
+            {
+                // Create wrote the file before the DB row — remove orphan on failure.
+                if (storageKey != null)
+                    _storage.Delete(orgId, storageKey);
+                throw;
+            }
         }
-        catch
+        finally
         {
-            // Create wrote the file before the DB row — remove orphan on failure.
-            if (storageKey != null)
-                _storage.Delete(orgId, storageKey);
-            throw;
+            if (owned != null)
+                await owned.DisposeAsync();
         }
     }
 
     public async Task<(Stream Stream, string ContentType, string FileName)> DownloadAsync(long id, CancellationToken ct = default)
     {
+        if (_currentUser.OrganizationId is not long orgId || orgId <= 0)
+            throw new UnauthorizedAccessException("Organization context is required.");
+
         var report = await FindAsync(id, ct);
+        // Defense in depth: never stream a file outside the caller's tenant even if a key leaked.
+        if (report.OrganizationId != orgId)
+            throw new KeyNotFoundException("Report not found");
+
         var opened = await _storage.OpenAsync(report.OrganizationId, report.StorageKey, report.ContentType, ct)
             ?? throw new KeyNotFoundException("Report file not found on disk.");
         return (opened.Stream, opened.ContentType, report.FileName);

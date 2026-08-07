@@ -1,9 +1,10 @@
+using Stratix.Application.Common;
 using Stratix.Application.Interfaces;
 
 namespace Stratix.Application.Services;
 
 /// <summary>
-/// Report-specific policy (MIME / size) over the shared <see cref="ITenantFileStorage"/>.
+/// Report-specific policy (MIME / size / magic-byte signature) over the shared <see cref="ITenantFileStorage"/>.
 /// Storage keys remain <c>org-{id}/file</c> under the reports category.
 /// </summary>
 public class ReportFileStorage : IReportFileStorage
@@ -28,7 +29,7 @@ public class ReportFileStorage : IReportFileStorage
     public long MaxBytes => DefaultMaxBytes;
     public IReadOnlySet<string> AllowedContentTypes => Allowed;
 
-    public void Validate(string contentType, long length, string format)
+    public void Validate(Stream content, string contentType, long length, string format)
     {
         if (length <= 0) throw new ArgumentException("Report file is required.");
         if (length > MaxBytes)
@@ -50,6 +51,9 @@ public class ReportFileStorage : IReportFileStorage
 
         if (fmt == "EXCEL" && normalized.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
             throw new ArgumentException("EXCEL format cannot use PDF content type.");
+
+        // Trust magic bytes over the declared Content-Type for binary formats.
+        FileSignatureValidator.EnsureMatches(content, normalized, fmt);
     }
 
     public Task<string> SaveAsync(long organizationId, string storageFileName, Stream content, CancellationToken ct = default) =>

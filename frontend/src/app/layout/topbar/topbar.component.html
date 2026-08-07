@@ -53,21 +53,21 @@
         <span class="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-medium text-white">
           {{ initials() }}
         </span>
-        <span class="hidden text-sm font-medium text-dark dark:text-slate-200 sm:inline">{{ profile().name }}</span>
+        <span class="hidden text-sm font-medium text-dark dark:text-slate-200 sm:inline">{{ profile()?.name }}</span>
         <span class="text-slate-400 transition" [class.rotate-180]="menuOpen()">
           <app-ui-icon name="chevron-down" size="xs" />
         </span>
       </button>
 
-      @if (menuOpen()) {
+      @if (menuOpen() && profile(); as user) {
         <div
           class="absolute end-0 top-[calc(100%+0.5rem)] z-30 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-600 dark:bg-slate-800"
           role="menu"
         >
           <div class="border-b border-slate-100 px-4 py-3 dark:border-slate-700">
-            <p class="truncate text-sm font-semibold text-dark dark:text-slate-100">{{ profile().name }}</p>
-            <p class="truncate text-xs text-slate-500 dark:text-slate-400">{{ roleKey(profile().roleCode) | t }}</p>
-            <p class="truncate text-xs text-slate-400">{{ profile().email }}</p>
+            <p class="truncate text-sm font-semibold text-dark dark:text-slate-100">{{ user.name }}</p>
+            <p class="truncate text-xs text-slate-500 dark:text-slate-400">{{ roleKey(user.roleCode) | t }}</p>
+            <p class="truncate text-xs text-slate-400">{{ user.email }}</p>
           </div>
 
           <div class="py-1">
@@ -84,7 +84,7 @@
               type="button"
               class="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/60"
               role="menuitem"
-              (click)="navigateAndClose(['/team', profile().employeeId])"
+              (click)="navigateAndClose(['/team', user.employeeId])"
             >
               <app-ui-icon name="id-card" size="sm" />
               {{ 'userMenu.teamProfile' | t }}

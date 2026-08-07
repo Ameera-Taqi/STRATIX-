@@ -130,7 +130,7 @@ export class SettingsComponent implements OnInit {
         }
 
         this.syncFormFromProfile();
-        this.employeesStore.refreshUser(this.profile().id).subscribe();
+        this.employeesStore.refreshUser(this.profile()!.id).subscribe();
         this.saved.set(true);
         window.setTimeout(() => this.saved.set(false), 2500);
       });
@@ -138,6 +138,7 @@ export class SettingsComponent implements OnInit {
 
   private syncFormFromProfile(): void {
     const p = this.profile();
+    if (!p) return;
     this.form = {
       name: p.name,
       email: p.email,

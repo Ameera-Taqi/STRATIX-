@@ -4,6 +4,9 @@ using Stratix.Application.Interfaces;
 using Stratix.Application.Mapping;
 using Stratix.Domain.Entities;
 using Stratix.Domain.Enums;
+using Stratix.Domain.Events;
+using Stratix.Domain.Workflow;
+using DomainTaskStatus = Stratix.Domain.Enums.TaskStatus;
 
 namespace Stratix.Application.Services;
 
@@ -11,11 +14,22 @@ public class StageService : IStageService
 {
     private readonly IApplicationDbContext _db;
     private readonly IAuditTrailService _audit;
+    private readonly IProgressRecalculationService _progress;
+    private readonly IDomainEventDispatcher _events;
+    private readonly ICurrentUserService _currentUser;
 
-    public StageService(IApplicationDbContext db, IAuditTrailService audit)
+    public StageService(
+        IApplicationDbContext db,
+        IAuditTrailService audit,
+        IProgressRecalculationService progress,
+        IDomainEventDispatcher events,
+        ICurrentUserService currentUser)
     {
         _db = db;
         _audit = audit;
+        _progress = progress;
+        _events = events;
+        _currentUser = currentUser;
     }
 
     public async Task<IReadOnlyList<StageResponse>> GetByProjectAsync(long projectId, CancellationToken ct = default)
@@ -61,28 +75,52 @@ public class StageService : IStageService
         stage.StartDate = request.StartDate;
         stage.EndDate = request.EndDate;
         stage.Status = request.Status;
-        if (request.Progress.HasValue) stage.Progress = request.Progress.Value;
+        // Progress is derived from tasks — ignore client writes unless no tasks exist yet.
+        var hasTasks = await _db.Tasks.AnyAsync(t => t.StageId == id, ct);
+        if (!hasTasks && request.Progress.HasValue)
+            stage.Progress = request.Progress.Value;
         stage.OrderNumber = request.OrderNumber;
         stage.UpdatedAt = DateTimeOffset.UtcNow;
         await _db.SaveChangesAsync(ct);
-        return EntityMappers.ToResponse(stage);
+        await _progress.RecalculateProjectAsync(stage.ProjectId, ct);
+        return EntityMappers.ToResponse(await FindAsync(id, ct));
     }
 
     public async Task<StageResponse> CompleteAsync(long id, CancellationToken ct = default)
     {
         var stage = await FindAsync(id, ct);
+        var tasks = await _db.Tasks.Where(t => t.StageId == id)
+            .Select(t => new { t.Status, t.Title })
+            .ToListAsync(ct);
+        StageCloseRules.EnsureCanComplete(tasks.Select(t => ((DomainTaskStatus)t.Status, t.Title)));
+
         stage.Status = StageStatus.DONE;
         stage.Progress = 100;
         stage.UpdatedAt = DateTimeOffset.UtcNow;
         await _db.SaveChangesAsync(ct);
-        return EntityMappers.ToResponse(stage);
+        await _progress.RecalculateProjectAsync(stage.ProjectId, ct);
+
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == stage.ProjectId, ct);
+        await _events.DispatchAsync(new StageCompletedEvent(
+            stage.OrganizationId,
+            stage.ProjectId,
+            project?.Name ?? "",
+            stage.Id,
+            stage.Name,
+            project?.ProjectManagerId,
+            _currentUser.UserId ?? 0,
+            DateTimeOffset.UtcNow), ct);
+
+        return EntityMappers.ToResponse(await FindAsync(id, ct));
     }
 
     public async Task DeleteAsync(long id, CancellationToken ct = default)
     {
         var stage = await FindAsync(id, ct);
+        var projectId = stage.ProjectId;
         _db.Remove(stage);
         await _db.SaveChangesAsync(ct);
+        await _progress.RecalculateProjectAsync(projectId, ct);
     }
 
     private async Task<ProjectStage> FindAsync(long id, CancellationToken ct) =>

@@ -10,7 +10,8 @@ public static class PagingHeaders
         "X-Total-Count",
         "X-Page",
         "X-Page-Size",
-        "X-Total-Pages"
+        "X-Total-Pages",
+        "X-Correlation-ID"
     ];
 
     public static void Apply(HttpResponse response, int total, int page, int pageSize, int totalPages)

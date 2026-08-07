@@ -100,7 +100,7 @@ export class NotificationsStore {
 
     this.api
       .createNotification({
-        userId: this.currentUser.profile().id,
+        userId: this.currentUser.profile()?.id ?? 0,
         title,
         message: body,
         type: input.type ?? 'INFO',

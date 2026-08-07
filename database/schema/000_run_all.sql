@@ -36,3 +36,7 @@
 :r 031_employee_kpi_unique_period.sql
 :r 032_tenant_indexes_and_user_soft_delete.sql
 :r 033_global_unique_email.sql
+:r 034_refresh_token_reuse_detection.sql
+:r 035_schema_migrations.sql
+:r 036_progress_health_execution.sql
+:r 037_kpi_evaluation_framework.sql

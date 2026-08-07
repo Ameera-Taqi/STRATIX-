@@ -17,7 +17,11 @@ export interface LoginResponse {
   token: string;
   expiresIn: number;
   user: AuthUserProfile;
-  refreshToken?: string;
+  refreshToken?: string | null;
+}
+
+export interface RefreshTokenRequest {
+  refreshToken: string;
 }
 
 export interface RegisterOrganizationRequest {

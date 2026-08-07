@@ -1,7 +1,7 @@
 # Stratix — production Docker stack (Microsoft SQL Server 2022 + .NET API)
 #
 # Start:  docker compose up -d --build
-# Verify: curl http://localhost:8080/api/health
+# Verify: curl http://localhost:8080/api/health/ready
 # Logs:   docker compose logs -f stratix-api sqlserver
 # Mail:   http://localhost:8025 (Mailpit — local dev inbox; emails do NOT go to real Gmail/Outlook)
 # Real SMTP: set SPRING_MAIL_HOST, SPRING_MAIL_PORT, SPRING_MAIL_USERNAME, SPRING_MAIL_PASSWORD,
@@ -98,12 +98,16 @@ services:
       Stratix__Mail__Port: ${STRATIX_MAIL_PORT:-1025}
       Stratix__Mail__From: ${STRATIX_MAIL_FROM:-noreply@stratix.local}
       Stratix__Mail__SmtpAuth: "false"
+      Stratix__Storage__Root: /app/data
     ports:
       - "${API_PORT:-8080}:8080"
+    volumes:
+      # Persistent tenant files (reports, logos). Never bind-mount as a public web root.
+      - stratix_api_data:/app/data
     networks:
       - stratix-net
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/health/ready || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 5
@@ -112,6 +116,8 @@ services:
 volumes:
   stratix_mssql_data:
     name: stratix_mssql_data
+  stratix_api_data:
+    name: stratix_api_data
 
 networks:
   stratix-net:

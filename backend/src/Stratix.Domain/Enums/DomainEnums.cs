@@ -29,3 +29,6 @@ public enum ReportType
     CUSTOM
 }
 public enum ReportFormat { PDF, EXCEL }
+
+public enum EvaluationPeriodStatus { DRAFT, OPEN, CLOSED }
+public enum EmployeeEvaluationStatus { DRAFT, SUBMITTED, IN_REVIEW, APPROVED, REJECTED }

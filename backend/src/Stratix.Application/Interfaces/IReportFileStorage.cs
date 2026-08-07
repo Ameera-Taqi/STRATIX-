@@ -9,7 +9,7 @@ public interface IReportFileStorage
     long MaxBytes { get; }
     IReadOnlySet<string> AllowedContentTypes { get; }
 
-    void Validate(string contentType, long length, string format);
+    void Validate(Stream content, string contentType, long length, string format);
     Task<string> SaveAsync(long organizationId, string storageFileName, Stream content, CancellationToken ct = default);
     Task<(Stream Stream, string ContentType)?> OpenAsync(long organizationId, string storageKey, string? contentType, CancellationToken ct = default);
     void Delete(long organizationId, string storageKey);

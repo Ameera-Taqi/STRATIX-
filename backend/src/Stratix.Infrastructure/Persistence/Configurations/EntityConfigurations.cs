@@ -198,6 +198,11 @@ public class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
         e.Property(x => x.DueDate).HasColumnName("due_date");
         e.Property(x => x.CompletedAt).HasColumnName("completed_at");
         e.Property(x => x.Progress).HasColumnName("progress").HasPrecision(5, 2);
+        e.Property(x => x.EstimatedHours).HasColumnName("estimated_hours").HasPrecision(10, 2);
+        e.Property(x => x.ActualHours).HasColumnName("actual_hours").HasPrecision(10, 2);
+        e.Property(x => x.BlockedReason).HasColumnName("blocked_reason").HasMaxLength(1000);
+        e.Property(x => x.ReopenReason).HasColumnName("reopen_reason").HasMaxLength(1000);
+        e.Property(x => x.ReviewReason).HasColumnName("review_reason").HasMaxLength(1000);
         e.Property(x => x.CreatedAt).HasColumnName("created_at");
         e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
         e.Property(x => x.IsDeleted).HasColumnName("is_deleted");
@@ -409,6 +414,10 @@ public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
         e.Property(x => x.UserId).HasColumnName("user_id");
         e.Property(x => x.TokenHash).HasColumnName("token_hash").HasMaxLength(64).IsRequired();
         e.HasIndex(x => x.TokenHash);
+        e.Property(x => x.TokenFamilyId).HasColumnName("token_family_id").IsRequired();
+        e.HasIndex(x => new { x.TokenFamilyId, x.UserId });
+        e.Property(x => x.ReplacedByTokenHash).HasColumnName("replaced_by_token_hash").HasMaxLength(64);
+        e.Property(x => x.ReuseDetectedAt).HasColumnName("reuse_detected_at");
         e.Property(x => x.ExpiresAt).HasColumnName("expires_at");
         e.Property(x => x.RevokedAt).HasColumnName("revoked_at");
         e.Property(x => x.CreatedAt).HasColumnName("created_at");
@@ -449,5 +458,140 @@ public class PlatformModulePermissionConfiguration : IEntityTypeConfiguration<Pl
         e.Property(x => x.WritableByCompanyAdmin).HasColumnName("writable_by_company_admin");
         e.Property(x => x.SortOrder).HasColumnName("sort_order");
         e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+    }
+}
+
+public class ProjectHealthSnapshotConfiguration : IEntityTypeConfiguration<ProjectHealthSnapshot>
+{
+    public void Configure(EntityTypeBuilder<ProjectHealthSnapshot> e)
+    {
+        e.ToTable("project_health_snapshots");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).HasColumnName("id");
+        e.Property(x => x.OrganizationId).HasColumnName("organization_id");
+        e.Property(x => x.ProjectId).HasColumnName("project_id");
+        e.Property(x => x.Score).HasColumnName("score").HasPrecision(5, 2);
+        e.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20);
+        e.Property(x => x.Progress).HasColumnName("progress").HasPrecision(5, 2);
+        e.Property(x => x.OnTimeTasks).HasColumnName("on_time_tasks");
+        e.Property(x => x.DelayedTasks).HasColumnName("delayed_tasks");
+        e.Property(x => x.CriticalRisks).HasColumnName("critical_risks");
+        e.Property(x => x.NoteKey).HasColumnName("note_key").HasMaxLength(80);
+        e.Property(x => x.CapturedAt).HasColumnName("captured_at");
+        e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId);
+        e.HasIndex(x => new { x.ProjectId, x.CapturedAt });
+    }
+}
+
+public class EvaluationPeriodConfiguration : IEntityTypeConfiguration<EvaluationPeriod>
+{
+    public void Configure(EntityTypeBuilder<EvaluationPeriod> e)
+    {
+        e.ToTable("evaluation_periods");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).HasColumnName("id");
+        e.Property(x => x.OrganizationId).HasColumnName("organization_id");
+        e.Property(x => x.Name).HasColumnName("name").HasMaxLength(150).IsRequired();
+        e.Property(x => x.StartDate).HasColumnName("start_date");
+        e.Property(x => x.EndDate).HasColumnName("end_date");
+        e.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20);
+        e.Property(x => x.CreatedAt).HasColumnName("created_at");
+        e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+        e.Property(x => x.IsDeleted).HasColumnName("is_deleted");
+        e.Property(x => x.DeletedAt).HasColumnName("deleted_at");
+    }
+}
+
+public class KpiDefinitionConfiguration : IEntityTypeConfiguration<KpiDefinition>
+{
+    public void Configure(EntityTypeBuilder<KpiDefinition> e)
+    {
+        e.ToTable("kpi_definitions");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).HasColumnName("id");
+        e.Property(x => x.OrganizationId).HasColumnName("organization_id");
+        e.Property(x => x.Code).HasColumnName("code").HasMaxLength(80).IsRequired();
+        e.Property(x => x.Name).HasColumnName("name").HasMaxLength(150).IsRequired();
+        e.Property(x => x.Description).HasColumnName("description").HasMaxLength(500);
+        e.Property(x => x.Weight).HasColumnName("weight").HasPrecision(8, 2);
+        e.Property(x => x.HigherIsBetter).HasColumnName("higher_is_better");
+        e.Property(x => x.IsActive).HasColumnName("is_active");
+        e.Property(x => x.CreatedAt).HasColumnName("created_at");
+        e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+        e.Property(x => x.IsDeleted).HasColumnName("is_deleted");
+        e.Property(x => x.DeletedAt).HasColumnName("deleted_at");
+    }
+}
+
+public class EmployeeEvaluationConfiguration : IEntityTypeConfiguration<EmployeeEvaluation>
+{
+    public void Configure(EntityTypeBuilder<EmployeeEvaluation> e)
+    {
+        e.ToTable("employee_evaluations");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).HasColumnName("id");
+        e.Property(x => x.OrganizationId).HasColumnName("organization_id");
+        e.Property(x => x.PeriodId).HasColumnName("period_id");
+        e.Property(x => x.UserId).HasColumnName("user_id");
+        e.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20);
+        e.Property(x => x.OverallScore).HasColumnName("overall_score").HasPrecision(8, 2);
+        e.Property(x => x.Notes).HasColumnName("notes").HasMaxLength(2000);
+        e.Property(x => x.SubmittedAt).HasColumnName("submitted_at");
+        e.Property(x => x.ReviewedById).HasColumnName("reviewed_by_id");
+        e.Property(x => x.ReviewedAt).HasColumnName("reviewed_at");
+        e.Property(x => x.ApprovedById).HasColumnName("approved_by_id");
+        e.Property(x => x.ApprovedAt).HasColumnName("approved_at");
+        e.Property(x => x.RejectionReason).HasColumnName("rejection_reason").HasMaxLength(1000);
+        e.Property(x => x.CreatedAt).HasColumnName("created_at");
+        e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+        e.Property(x => x.IsDeleted).HasColumnName("is_deleted");
+        e.Property(x => x.DeletedAt).HasColumnName("deleted_at");
+        e.HasOne(x => x.Period).WithMany(p => p.Evaluations).HasForeignKey(x => x.PeriodId);
+        e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId);
+        e.HasOne(x => x.ReviewedBy).WithMany().HasForeignKey(x => x.ReviewedById).OnDelete(DeleteBehavior.NoAction);
+        e.HasOne(x => x.ApprovedBy).WithMany().HasForeignKey(x => x.ApprovedById).OnDelete(DeleteBehavior.NoAction);
+    }
+}
+
+public class EmployeeKpiResultConfiguration : IEntityTypeConfiguration<EmployeeKpiResult>
+{
+    public void Configure(EntityTypeBuilder<EmployeeKpiResult> e)
+    {
+        e.ToTable("employee_kpi_results");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).HasColumnName("id");
+        e.Property(x => x.OrganizationId).HasColumnName("organization_id");
+        e.Property(x => x.EvaluationId).HasColumnName("evaluation_id");
+        e.Property(x => x.KpiDefinitionId).HasColumnName("kpi_definition_id");
+        e.Property(x => x.CalculatedValue).HasColumnName("calculated_value").HasPrecision(12, 4);
+        e.Property(x => x.AdjustedValue).HasColumnName("adjusted_value").HasPrecision(12, 4);
+        e.Property(x => x.Score).HasColumnName("score").HasPrecision(8, 2);
+        e.Property(x => x.Comment).HasColumnName("comment").HasMaxLength(1000);
+        e.Property(x => x.CreatedAt).HasColumnName("created_at");
+        e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+        e.Property(x => x.IsDeleted).HasColumnName("is_deleted");
+        e.Property(x => x.DeletedAt).HasColumnName("deleted_at");
+        e.HasOne(x => x.Evaluation).WithMany(ev => ev.Results).HasForeignKey(x => x.EvaluationId);
+        e.HasOne(x => x.KpiDefinition).WithMany().HasForeignKey(x => x.KpiDefinitionId);
+    }
+}
+
+public class TaskQualityEvaluationConfiguration : IEntityTypeConfiguration<TaskQualityEvaluation>
+{
+    public void Configure(EntityTypeBuilder<TaskQualityEvaluation> e)
+    {
+        e.ToTable("task_quality_evaluations");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).HasColumnName("id");
+        e.Property(x => x.OrganizationId).HasColumnName("organization_id");
+        e.Property(x => x.TaskId).HasColumnName("task_id");
+        e.Property(x => x.EvaluatorId).HasColumnName("evaluator_id");
+        e.Property(x => x.QualityScore).HasColumnName("quality_score");
+        e.Property(x => x.Notes).HasColumnName("notes").HasMaxLength(1000);
+        e.Property(x => x.CreatedAt).HasColumnName("created_at");
+        e.Property(x => x.IsDeleted).HasColumnName("is_deleted");
+        e.Property(x => x.DeletedAt).HasColumnName("deleted_at");
+        e.HasOne(x => x.Task).WithMany().HasForeignKey(x => x.TaskId);
+        e.HasOne(x => x.Evaluator).WithMany().HasForeignKey(x => x.EvaluatorId).OnDelete(DeleteBehavior.NoAction);
     }
 }

@@ -22,10 +22,17 @@ public static class PageQuery
     public const int DefaultPageSize = 20;
     public const int MaxPageSize = 100;
 
+    /// <summary>
+    /// Clamps page to ≥ 1 and pageSize to [1, <see cref="MaxPageSize"/>].
+    /// Oversized values such as <c>?pageSize=1000000</c> become <see cref="MaxPageSize"/>.
+    /// </summary>
     public static (int page, int pageSize) Normalize(int? page, int? pageSize, int defaultPageSize = DefaultPageSize)
     {
         var p = page is > 0 ? page.Value : 1;
-        var size = pageSize is > 0 ? Math.Min(pageSize.Value, MaxPageSize) : defaultPageSize;
+        var fallback = Math.Clamp(defaultPageSize, 1, MaxPageSize);
+        var size = pageSize is > 0
+            ? Math.Clamp(pageSize.Value, 1, MaxPageSize)
+            : fallback;
         return (p, size);
     }
 }

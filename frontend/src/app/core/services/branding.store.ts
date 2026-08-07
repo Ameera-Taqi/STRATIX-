@@ -55,6 +55,14 @@ export class BrandingStore {
     }
   }
 
+  /** Clear in-memory branding state (logout / tenant switch). Does not call the API. */
+  resetLocal(): void {
+    this.organizationName.set(null);
+    this.canUploadLogo.set(false);
+    this.error.set(null);
+    this.clearObjectUrl();
+  }
+
   async clear(): Promise<boolean> {
     this.saving.set(true);
     this.error.set(null);

@@ -3,6 +3,9 @@ import { RouterLink } from '@angular/router';
 import { TopbarComponent } from '../../layout/topbar/topbar.component';
 import { ApiService } from '../../core/services/api.service';
 import { RisksStore } from '../../core/services/risks.store';
+import { ProjectsStore } from '../../core/services/projects.store';
+import { TasksStore } from '../../core/services/tasks.store';
+import { EmployeesStore } from '../../core/services/employees.store';
 import { DashboardInsightsService } from '../../core/services/dashboard-insights.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LanguageService } from '../../core/i18n/language.service';
@@ -88,6 +91,9 @@ export class DashboardComponent implements OnInit {
 
   private readonly api = inject(ApiService);
   private readonly risksStore = inject(RisksStore);
+  private readonly projectsStore = inject(ProjectsStore);
+  private readonly tasksStore = inject(TasksStore);
+  private readonly employeesStore = inject(EmployeesStore);
   private readonly insights = inject(DashboardInsightsService);
   private readonly lang = inject(LanguageService);
   private readonly projectHealthService = inject(ProjectHealthService);
@@ -355,6 +361,8 @@ export class DashboardComponent implements OnInit {
     this.api.health().subscribe({ next: () => this.apiConnected.set(true) });
 
     this.risksStore.loadFromApi();
+    this.projectsStore.loadFromApi(() => this.tasksStore.loadFromApi());
+    this.employeesStore.loadFromApi();
   }
 
 }

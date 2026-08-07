@@ -1,7 +1,9 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, catchError, map, tap, throwError } from 'rxjs';
-import { EmployeeRow, EmployeeStatus, ProjectRow, TaskCard } from '../data/mock-data';
-import { User, UserDirectoryItem, UserRole, UserStatus } from '../models/user.model';
+import { EmployeeRow, EmployeeStatus } from '../models/employee.model';
+import { ProjectRow } from '../models/project.model';
+import { TaskCard } from '../models/task.model';
+import { CreateUserRequest, UpdateUserRequest, User, UserDirectoryItem, UserRole, UserStatus } from '../models/user.model';
 import { ApiService } from './api.service';
 import { computeEmployeeTaskStats } from '../../shared/utils/employee-stats.util';
 
@@ -145,7 +147,7 @@ export class EmployeesStore {
 
     this._employees.update((list) => [...list, optimistic]);
 
-    const body = {
+    const body: CreateUserRequest = {
       name: form.name.trim(),
       email,
       password: DEFAULT_EMPLOYEE_PASSWORD,
@@ -200,7 +202,7 @@ export class EmployeesStore {
       this._employees.update((list) => list.map((e) => (e.id === id ? optimistic : e)));
     }
 
-    const body = {
+    const body: UpdateUserRequest = {
       name: form.name.trim(),
       email: form.email.trim().toLowerCase(),
       role: this.toRoleCode(form.role),

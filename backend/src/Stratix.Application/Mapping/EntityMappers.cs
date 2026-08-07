@@ -50,7 +50,9 @@ public static class EntityMappers
         task.Id, task.ProjectId, task.Project?.Name ?? "", task.StageId,
         task.Stage?.Name, task.Title, task.Assignee?.Name ?? "",
         task.AssigneeId, task.Priority.ToString(), task.DueDate,
-        task.Status.ToString(), task.Description);
+        task.Status.ToString(), task.Description,
+        task.EstimatedHours, task.ActualHours,
+        task.BlockedReason, task.ReopenReason, task.ReviewReason);
 
     public static TaskCommentResponse ToResponse(TaskComment c) => new(
         c.Id, c.TaskId, c.UserId, c.User?.Name ?? "", c.Comment, c.CreatedAt);

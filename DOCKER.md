@@ -75,6 +75,24 @@ Do not use the deprecated `init/sqlserver/01-schema.sql` stub. The API maps tabl
 | Active plan code + billing status | `subscriptions` (`plan_code`, `status`) |
 | Quotas / AI / storage limits | `subscription_plans` (`PlanTier`) |
 | `organizations.subscription_plan` | Denormalized mirror only (kept in sync) |
+
+## Tenant file storage
+
+| Concern | Approach |
+|---------|----------|
+| Persistence | Named volume `stratix_api_data` → `/app/data` inside the API container |
+| Public exposure | **Not** mapped with `UseStaticFiles` — downloads only via authenticated APIs |
+| AuthZ | Report/logo downloads require a JWT and resolve the file under the caller's `OrganizationId` |
+| Content trust | Magic-byte signature checks on upload (PDF / Excel OOXML·OLE / PNG·JPEG·WebP / SVG) |
+| Backup | `./scripts/backup-tenant-storage.sh` (archives the Docker volume) |
+
+```bash
+# Backup files volume
+./scripts/backup-tenant-storage.sh
+
+# Note: `docker compose down -v` also deletes stratix_api_data
+```
+
 ## Useful commands
 
 ```bash

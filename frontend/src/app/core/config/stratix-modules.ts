@@ -206,15 +206,13 @@ export function canAccessModule(
 
   if (role === 'SUPER_ADMIN') return true;
 
-  // Company admins: gated by Super Admin CMS settings when available.
+  // Company admins: gated by Super Admin CMS settings. Fail closed when CMS
+  // has not loaded or the module has no permission row.
   if (COMPANY_ADMIN_ROLES.includes(role)) {
     const cms = cmsMap?.[module.code];
-    if (cms) {
-      if (mode === 'read') return cms.visible;
-      return cms.visible && cms.writable;
-    }
-    // Before CMS loads (or for modules not managed in CMS), keep open for company admins.
-    return true;
+    if (!cms) return false;
+    if (mode === 'read') return cms.visible;
+    return cms.visible && cms.writable;
   }
 
   const list = mode === 'write' ? module.rolesWrite : module.rolesRead;

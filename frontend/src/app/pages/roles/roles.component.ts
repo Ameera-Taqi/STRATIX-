@@ -44,16 +44,20 @@ export class RolesComponent implements OnInit {
   readonly canWrite = computed(() => this.roleAccess.canWrite('ROLES'));
   readonly callerRole = computed(() => this.roleAccess.role());
 
-  readonly systemRoles = computed(() => visibleRolesFor(this.callerRole()));
+  readonly systemRoles = computed(() => {
+    const role = this.callerRole();
+    return role ? visibleRolesFor(role) : [];
+  });
   readonly customRoles = this.orgRolesStore.roles;
   readonly customLoading = this.orgRolesStore.loading;
   readonly customError = this.orgRolesStore.error;
   readonly customSaving = this.orgRolesStore.saving;
 
   readonly roleKey = roleLabelKey;
-  readonly baseRoleOptions = computed(() =>
-    assignableRolesFor(this.callerRole()).filter((r) => r !== 'SUPER_ADMIN'),
-  );
+  readonly baseRoleOptions = computed(() => {
+    const role = this.callerRole();
+    return role ? assignableRolesFor(role).filter((r) => r !== 'SUPER_ADMIN') : [];
+  });
 
   readonly matrixModules = computed(() =>
     STRATIX_MODULES.filter(

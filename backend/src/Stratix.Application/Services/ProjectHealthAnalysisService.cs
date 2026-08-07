@@ -43,17 +43,18 @@ public class ProjectHealthAnalysisService : IProjectHealthAnalysisService
         var delayedStages = stages.Count(s => s.EndDate is { } end && end < today && s.Status != StageStatus.DONE);
         var taskCompletionRate = tasks.Count == 0 ? 0m : Math.Round((decimal)completedTasks / tasks.Count * 100m, 2);
 
-        // Blend progress with overdue pressure for a simple server-side health score.
-        var overduePenalty = Math.Min(40m, overdueTasks * 8m);
-        var criticalPenalty = Math.Min(30m, criticalRisks * 10m);
-        var healthScore = Math.Clamp(project.Progress - overduePenalty - criticalPenalty, 0m, 100m);
+        var slices = tasks.Select(t => new Stratix.Domain.Progress.TaskEffortSlice(
+            t.Id, t.StageId, t.Status, t.EstimatedHours, t.DueDate, t.CompletedAt));
+        var factors = Stratix.Domain.Progress.ProjectHealthCalculator.BuildFactors(
+            project.Progress, slices, criticalRisks, today);
+        var health = Stratix.Domain.Progress.ProjectHealthCalculator.Compute(factors);
 
         return new ProjectHealthAnalysisRequestMetrics(
             new ProjectInfoDto(project.Name, project.Status.ToString(), project.Progress, project.StartDate, project.EndDate),
             new TaskMetricsDto(tasks.Count, completedTasks, overdueTasks, overdueTasks),
             new RiskMetricsDto(openRisks.Count, criticalRisks, distribution),
             new StageMetricsDto(stages.Count, completedStages, delayedStages),
-            new PerformanceMetricsDto(taskCompletionRate, Math.Round(healthScore, 1)));
+            new PerformanceMetricsDto(taskCompletionRate, Math.Round(health.Score, 1)));
     }
 
     private static ProjectHealthAnalysisResponse AnalyzeMetrics(ProjectHealthAnalysisRequestMetrics request)

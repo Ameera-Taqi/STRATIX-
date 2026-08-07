@@ -28,7 +28,10 @@ export class TeamComponent implements OnInit {
   private readonly i18n = inject(LanguageService);
 
   readonly canWrite = computed(() => this.roleAccess.canWrite('EMPLOYEES'));
-  readonly roleOptions = computed(() => assignableRolesFor(this.roleAccess.role()));
+  readonly roleOptions = computed(() => {
+    const role = this.roleAccess.role();
+    return role ? assignableRolesFor(role) : [];
+  });
 
   readonly employees = this.store.employees;
   readonly departments = this.store.departmentOptions;

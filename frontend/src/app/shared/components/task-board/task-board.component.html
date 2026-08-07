@@ -24,31 +24,203 @@
   </div>
 </div>
 
+@if (transitionHint(); as hint) {
+  <div class="mb-4 flex flex-wrap items-start justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/40 dark:bg-amber-950/30">
+    <div class="min-w-0 flex-1">
+      <p class="text-sm font-semibold text-amber-900 dark:text-amber-100">{{ hint.messageKey | t }}</p>
+      <p class="mt-0.5 truncate text-xs text-amber-800/80 dark:text-amber-200/80">{{ hint.title }}</p>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      @if (hint.suggestedStatus && hint.suggestedActionKey) {
+        <button
+          type="button"
+          class="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white"
+          (click)="applySuggestedTransition()"
+        >
+          {{ hint.suggestedActionKey | t }}
+        </button>
+      }
+      <button type="button" class="text-xs font-medium text-amber-900 hover:underline dark:text-amber-100" (click)="dismissTransitionHint()">
+        {{ 'common.dismiss' | t }}
+      </button>
+    </div>
+  </div>
+}
+
+@if (reasonModal(); as modal) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" (click)="cancelReasonModal()">
+    <div
+      class="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl dark:bg-slate-900"
+      (click)="$event.stopPropagation()"
+      role="dialog"
+      aria-modal="true"
+    >
+      <h3 class="stratix-heading text-base">
+        @if (modal.kind === 'blocked') {
+          {{ 'tasks.transition.blockedTitle' | t }}
+        } @else if (modal.kind === 'requestChanges') {
+          {{ 'tasks.review.requestChangesTitle' | t }}
+        } @else {
+          {{ 'tasks.transition.reopenTitle' | t }}
+        }
+      </h3>
+      <p class="mt-1 text-xs stratix-muted">{{ modal.title }}</p>
+      @if (reasonError()) {
+        <p class="mt-2 text-sm text-danger">{{ reasonError()! | t }}</p>
+      }
+      <label class="stratix-muted mt-4 mb-1 block text-sm">
+        @if (modal.kind === 'blocked') {
+          {{ 'tasks.transition.blockedReason' | t }} *
+        } @else if (modal.kind === 'requestChanges') {
+          {{ 'tasks.review.feedback' | t }} *
+        } @else {
+          {{ 'tasks.transition.reopenReason' | t }} *
+        }
+      </label>
+      <textarea
+        class="stratix-input min-h-[96px] w-full px-3 py-2 text-sm"
+        [(ngModel)]="reasonText"
+        name="transitionReason"
+        rows="4"
+        autofocus
+      ></textarea>
+      <div class="mt-4 flex justify-end gap-2">
+        <button type="button" class="stratix-input px-4 py-2 text-sm" (click)="cancelReasonModal()">
+          {{ 'projects.cancel' | t }}
+        </button>
+        <button
+          type="button"
+          class="rounded-lg px-4 py-2 text-sm font-semibold text-white"
+          [class.bg-primary]="modal.kind !== 'requestChanges'"
+          [class.bg-amber-600]="modal.kind === 'requestChanges'"
+          (click)="confirmReasonModal()"
+        >
+          @if (modal.kind === 'blocked') {
+            {{ 'tasks.transition.markBlocked' | t }}
+          } @else if (modal.kind === 'requestChanges') {
+            {{ 'tasks.review.requestChanges' | t }}
+          } @else {
+            {{ 'tasks.transition.confirmReopen' | t }}
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (canReviewTasks() && awaitingReview().length > 0) {
+  <section class="mb-5 overflow-hidden rounded-2xl border border-violet-200 bg-violet-50/70 dark:border-violet-900/50 dark:bg-violet-950/30">
+    <div class="flex items-center justify-between gap-3 border-b border-violet-200/80 px-5 py-3 dark:border-violet-900/40">
+      <div>
+        <h3 class="text-sm font-bold uppercase tracking-wide text-violet-900 dark:text-violet-100">
+          {{ 'tasks.review.awaitingTitle' | t }}
+        </h3>
+        <p class="mt-0.5 text-xs text-violet-800/80 dark:text-violet-200/70">{{ 'tasks.review.awaitingHint' | t }}</p>
+      </div>
+      <span class="rounded-full bg-violet-600 px-2.5 py-0.5 text-xs font-bold text-white">
+        {{ awaitingReview().length }}
+      </span>
+    </div>
+    <ul class="divide-y divide-violet-200/70 dark:divide-violet-900/40">
+      @for (task of awaitingReview(); track task.id) {
+        <li class="flex flex-wrap items-center gap-3 px-5 py-4">
+          <div class="min-w-0 flex-1">
+            <a [routerLink]="['/tasks', task.id]" class="font-semibold text-dark hover:text-primary dark:text-slate-100">
+              {{ task.title }}
+            </a>
+            <p class="mt-1 text-xs text-violet-900/80 dark:text-violet-200/80">
+              {{ 'tasks.review.submittedBy' | t }}: <span class="font-medium">{{ submittedByLabel(task) }}</span>
+              · {{ 'tasks.review.submitted' | t }}: {{ submittedAgo(task) }}
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button
+              type="button"
+              class="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 transition hover:bg-amber-50 dark:border-amber-800 dark:bg-slate-900 dark:text-amber-200"
+              (click)="requestChanges(task.id, $event)"
+            >
+              {{ 'tasks.review.requestChanges' | t }}
+            </button>
+            <button
+              type="button"
+              class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700"
+              (click)="approveReview(task.id, $event)"
+            >
+              {{ 'tasks.review.approve' | t }}
+            </button>
+          </div>
+        </li>
+      }
+    </ul>
+  </section>
+}
+
 @if (showAddForm() && projectId() != null && !embedded()) {
-  <div class="stratix-card mb-4 p-4">
+  <div class="stratix-card mb-4 p-5">
     <h4 class="stratix-heading text-sm">{{ 'tasks.addTitle' | t }}</h4>
     @if (taskError()) {
       <p class="mt-2 text-sm text-danger">{{ taskError()! | t }}</p>
     }
-    <form class="mt-3 grid gap-3 sm:grid-cols-2" (ngSubmit)="saveTask()">
+    <form class="mt-4 grid gap-4 sm:grid-cols-2" (ngSubmit)="saveTask()">
       <div class="sm:col-span-2">
-        <input type="text" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="taskForm.title" [placeholder]="'tasks.titlePlaceholder' | t" name="title" />
+        <label class="stratix-muted mb-1 block text-sm">{{ 'tasks.fieldTitle' | t }} *</label>
+        <input type="text" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="taskForm.title" name="boardTitle" required />
       </div>
-      <select class="stratix-input px-3 py-2 text-sm" [(ngModel)]="taskForm.assigneeId" name="assigneeId" required>
-        <option [ngValue]="null" disabled>{{ 'common.assigned' | t }}</option>
-        @for (e of employees(); track e.id) {
-          <option [ngValue]="e.id">{{ e.name }}</option>
-        }
-      </select>
-      <input type="date" class="stratix-input px-3 py-2 text-sm" [(ngModel)]="taskForm.dueDate" name="dueDate" />
-      @if (stages().length > 0) {
-        <select class="stratix-input px-3 py-2 text-sm sm:col-span-2" [(ngModel)]="taskForm.stageId" name="stageId">
-          <option [ngValue]="null">{{ 'tasks.noFeature' | t }}</option>
+      <div class="sm:col-span-2">
+        <label class="stratix-muted mb-1 block text-sm">{{ 'work.type.feature' | t }} *</label>
+        <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="taskForm.stageId" name="boardStage" required>
+          <option [ngValue]="null" disabled>{{ 'tasks.selectFeature' | t }}</option>
           @for (s of stages(); track s.id) {
             <option [ngValue]="s.id">{{ s.name }}</option>
           }
         </select>
-      }
+      </div>
+      <div>
+        <label class="stratix-muted mb-1 block text-sm">{{ 'tasks.assignedTo' | t }}</label>
+        <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="taskForm.assigneeId" name="boardAssignee">
+          <option [ngValue]="null">{{ 'tasks.unassigned' | t }}</option>
+          @for (e of employees(); track e.id) {
+            <option [ngValue]="e.id">{{ e.name }}</option>
+          }
+        </select>
+      </div>
+      <div>
+        <label class="stratix-muted mb-1 block text-sm">{{ 'common.priority' | t }}</label>
+        <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="taskForm.priority" name="boardPriority">
+          @for (p of priorities; track p) {
+            <option [ngValue]="p">{{ priorityLabel(p) }}</option>
+          }
+        </select>
+      </div>
+      <div>
+        <label class="stratix-muted mb-1 block text-sm">{{ 'tasks.estimatedHours' | t }} *</label>
+        <input
+          type="number"
+          min="0.5"
+          step="0.5"
+          class="stratix-input w-full px-3 py-2 text-sm"
+          [(ngModel)]="taskForm.estimatedHours"
+          name="boardHours"
+          required
+        />
+      </div>
+      <div>
+        <label class="stratix-muted mb-1 block text-sm">{{ 'common.start' | t }}</label>
+        <input type="date" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="taskForm.startDate" name="boardStart" />
+      </div>
+      <div>
+        <label class="stratix-muted mb-1 block text-sm">{{ 'common.due' | t }}</label>
+        <input type="date" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="taskForm.dueDate" name="boardDue" />
+      </div>
+      <div class="sm:col-span-2">
+        <label class="stratix-muted mb-1 block text-sm">{{ 'common.description' | t }}</label>
+        <textarea
+          class="stratix-input min-h-[72px] w-full px-3 py-2 text-sm"
+          [(ngModel)]="taskForm.description"
+          name="boardDescription"
+          rows="3"
+        ></textarea>
+      </div>
       <div class="flex justify-end gap-2 sm:col-span-2">
         <button type="button" class="stratix-input px-3 py-1.5 text-sm" (click)="showAddForm.set(false)">{{ 'projects.cancel' | t }}</button>
         <button type="submit" class="rounded-lg bg-primary px-3 py-1.5 text-sm text-white">{{ 'tasks.add' | t }}</button>
@@ -104,7 +276,12 @@
 <div class="flex min-h-[min(28rem,calc(100vh-14rem))] gap-3 overflow-x-auto pb-2">
   @for (col of boardColumns(); track col.id) {
     <div
-      class="flex w-80 min-w-[300px] flex-col rounded-xl bg-slate-100/80 dark:bg-slate-900/50"
+      class="flex w-72 min-w-[260px] flex-col rounded-xl"
+      [class]="
+        col.status === 'REVIEW'
+          ? 'bg-violet-50/80 ring-2 ring-violet-400/70 dark:bg-violet-950/30 dark:ring-violet-700/60'
+          : 'bg-slate-100/80 dark:bg-slate-900/50'
+      "
       [class.ring-2]="dropTarget() === col.id"
       [class.ring-primary]="dropTarget() === col.id"
       (dragover)="onDragOver($event, col.id)"
@@ -112,7 +289,7 @@
     >
       <div class="flex items-center gap-2 px-3 py-3">
         <span class="h-2.5 w-2.5 rounded-full" [class]="col.dotClass"></span>
-        <span class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-700 dark:text-slate-200">
+        <span class="min-w-0 flex-1 truncate text-xs font-bold uppercase tracking-wide text-slate-700 dark:text-slate-200">
           @if (col.labelKey) {
             {{ col.labelKey | t }}
           } @else {
@@ -142,29 +319,72 @@
             (dragstart)="onDragStart(task.id)"
             (dragend)="onDragEnd()"
           >
-            <a [routerLink]="['/tasks', task.id]" class="block" (click)="$event.stopPropagation()">
-              <div class="mb-2 flex items-center gap-2">
-                <span class="inline-flex rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
-                  {{ 'work.type.task' | t }}
+            <a [routerLink]="['/tasks', task.id]" class="block space-y-2" (click)="$event.stopPropagation()">
+              <p class="text-sm font-semibold leading-snug text-dark dark:text-slate-100">{{ task.title }}</p>
+              @if (projectId() == null) {
+                <p class="text-xs text-primary">{{ task.projectName }}</p>
+              }
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide" [class]="priorityClass(task.priority)">
+                  {{ priorityLabel(task.priority) }}
                 </span>
-                @if (task.stageName) {
-                  <span class="truncate text-[10px] text-violet-600 dark:text-violet-300">{{ task.stageName }}</span>
+                @if (task.assignee) {
+                  <span class="truncate text-xs text-slate-600 dark:text-slate-300">{{ task.assignee }}</span>
                 }
               </div>
-              <p class="text-sm font-medium leading-snug text-dark dark:text-slate-100">{{ task.title }}</p>
-              @if (projectId() == null) {
-                <p class="mt-1 text-xs text-primary">{{ task.projectName }}</p>
-              }
-              <div class="mt-3 flex items-center justify-between gap-2">
-                <span class="inline-flex items-center gap-1 truncate text-xs text-slate-500 dark:text-slate-400">
-                  <app-ui-icon name="user" size="xs" />
-                  {{ task.assignee }}
-                </span>
-                <span class="rounded px-1.5 py-0.5 text-[10px] font-medium" [class]="priorityClass(task.priority)">
-                  {{ task.priority }}
-                </span>
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+                @if (hoursLabel(task.estimatedHours); as hours) {
+                  <span class="tabular-nums font-medium">{{ hours }}</span>
+                }
+                @if (formatDue(task.dueDate); as due) {
+                  <span>{{ due }}</span>
+                }
               </div>
+              @if (task.status === 'BLOCKED' && task.blockedReason) {
+                <p class="line-clamp-2 text-[11px] text-rose-600 dark:text-rose-300">{{ task.blockedReason }}</p>
+              }
+              @if (task.status === 'IN_PROGRESS' && task.reviewReason) {
+                <p class="line-clamp-2 rounded bg-amber-50 px-1.5 py-1 text-[11px] text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                  {{ 'tasks.review.feedback' | t }}: {{ task.reviewReason }}
+                </p>
+              }
             </a>
+            @if (task.status === 'IN_PROGRESS') {
+              <button
+                type="button"
+                class="mt-2 w-full rounded-md border border-violet-300 bg-violet-50 px-2 py-1.5 text-xs font-semibold text-violet-800 transition hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-200"
+                (click)="submitForReview(task.id, $event)"
+              >
+                {{ 'tasks.review.submit' | t }}
+              </button>
+            }
+            @if (task.status === 'BLOCKED') {
+              <button
+                type="button"
+                class="mt-2 w-full rounded-md border border-sky-200 bg-sky-50 px-2 py-1.5 text-xs font-semibold text-sky-800 transition hover:bg-sky-100 dark:border-sky-900/50 dark:bg-sky-950/40 dark:text-sky-200"
+                (click)="moveToInProgress(task.id, $event)"
+              >
+                {{ 'tasks.transition.moveToInProgress' | t }}
+              </button>
+            }
+            @if (task.status === 'REVIEW' && canReviewTasks()) {
+              <div class="mt-2 grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  class="rounded-md border border-amber-300 bg-white px-2 py-1.5 text-[11px] font-semibold text-amber-800 dark:border-amber-800 dark:bg-slate-900 dark:text-amber-200"
+                  (click)="requestChanges(task.id, $event)"
+                >
+                  {{ 'tasks.review.requestChanges' | t }}
+                </button>
+                <button
+                  type="button"
+                  class="rounded-md bg-emerald-600 px-2 py-1.5 text-[11px] font-semibold text-white"
+                  (click)="approveReview(task.id, $event)"
+                >
+                  {{ 'tasks.review.approve' | t }}
+                </button>
+              </div>
+            }
           </div>
         }
       </div>

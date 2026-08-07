@@ -23,6 +23,7 @@ import {
 } from './auth-token.storage';
 import { CmsPermissionsStore } from './cms-permissions.store';
 import { BrandingStore } from './branding.store';
+import { NotificationsStore } from './notifications.store';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -31,6 +32,7 @@ export class AuthService {
   private readonly api = inject(AuthApiService);
   private readonly cms = inject(CmsPermissionsStore);
   private readonly branding = inject(BrandingStore);
+  private readonly notifications = inject(NotificationsStore);
 
   private readonly _token = signal<string | null>(getAuthToken());
   private readonly _sessionReady = signal(false);
@@ -189,6 +191,7 @@ export class AuthService {
     return new Observable<void>((subscriber) => {
       void Promise.all([this.cms.load(), this.branding.load()])
         .then(() => {
+          this.notifications.refresh();
           subscriber.next();
           subscriber.complete();
         })
@@ -212,6 +215,7 @@ export class AuthService {
     clearAuthToken();
     this._token.set(null);
     this.currentUser.clearProfile();
+    this.notifications.clear();
     this.refreshInFlight = null;
   }
 

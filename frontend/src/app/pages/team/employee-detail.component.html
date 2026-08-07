@@ -1,11 +1,6 @@
 <app-topbar titleKey="page.team" />
 <main class="stratix-page p-6">
-  <a
-    routerLink="/team"
-    class="mb-5 inline-flex items-center gap-1 rounded-lg border border-transparent px-2 py-1 text-sm text-primary transition hover:border-primary/20 hover:bg-primary/5"
-  >
-    <span class="stratix-chevron-flip"><app-ui-icon name="chevron-left" size="xs" /></span> {{ 'team.back' | t }}
-  </a>
+  <app-breadcrumbs [items]="breadcrumbs()" />
 
   @if (!employee()) {
     <div class="stratix-card flex flex-col items-center px-8 py-16 text-center">
@@ -23,8 +18,18 @@
             </span>
             <div>
               <h1 class="text-xl font-bold text-dark dark:text-slate-100">{{ employee()!.name }}</h1>
-              <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">{{ roleKey(employee()!.role) | t }}</p>
-              <span class="stratix-badge mt-2" [class]="departmentBadge(employee()!.department)">
+              <dl class="mt-3 space-y-2 text-sm">
+                <div>
+                  <dt class="text-[11px] font-semibold uppercase tracking-wide stratix-muted">{{ 'team.role' | t }}</dt>
+                  <dd class="mt-0.5 font-medium text-dark dark:text-slate-100">{{ roleKey(employee()!.role) | t }}</dd>
+                </div>
+                <div>
+                  <dt class="text-[11px] font-semibold uppercase tracking-wide stratix-muted">{{ 'role.scope.label' | t }}</dt>
+                  <dd class="mt-0.5 font-medium text-dark dark:text-slate-100">{{ scopeKey(employee()!.role) | t }}</dd>
+                  <p class="mt-1 text-xs stratix-muted">{{ 'role.scope.hint' | t }}</p>
+                </div>
+              </dl>
+              <span class="stratix-badge mt-3" [class]="departmentBadge(employee()!.department)">
                 {{ employee()!.department }}
               </span>
             </div>
@@ -190,6 +195,11 @@
                   <option [value]="r">{{ roleKey(r) | t }}</option>
                 }
               </select>
+              <div class="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/50 sm:col-span-2">
+                <p class="text-[11px] font-semibold uppercase tracking-wide stratix-muted">{{ 'role.scope.label' | t }}</p>
+                <p class="mt-0.5 text-sm font-medium text-dark dark:text-slate-100">{{ scopeKey(form.role) | t }}</p>
+                <p class="mt-1 text-xs stratix-muted">{{ 'role.scope.hint' | t }}</p>
+              </div>
             </div>
             <div>
               <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'common.department' | t }}</label>

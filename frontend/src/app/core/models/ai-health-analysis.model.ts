@@ -10,4 +10,6 @@ export interface ProjectHealthAnalysisResponse {
   recommendations: string[];
   managementInsights: string[];
   analysisEngine?: 'OPENAI' | 'STRATIX_ENGINE';
+  /** ISO timestamp — analysis is a snapshot of project data at this moment. */
+  analyzedAt?: string;
 }

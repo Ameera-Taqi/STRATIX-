@@ -1,6 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 
 import {
+  CloseRiskRequest,
   CreateRiskForm,
   ProjectRisk,
   RiskDashboardStats,
@@ -306,6 +307,10 @@ export class RisksStore {
 
               status: form.status,
 
+              closureReason: form.status === 'CLOSED' ? r.closureReason : null,
+
+              residualRisk: form.status === 'CLOSED' ? r.residualRisk : null,
+
               projectId: form.projectId,
 
               projectName,
@@ -344,6 +349,37 @@ export class RisksStore {
 
 
 
+  closeRisk(id: number, request: CloseRiskRequest): void {
+    const reason = request.closureReason.trim();
+    const payload: CloseRiskRequest = {
+      closureReason: reason,
+      residualRisk: request.residualRisk ?? null,
+    };
+
+    this._risks.update((list) =>
+      list.map((r) =>
+        r.id === id
+          ? {
+              ...r,
+              status: 'CLOSED',
+              closureReason: reason,
+              residualRisk: payload.residualRisk ?? null,
+              updatedAt: new Date().toISOString(),
+            }
+          : r,
+      ),
+    );
+
+    this.api.closeRisk(id, payload).subscribe({
+      next: (updated) => {
+        this._risks.update((list) => list.map((r) => (r.id === id ? updated : r)));
+      },
+      error: () => {
+        /* optimistic local close kept when API unavailable */
+      },
+    });
+  }
+
   deleteRisk(id: number): void {
 
     this._risks.update((list) => list.filter((r) => r.id !== id));
@@ -355,17 +391,23 @@ export class RisksStore {
 
 
   private logRiskCreated(risk: ProjectRisk, projectName: string): void {
-
+    const isCritical = risk.riskLevel === 'CRITICAL';
+    const isHigh = risk.riskLevel === 'HIGH';
     this.notifications.push({
-
-      titleKey: 'notifications.riskCreatedTitle',
-
+      titleKey: isCritical
+        ? 'notifications.criticalRiskTitle'
+        : isHigh
+          ? 'notifications.highRiskTitle'
+          : 'notifications.riskCreatedTitle',
       bodyKey: 'notifications.riskCreatedBody',
-
       params: { risk: risk.title },
-
+      type: isCritical ? 'ERROR' : isHigh ? 'WARNING' : 'INFO',
+      link: `/risks/${risk.id}`,
+      entityType: 'RISK',
+      entityId: risk.id,
+      entityLabel: risk.title,
+      projectName,
     });
-
   }
 
 

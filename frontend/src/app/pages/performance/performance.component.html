@@ -1,87 +1,390 @@
 <app-topbar titleKey="page.performance" />
-<main class="stratix-page p-6">
-  <div class="mb-6 max-w-3xl">
-    <h2 class="text-lg font-semibold text-dark dark:text-slate-100">{{ 'page.performance' | t }}</h2>
-    <p class="mt-1 text-sm stratix-muted">{{ 'performance.hint' | t }}</p>
-  </div>
-
-  @if (loading()) {
-    <div class="stratix-card mb-6 px-6 py-14 text-center stratix-muted">
-      {{ 'performance.loading' | t }}
-    </div>
-  } @else if (error()) {
-    <div class="stratix-card mb-6 px-6 py-10 text-center">
-      <p class="text-sm text-danger">{{ error()! | t }}</p>
-      <button type="button" class="stratix-btn-primary mt-4" (click)="retry()">
-        {{ 'performance.retry' | t }}
-      </button>
-    </div>
-  } @else {
-    <div class="mb-6 grid items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <app-kpi-card
-        [label]="'kpi.taskCompletion' | t"
-        [value]="metrics().completionRate + '%'"
-        [tone]="completionTone()"
-        [suffix]="metrics().completedTasks + ' / ' + metrics().totalTasks + ' ' + ('performance.tasksLabel' | t)"
-      />
-      <app-kpi-card
-        [label]="'kpi.onTime' | t"
-        [value]="metrics().onTimePct + '%'"
-        [tone]="onTimeTone()"
-        [suffix]="metrics().onTimeTaskCount + ' / ' + metrics().totalTasks + ' ' + ('performance.tasksLabel' | t)"
-      />
-      <app-kpi-card
-        [label]="'kpi.overdueTasks' | t"
-        [value]="metrics().overdueTasks"
-        [tone]="overdueTone()"
-      />
-      <app-kpi-card
-        [label]="'kpi.teamProductivity' | t"
-        [value]="metrics().teamProductivity"
-        [tone]="productivityTone()"
-        [suffix]="metrics().riskImpact > 0 ? ('performance.riskImpactHint' | t) + ': ' + metrics().riskImpact : ''"
-      />
-    </div>
-  }
-
-  <div class="stratix-card overflow-hidden">
-    <div class="border-b border-slate-200 px-5 py-4 dark:border-slate-700 stratix-heading">
-      {{ 'performance.table' | t }}
+<main class="stratix-page p-6" [appWarnUnsaved]="hasUnsavedChanges()">
+  @if (!activeEval()) {
+    <div class="mb-6 max-w-3xl">
+      <h2 class="text-lg font-semibold text-dark dark:text-slate-100">
+        {{ (canManage() ? 'eval.title' : 'eval.yourScoreTitle') | t }}
+      </h2>
+      <p class="mt-1 text-sm stratix-muted">
+        {{ (canManage() ? 'eval.hint' : 'eval.yourScoreHint') | t }}
+      </p>
     </div>
 
-    @if (loading()) {
-      <p class="px-5 py-10 text-center text-sm stratix-muted">{{ 'performance.loading' | t }}</p>
-    } @else if (error()) {
-      <p class="px-5 py-10 text-center text-sm text-danger">{{ error()! | t }}</p>
-    } @else if (isEmpty()) {
-      <p class="px-5 py-10 text-center text-sm stratix-muted">{{ 'performance.empty' | t }}</p>
-    } @else if (employees().length === 0) {
-      <p class="px-5 py-10 text-center text-sm stratix-muted">{{ 'performance.noEmployees' | t }}</p>
+    @if (error()) {
+      <div class="stratix-card mb-6 px-6 py-10 text-center">
+        <p class="text-sm text-danger">{{ error()! | t }}</p>
+        <button type="button" class="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white" (click)="loadPeriods()">
+          {{ 'performance.retry' | t }}
+        </button>
+      </div>
+    } @else if (loading() && periods().length === 0) {
+      <div class="stratix-card px-6 py-14 text-center stratix-muted">{{ 'performance.loading' | t }}</div>
+    } @else if (periods().length === 0) {
+      <div class="stratix-card px-6 py-14 text-center">
+        <p class="text-sm stratix-muted">{{ 'eval.noPeriods' | t }}</p>
+      </div>
     } @else {
-      <div class="overflow-x-auto">
-      <table class="w-full min-w-[640px] text-start text-sm">
-        <thead class="stratix-table-head">
-          <tr>
-            <th class="px-5 py-3">{{ 'performance.employee' | t }}</th>
-            <th class="px-5 py-3">{{ 'performance.tasksCompleted' | t }}</th>
-            <th class="px-5 py-3">{{ 'performance.delayed' | t }}</th>
-            <th class="px-5 py-3">{{ 'performance.onTime' | t }}</th>
-            <th class="px-5 py-3">{{ 'performance.kpiScore' | t }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (e of employees(); track e.id) {
-            <tr class="stratix-table-row">
-              <td class="px-5 py-3 font-medium">{{ e.name }}</td>
-              <td class="px-5 py-3">{{ e.tasksCompleted }}</td>
-              <td class="px-5 py-3 text-danger">{{ e.delayedTasks }}</td>
-              <td class="px-5 py-3">{{ e.onTimePct }}%</td>
-              <td class="px-5 py-3 font-semibold text-primary">{{ e.kpiScore }}</td>
-            </tr>
+      <div class="mb-6 flex flex-wrap items-end gap-4">
+        <div>
+          <label class="stratix-muted mb-1.5 block text-xs font-semibold uppercase tracking-wide">{{ 'eval.period' | t }}</label>
+          <select
+            class="stratix-input min-w-[220px] px-3 py-2.5 text-sm"
+            [ngModel]="selectedPeriodId()"
+            (ngModelChange)="onPeriodChange($event)"
+            name="period"
+          >
+            @for (p of periods(); track p.id) {
+              <option [ngValue]="p.id">{{ p.name }}</option>
+            }
+          </select>
+        </div>
+        @if (selectedPeriod(); as period) {
+          <span
+            class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide"
+            [class.bg-emerald-100]="period.status === 'OPEN'"
+            [class.text-emerald-800]="period.status === 'OPEN'"
+            [class.bg-slate-100]="period.status !== 'OPEN'"
+            [class.text-slate-600]="period.status !== 'OPEN'"
+          >
+            {{ period.status === 'OPEN' ? ('eval.periodOpen' | t) : period.status }}
+          </span>
+        }
+      </div>
+
+      @if (!canManage()) {
+        <div class="stratix-card px-6 py-14 text-center">
+          <p class="text-sm stratix-muted">{{ 'eval.noOwnEvaluation' | t }}</p>
+        </div>
+      } @else {
+        <div class="stratix-card overflow-hidden">
+          <div class="stratix-card-header flex items-center justify-between">
+            <h3 class="stratix-heading text-sm">{{ 'eval.employees' | t }}</h3>
+            <span class="text-xs stratix-muted">{{ employeeRows().length }}</span>
+          </div>
+          @if (loading()) {
+            <p class="px-5 py-10 text-center text-sm stratix-muted">{{ 'performance.loading' | t }}</p>
+          } @else if (employeeRows().length === 0) {
+            <p class="px-5 py-10 text-center text-sm stratix-muted">{{ 'performance.noEmployees' | t }}</p>
+          } @else {
+            <ul class="divide-y divide-slate-100 dark:divide-slate-700">
+              @for (row of employeeRows(); track row.userId) {
+                <li>
+                  <button
+                    type="button"
+                    class="flex w-full items-center justify-between gap-3 px-5 py-3.5 text-start transition hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                    (click)="openEmployee(row)"
+                  >
+                    <span class="font-medium text-dark dark:text-slate-100">{{ row.name }}</span>
+                    <span class="flex items-center gap-3">
+                      @if (row.evaluation?.overallScore != null) {
+                        <span class="font-mono text-sm text-slate-500">{{ formatPct(row.evaluation!.overallScore!) }}</span>
+                      }
+                      <span
+                        class="rounded-md px-2 py-0.5 text-xs font-semibold"
+                        [class.bg-slate-100]="!row.evaluation || row.evaluation.status === 'DRAFT'"
+                        [class.text-slate-700]="!row.evaluation || row.evaluation.status === 'DRAFT'"
+                        [class.bg-amber-50]="row.evaluation?.status === 'SUBMITTED' || row.evaluation?.status === 'IN_REVIEW'"
+                        [class.text-amber-800]="row.evaluation?.status === 'SUBMITTED' || row.evaluation?.status === 'IN_REVIEW'"
+                        [class.bg-emerald-50]="row.evaluation?.status === 'APPROVED'"
+                        [class.text-emerald-800]="row.evaluation?.status === 'APPROVED'"
+                        [class.bg-rose-50]="row.evaluation?.status === 'REJECTED'"
+                        [class.text-rose-700]="row.evaluation?.status === 'REJECTED'"
+                      >
+                        {{ rowStatusKey(row) | t }}
+                      </span>
+                      <span class="stratix-chevron-flip text-slate-400"><app-ui-icon name="chevron-right" size="xs" /></span>
+                    </span>
+                  </button>
+                </li>
+              }
+            </ul>
           }
-        </tbody>
-      </table>
+        </div>
+      }
+    }
+  } @else {
+    <!-- Detail / employee scorecard -->
+    @if (canManage()) {
+      <button
+        type="button"
+        class="mb-5 inline-flex items-center gap-1 text-sm text-primary hover:underline"
+        (click)="backToList()"
+      >
+        <span class="stratix-chevron-flip"><app-ui-icon name="chevron-left" size="xs" /></span>
+        {{ 'eval.back' | t }}
+      </button>
+    } @else {
+      <div class="mb-6 flex flex-wrap items-end gap-4">
+        <div>
+          <label class="stratix-muted mb-1.5 block text-xs font-semibold uppercase tracking-wide">{{ 'eval.period' | t }}</label>
+          <select
+            class="stratix-input min-w-[220px] px-3 py-2.5 text-sm"
+            [ngModel]="selectedPeriodId()"
+            (ngModelChange)="onPeriodChange($event)"
+            name="periodSelf"
+          >
+            @for (p of periods(); track p.id) {
+              <option [ngValue]="p.id">{{ p.name }}</option>
+            }
+          </select>
+        </div>
       </div>
     }
-  </div>
+
+    @if (detailLoading()) {
+      <div class="stratix-card px-6 py-14 text-center stratix-muted">{{ 'performance.loading' | t }}</div>
+    } @else if (!canManage() && (activeEval()!.status === 'DRAFT' || (activeEval()!.results?.length ?? 0) === 0)) {
+      <div class="stratix-card px-6 py-14 text-center">
+        <p class="text-sm stratix-muted">{{ 'eval.preparing' | t }}</p>
+      </div>
+    } @else {
+      <div class="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 class="text-xl font-bold text-dark dark:text-slate-100">
+            @if (canManage()) {
+              {{ activeEval()!.userName }} — {{ activeEval()!.periodName }}
+            } @else {
+              {{ 'eval.yourScoreTitle' | t }}
+            }
+          </h2>
+          @if (!canManage()) {
+            <p class="mt-1 text-sm stratix-muted">{{ activeEval()!.periodName }}</p>
+          }
+        </div>
+        <span
+          class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide"
+          [class.bg-slate-100]="workflowStage() === 'DRAFT' || workflowStage() === 'CALCULATED'"
+          [class.text-slate-700]="workflowStage() === 'DRAFT' || workflowStage() === 'CALCULATED'"
+          [class.bg-amber-50]="workflowStage() === 'SUBMITTED' || workflowStage() === 'IN_REVIEW'"
+          [class.text-amber-800]="workflowStage() === 'SUBMITTED' || workflowStage() === 'IN_REVIEW'"
+          [class.bg-emerald-50]="workflowStage() === 'APPROVED'"
+          [class.text-emerald-800]="workflowStage() === 'APPROVED'"
+          [class.bg-rose-50]="workflowStage() === 'REJECTED'"
+          [class.text-rose-700]="workflowStage() === 'REJECTED'"
+        >
+          {{ workflowStageLabelKey() | t }}
+        </span>
+      </div>
+
+      @if (actionError()) {
+        <p class="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-danger dark:bg-red-900/30">{{ actionError()! | t }}</p>
+      }
+
+      @if (needsCalculate()) {
+        <section class="stratix-card max-w-lg p-6">
+          <p class="text-sm stratix-muted">{{ 'eval.needsCalculateHint' | t }}</p>
+          @if (canManage()) {
+            <div class="mt-5">
+              <p class="mb-2 text-[11px] font-semibold uppercase tracking-wide stratix-muted">{{ 'eval.actions' | t }}</p>
+              <button
+                type="button"
+                class="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60"
+                [disabled]="saving()"
+                (click)="calculate()"
+              >
+                {{ 'eval.calculate' | t }}
+              </button>
+            </div>
+          }
+        </section>
+      } @else {
+      <!-- Your KPI Score -->
+      <section class="stratix-card mb-6 p-6">
+        <h3 class="text-[11px] font-semibold uppercase tracking-wide stratix-muted">
+          {{
+            workflowStage() === 'APPROVED'
+              ? ('eval.viewFinal' | t)
+              : ((canManage() ? 'eval.calculatedScore' : 'eval.yourScoreTitle') | t)
+          }}
+        </h3>
+        <p class="mt-2 text-4xl font-bold tabular-nums text-primary">
+          {{ overallLabel() }}
+          <span class="text-lg font-semibold text-slate-500">— {{ bandKey(liveOverall()) | t }}</span>
+        </p>
+      </section>
+
+      <div class="grid gap-6 lg:grid-cols-3">
+        <div class="space-y-6 lg:col-span-2">
+          <!-- How it was calculated -->
+          <section class="stratix-card overflow-hidden">
+            <div class="stratix-card-header">
+              <h3 class="stratix-heading text-sm">{{ 'eval.howCalculated' | t }}</h3>
+            </div>
+            <ul class="divide-y divide-slate-100 dark:divide-slate-700">
+              @for (row of breakdownRows(); track row.id) {
+                <li class="px-5 py-4">
+                  <div class="flex flex-wrap items-baseline justify-between gap-2">
+                    <span class="font-medium text-dark dark:text-slate-100">{{ row.name }}</span>
+                    <span class="font-mono text-sm tabular-nums text-slate-700 dark:text-slate-200">
+                      {{ fmt(row.score, 1) }} × {{ fmt(row.weight, 0) }}% = {{ fmt(row.contribution, 2) }}
+                    </span>
+                  </div>
+                </li>
+              } @empty {
+                <li class="px-5 py-8 text-center text-sm stratix-muted">{{ 'eval.noSystemMetrics' | t }}</li>
+              }
+            </ul>
+          </section>
+
+          @if (canManage() && isCalculatedDraft()) {
+            <section class="stratix-card overflow-hidden">
+              <div class="stratix-card-header">
+                <h3 class="stratix-heading text-sm">{{ 'eval.managerEvaluation' | t }}</h3>
+              </div>
+              <ul class="divide-y divide-slate-100 dark:divide-slate-700">
+                @for (r of managerResults(); track r.id) {
+                  <li class="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 text-sm">
+                    <span class="text-slate-700 dark:text-slate-200">{{ r.kpiName }}</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      class="stratix-input w-24 px-3 py-1.5 text-end font-semibold tabular-nums"
+                      [ngModel]="managerScores()[r.id] ?? r.score"
+                      (ngModelChange)="setManagerScore(r.id, $event)"
+                      [name]="'mgr_' + r.id"
+                    />
+                  </li>
+                } @empty {
+                  <li class="px-5 py-8 text-center text-sm stratix-muted">{{ 'eval.noManagerMetrics' | t }}</li>
+                }
+              </ul>
+            </section>
+          }
+
+          <!-- Manager Notes -->
+          <section class="stratix-card overflow-hidden">
+            <div class="stratix-card-header">
+              <h3 class="stratix-heading text-sm">{{ 'eval.managerNotes' | t }}</h3>
+            </div>
+            <div class="px-5 py-4">
+              @if (canManage() && isCalculatedDraft()) {
+                <textarea
+                  class="stratix-input min-h-[110px] w-full px-3 py-2.5 text-sm"
+                  rows="4"
+                  [ngModel]="managerNotes()"
+                  (ngModelChange)="managerNotes.set($event)"
+                  name="managerNotes"
+                  [placeholder]="'eval.managerNotesPlaceholder' | t"
+                ></textarea>
+              } @else if (activeEval()!.notes) {
+                <p class="whitespace-pre-wrap text-sm leading-relaxed text-slate-700 dark:text-slate-200">{{ activeEval()!.notes }}</p>
+              } @else {
+                <p class="text-sm stratix-muted">{{ 'eval.noManagerNotes' | t }}</p>
+              }
+            </div>
+          </section>
+        </div>
+
+        <div class="space-y-4">
+          @if (canManage() || canApprove() || workflowStage() === 'APPROVED') {
+            <section class="stratix-card overflow-hidden">
+              <div class="stratix-card-header">
+                <h3 class="stratix-heading text-sm">{{ 'eval.actions' | t }}</h3>
+              </div>
+              <div class="flex flex-col gap-2 px-5 py-4">
+                @switch (workflowStage()) {
+                  @case ('DRAFT') {
+                    @if (canManage()) {
+                      <button
+                        type="button"
+                        class="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60"
+                        [disabled]="saving()"
+                        (click)="calculate()"
+                      >
+                        {{ 'eval.calculate' | t }}
+                      </button>
+                    }
+                  }
+                  @case ('CALCULATED') {
+                    @if (canManage()) {
+                      <button
+                        type="button"
+                        class="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60"
+                        [disabled]="saving()"
+                        (click)="submitForReview()"
+                      >
+                        {{ 'eval.submit' | t }}
+                      </button>
+                      <button
+                        type="button"
+                        class="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-dark hover:bg-slate-50 disabled:opacity-60 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
+                        [disabled]="saving()"
+                        (click)="calculate()"
+                      >
+                        {{ 'eval.recalculate' | t }}
+                      </button>
+                    }
+                  }
+                  @case ('SUBMITTED') {
+                    @if (canApprove()) {
+                      <button
+                        type="button"
+                        class="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60"
+                        [disabled]="saving()"
+                        (click)="startReview()"
+                      >
+                        {{ 'eval.startReview' | t }}
+                      </button>
+                    } @else {
+                      <p class="text-sm stratix-muted">{{ 'eval.waitingReview' | t }}</p>
+                    }
+                  }
+                  @case ('IN_REVIEW') {
+                    @if (canApprove()) {
+                      <button
+                        type="button"
+                        class="w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                        [disabled]="saving()"
+                        (click)="approve()"
+                      >
+                        {{ 'eval.approve' | t }}
+                      </button>
+                      <button
+                        type="button"
+                        class="w-full rounded-lg border border-rose-200 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60 dark:border-rose-800 dark:text-rose-300 dark:hover:bg-rose-950/40"
+                        [disabled]="saving()"
+                        (click)="reject()"
+                      >
+                        {{ 'eval.reject' | t }}
+                      </button>
+                    } @else {
+                      <p class="text-sm stratix-muted">{{ 'eval.waitingReview' | t }}</p>
+                    }
+                  }
+                  @case ('APPROVED') {
+                    <p class="rounded-lg bg-emerald-50 px-3 py-2.5 text-sm font-semibold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
+                      {{ 'eval.viewFinal' | t }}
+                    </p>
+                    <p class="text-xs stratix-muted">{{ 'eval.viewFinalHint' | t }}</p>
+                  }
+                  @case ('REJECTED') {
+                    <p class="text-sm text-rose-700 dark:text-rose-300">{{ 'eval.rejectedHint' | t }}</p>
+                  }
+                }
+              </div>
+            </section>
+          }
+
+          @if (canManage() && systemResults().length > 0 && workflowStage() === 'CALCULATED') {
+            <section class="stratix-card overflow-hidden">
+              <div class="stratix-card-header">
+                <h3 class="stratix-heading text-sm">{{ 'eval.systemMetrics' | t }}</h3>
+              </div>
+              <ul class="divide-y divide-slate-100 dark:divide-slate-700">
+                @for (r of systemResults(); track r.id) {
+                  <li class="flex items-center justify-between px-5 py-3 text-sm">
+                    <span class="text-slate-700 dark:text-slate-200">{{ r.kpiName }}</span>
+                    <span class="font-semibold tabular-nums">{{ displayScore(r) }}</span>
+                  </li>
+                }
+              </ul>
+            </section>
+          }
+        </div>
+      </div>
+      }
+    }
+  }
 </main>

@@ -1,8 +1,6 @@
 <app-topbar titleKey="page.risks" />
 <main class="stratix-page p-6">
-  <a routerLink="/risks" class="mb-5 inline-flex items-center gap-1 text-sm text-primary hover:underline">
-    <span class="stratix-chevron-flip"><app-ui-icon name="chevron-left" size="xs" /></span> {{ 'risks.back' | t }}
-  </a>
+  <app-breadcrumbs [items]="breadcrumbs()" />
 
   @if (!risk()) {
     <div class="stratix-card flex flex-col items-center px-8 py-16 text-center">
@@ -21,6 +19,15 @@
           <div class="flex flex-col items-end gap-2">
             <span class="stratix-badge" [class]="riskLevelClass(risk()!.riskLevel)">{{ riskLevelKey(risk()!.riskLevel) | t }}</span>
             <span class="stratix-badge" [class]="riskStatusClass(risk()!.status)">{{ riskStatusKey(risk()!.status) | t }}</span>
+            @if (canWrite() && risk()!.status !== 'CLOSED') {
+              <button
+                type="button"
+                class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-dark hover:bg-slate-50 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
+                (click)="openCloseRisk()"
+              >
+                {{ 'risks.closeAction' | t }}
+              </button>
+            }
           </div>
         </div>
       </div>
@@ -68,5 +75,67 @@
         </a>
       </div>
     </div>
+
+    @if (risk()!.status === 'CLOSED') {
+      <div class="stratix-card mt-6 p-6">
+        <h3 class="stratix-heading text-sm">{{ 'risks.closureDetails' | t }}</h3>
+        <dl class="mt-3 space-y-3 text-sm">
+          <div>
+            <dt class="stratix-muted">{{ 'risks.closureReason' | t }}</dt>
+            <dd class="mt-1 text-slate-700 dark:text-slate-300">{{ risk()!.closureReason || '—' }}</dd>
+          </div>
+          <div>
+            <dt class="stratix-muted">{{ 'risks.residualRisk' | t }}</dt>
+            <dd class="mt-1 font-semibold uppercase text-dark dark:text-slate-100">
+              {{ risk()!.residualRisk ? (riskImpactKey(risk()!.residualRisk!) | t) : ('risks.residualNone' | t) }}
+            </dd>
+          </div>
+        </dl>
+      </div>
+    }
   }
 </main>
+
+@if (showCloseModal()) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" (click)="cancelCloseRisk()">
+    <div
+      class="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl dark:bg-slate-900"
+      (click)="$event.stopPropagation()"
+      role="dialog"
+      aria-modal="true"
+    >
+      <h3 class="stratix-heading text-base">{{ 'risks.closeTitle' | t }}</h3>
+      @if (closeError()) {
+        <p class="mt-2 text-sm text-danger">{{ closeError()! | t }}</p>
+      }
+      <label class="stratix-muted mt-4 mb-1 block text-sm">{{ 'risks.closureReason' | t }} *</label>
+      <textarea
+        class="stratix-input min-h-[96px] w-full px-3 py-2 text-sm"
+        rows="4"
+        [(ngModel)]="closeForm.closureReason"
+        name="detailCloseReason"
+        autofocus
+      ></textarea>
+      <label class="stratix-muted mt-3 mb-1 block text-sm">{{ 'risks.residualRisk' | t }}</label>
+      <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="closeForm.residualRisk" name="detailResidualRisk">
+        @for (opt of residualOptions; track $index) {
+          <option [ngValue]="opt">
+            {{ opt ? (riskImpactKey(opt) | t) : ('risks.residualNone' | t) }}
+          </option>
+        }
+      </select>
+      <div class="mt-4 flex justify-end gap-2">
+        <button type="button" class="stratix-input px-4 py-2 text-sm" (click)="cancelCloseRisk()">
+          {{ 'projects.cancel' | t }}
+        </button>
+        <button
+          type="button"
+          class="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white"
+          (click)="confirmCloseRisk()"
+        >
+          {{ 'risks.closeAction' | t }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

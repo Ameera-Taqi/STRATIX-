@@ -19,7 +19,7 @@ erDiagram
     users ||--o{ notifications : "receives"
     users ||--o{ project_files : "uploads"
     users ||--o{ reports : "generates"
-    projects ||--o{ project_stages : "timeline_stages"
+    projects ||--o{ project_stages : "timeline_features"
     projects ||--o{ tasks : "has"
     projects ||--o{ employee_kpis : "kpi_scope"
     projects ||--o{ project_files : "attachments"
@@ -149,11 +149,11 @@ erDiagram
 
 | العلاقة | من | إلى | FK |
 |---------|-----|-----|-----|
-| **Project → Stages** | `projects` | `project_stages` | `project_id` |
-| **Stage → Tasks** | `project_stages` | `tasks` | `stage_id` |
+| **Project → Features** | `projects` | `project_stages` | `project_id` |
+| **Feature → Tasks** | `project_stages` | `tasks` | `stage_id` |
 | **Task → Employee** | `tasks` | `users` | `assigned_to` |
 | **Employee → KPI** | `users` | `employee_kpis` | `user_id` |
-| **Project → Timeline** | `projects` + `project_stages` | — | تواريخ + `order_number` |
+| **Project → Timeline** | `projects` + `project_stages` | — | تواريخ الميزات (تداخل مسموح)؛ `order_number` عرض فقط |
 | Department → Users | `departments` | `users` | `department_id` |
 | Project → Tasks | `projects` | `tasks` | `project_id` |
 | Task → Comments | `tasks` | `task_comments` | `task_id` |
@@ -167,7 +167,7 @@ erDiagram
 
 ```
 Create Project      →  projects
-Add Stages          →  project_stages
+Add Features        →  project_stages
 Add Tasks           →  tasks
 Assign Employees    →  tasks.assigned_to → users.id
 Track Progress      →  tasks, project_stages, projects (progress %)

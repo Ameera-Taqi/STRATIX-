@@ -107,6 +107,7 @@ public class StageService : IStageService
             stage.Name,
             project?.ProjectManagerId,
             _currentUser.UserId ?? 0,
+            _currentUser.UserName ?? "",
             DateTimeOffset.UtcNow), ct);
 
         return EntityMappers.ToResponse(await FindAsync(id, ct));
@@ -119,6 +120,45 @@ public class StageService : IStageService
         _db.Remove(stage);
         await _db.SaveChangesAsync(ct);
         await _progress.RecalculateProjectAsync(projectId, ct);
+    }
+
+    public async Task<IReadOnlyList<StageResponse>> MoveAsync(long id, string direction, CancellationToken ct = default)
+    {
+        var stage = await FindAsync(id, ct);
+        var siblings = await _db.ProjectStages
+            .Where(s => s.ProjectId == stage.ProjectId)
+            .OrderBy(s => s.OrderNumber)
+            .ToListAsync(ct);
+
+        var idx = siblings.FindIndex(s => s.Id == id);
+        if (idx < 0) return siblings.Select(EntityMappers.ToResponse).ToList();
+
+        var dir = (direction ?? "").Trim().ToLowerInvariant();
+        // Display list reorder only — not a schedule dependency ("earlier"/"later" are not accepted).
+        var swapIdx = dir is "up" ? idx - 1
+            : dir is "down" ? idx + 1
+            : -1;
+        if (swapIdx < 0 || swapIdx >= siblings.Count)
+            return siblings.Select(EntityMappers.ToResponse).ToList();
+
+        var other = siblings[swapIdx];
+        var a = stage.OrderNumber;
+        var b = other.OrderNumber;
+        // Unique (project_id, order_number) — park one row on a temp value first.
+        var temp = siblings.Max(s => s.OrderNumber) + 1000;
+        stage.OrderNumber = temp;
+        stage.UpdatedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        other.OrderNumber = a;
+        other.UpdatedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        stage.OrderNumber = b;
+        stage.UpdatedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        return await GetByProjectAsync(stage.ProjectId, ct);
     }
 
     private async Task<ProjectStage> FindAsync(long id, CancellationToken ct) =>

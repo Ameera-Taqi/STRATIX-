@@ -38,6 +38,11 @@ public class NotificationService : INotificationService
             Message = request.Message,
             Type = request.Type ?? NotificationType.INFO,
             Link = request.Link,
+            ActorName = request.ActorName,
+            ProjectName = request.ProjectName,
+            EntityType = request.EntityType,
+            EntityId = request.EntityId,
+            EntityLabel = request.EntityLabel,
             IsRead = false,
             CreatedAt = DateTimeOffset.UtcNow
         };

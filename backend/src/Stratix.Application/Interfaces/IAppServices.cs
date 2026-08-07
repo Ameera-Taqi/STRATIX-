@@ -114,6 +114,8 @@ public interface IStageService
     Task<StageResponse> UpdateAsync(long id, UpdateStageRequest request, CancellationToken ct = default);
     Task<StageResponse> CompleteAsync(long id, CancellationToken ct = default);
     Task DeleteAsync(long id, CancellationToken ct = default);
+    /// <summary>Swap with adjacent sibling via Up/Down. Direction: "up" | "down".</summary>
+    Task<IReadOnlyList<StageResponse>> MoveAsync(long id, string direction, CancellationToken ct = default);
 }
 
 public interface ITaskService
@@ -140,6 +142,7 @@ public interface IRiskService
     Task<RiskResponse> GetByIdAsync(long id, CancellationToken ct = default);
     Task<RiskResponse> CreateAsync(CreateRiskRequest request, CancellationToken ct = default);
     Task<RiskResponse> UpdateAsync(long id, UpdateRiskRequest request, CancellationToken ct = default);
+    Task<RiskResponse> CloseAsync(long id, CloseRiskRequest request, CancellationToken ct = default);
     Task DeleteAsync(long id, CancellationToken ct = default);
     Task<RiskDashboardStatsResponse> GetDashboardStatsAsync(CancellationToken ct = default);
     Task<RiskHeatMapResponse> GetHeatMapAsync(CancellationToken ct = default);

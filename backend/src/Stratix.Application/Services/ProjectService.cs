@@ -131,6 +131,7 @@ public class ProjectService : IProjectService
                 project.Name,
                 project.ProjectManagerId,
                 _currentUser.UserId ?? 0,
+                _currentUser.UserName ?? "",
                 DateTimeOffset.UtcNow), ct);
         }
 
@@ -163,6 +164,7 @@ public class ProjectService : IProjectService
             project.Name,
             project.ProjectManagerId,
             _currentUser.UserId ?? 0,
+            _currentUser.UserName ?? "",
             DateTimeOffset.UtcNow), ct);
         return EntityMappers.ToResponse(await FindAsync(id, ct));
     }

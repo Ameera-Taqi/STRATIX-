@@ -26,6 +26,7 @@ import {
 
 export interface NewProjectForm {
   name: string;
+  description?: string | null;
   department: string;
   manager: string;
   managerId?: number | null;
@@ -38,17 +39,11 @@ export interface NewProjectForm {
 
 
 export interface NewStageForm {
-
   name: string;
-
+  description?: string | null;
   startDate: string;
-
   endDate: string;
-
-  status: string;
-
-  progress: number;
-
+  status?: string;
 }
 
 
@@ -195,19 +190,20 @@ export class ProjectsStore {
     const tempId = -Date.now();
     const body = {
       name: form.name.trim(),
+      description: form.description?.trim() || null,
       startDate: form.startDate || null,
       endDate: form.endDate || null,
-      status: this.toStageStatusEnum(form.status),
-      progress: form.progress,
+      status: this.toStageStatusEnum(form.status || 'PLANNED'),
     };
 
     const optimistic: StageRow = {
       id: tempId,
       name: form.name.trim(),
+      description: form.description?.trim() || null,
       startDate: form.startDate,
       endDate: form.endDate,
-      progress: form.progress,
-      status: form.status,
+      progress: 0,
+      status: form.status || 'Planned',
       orderNumber: this.getStages(projectId).length + 1,
     };
 
@@ -217,11 +213,11 @@ export class ProjectsStore {
     }));
 
     return this.api.createStage(projectId, body).pipe(
-      tap((stage) => {
+      map((stage) => {
         const row = this.normalizeStage(stage);
-        this._stagesByProject.update((map) => ({
-          ...map,
-          [projectId]: (map[projectId] ?? []).map((s) => (s.id === tempId ? row : s)),
+        this._stagesByProject.update((m) => ({
+          ...m,
+          [projectId]: (m[projectId] ?? []).map((s) => (s.id === tempId ? row : s)),
         }));
         this.syncProjectProgress(projectId);
         this.notifications.push({
@@ -229,11 +225,12 @@ export class ProjectsStore {
           bodyKey: 'notifications.featureAddedBody',
           params: { feature: row.name, project: project?.name ?? '' },
         });
+        return row;
       }),
       catchError((err) => {
-        this._stagesByProject.update((map) => ({
-          ...map,
-          [projectId]: (map[projectId] ?? []).filter((s) => s.id !== tempId),
+        this._stagesByProject.update((m) => ({
+          ...m,
+          [projectId]: (m[projectId] ?? []).filter((s) => s.id !== tempId),
         }));
         return throwError(() => err);
       }),
@@ -319,25 +316,42 @@ export class ProjectsStore {
 
 
   removeStage(projectId: number, stageId: number): void {
-
-    const stage = this.getStages(projectId).find((s) => s.id === stageId);
-
     const updated = this.getStages(projectId)
-
       .filter((s) => s.id !== stageId)
-
       .map((s, i) => ({ ...s, orderNumber: i + 1 }));
-
     this._stagesByProject.update((map) => ({ ...map, [projectId]: updated }));
-
     this.syncProjectProgress(projectId);
-
-
-
     this.api.deleteStage(stageId).subscribe({ error: () => {} });
   }
 
+  /** Display-list reorder only (order_number). Not a schedule dependency — features may run in parallel. */
+  moveStage(projectId: number, stageId: number, direction: 'up' | 'down'): void {
+    const stages = this.getStages(projectId);
+    const idx = stages.findIndex((s) => s.id === stageId);
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (idx < 0 || swapIdx < 0 || swapIdx >= stages.length) return;
 
+    // Optimistic local swap
+    const next = [...stages];
+    const a = next[idx];
+    const b = next[swapIdx];
+    next[idx] = { ...b, orderNumber: a.orderNumber };
+    next[swapIdx] = { ...a, orderNumber: b.orderNumber };
+    this._stagesByProject.update((map) => ({
+      ...map,
+      [projectId]: next.sort((x, y) => x.orderNumber - y.orderNumber),
+    }));
+
+    this.api.moveStage(stageId, direction).subscribe({
+      next: (rows) => {
+        this._stagesByProject.update((map) => ({
+          ...map,
+          [projectId]: rows.map((s) => this.normalizeStage(s)),
+        }));
+      },
+      error: () => this.reloadStages(projectId),
+    });
+  }
 
   private syncProjectProgress(projectId: number): void {
     const stages = this.getStages(projectId);
@@ -403,11 +417,12 @@ export class ProjectsStore {
     const managerName = this.resolveManagerName(managerId, form.manager);
     const body = {
       name: form.name.trim(),
+      description: form.description?.trim() || null,
       departmentId: this.resolveDepartmentId(form.department),
       projectManagerId: managerId,
       startDate: form.startDate || null,
       endDate: form.endDate || null,
-      status: this.toProjectStatusEnum(form.status),
+      status: this.toProjectStatusEnum(form.status || 'ACTIVE'),
       priority: this.toProjectPriorityEnum(form.priority),
       progress: 0,
     };

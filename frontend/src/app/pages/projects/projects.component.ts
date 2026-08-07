@@ -4,25 +4,45 @@ import { FormsModule } from '@angular/forms';
 import { TopbarComponent } from '../../layout/topbar/topbar.component';
 import { StatusBadgeComponent } from '../../shared/components/status-badge.component';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { LanguageService } from '../../core/i18n/language.service';
 import { ProjectsStore } from '../../core/services/projects.store';
+import { DepartmentsStore } from '../../core/services/departments.store';
 import { ProjectHealthService } from '../../core/services/project-health.service';
 import { ProjectHealthScoreComponent } from '../../shared/components/project-health-score/project-health-score.component';
 import { RoleAccessService } from '../../core/services/role-access.service';
 import { ProjectRow } from '../../core/data/mock-data';
 import { priorityLabelKey, projectStatusLabelKey } from '../../shared/utils/enum-labels';
+import { WarnUnsavedDirective } from '../../shared/directives/warn-unsaved.directive';
+import {
+  allowLeaveIfClean,
+  formSnapshot,
+  HasUnsavedChanges,
+  isFormDirty,
+} from '../../core/unsaved/unsaved-changes';
 
 @Component({
   selector: 'app-projects',
   standalone: true,
-  imports: [TopbarComponent, StatusBadgeComponent, RouterLink, TranslatePipe, FormsModule, ProjectHealthScoreComponent],
+  imports: [
+    TopbarComponent,
+    StatusBadgeComponent,
+    RouterLink,
+    TranslatePipe,
+    FormsModule,
+    ProjectHealthScoreComponent,
+    WarnUnsavedDirective,
+  ],
   templateUrl: './projects.component.html',
 })
-export class ProjectsComponent implements OnInit {
+export class ProjectsComponent implements OnInit, HasUnsavedChanges {
   readonly store = inject(ProjectsStore);
+  private readonly departmentsStore = inject(DepartmentsStore);
   private readonly healthService = inject(ProjectHealthService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly roleAccess = inject(RoleAccessService);
+  private readonly lang = inject(LanguageService);
+  private createFormBaseline: string | null = null;
 
   readonly projects = this.store.projects;
   readonly loading = this.store.loading;
@@ -40,14 +60,13 @@ export class ProjectsComponent implements OnInit {
 
   readonly canDelete = computed(() => {
     const role = this.roleAccess.role();
-    return role === 'ADMIN' || role === 'PROJECT_MANAGER';
+    return role === 'ADMIN' || role === 'ORG_ADMIN' || role === 'PROJECT_MANAGER';
   });
 
   readonly canCreate = computed(() => this.roleAccess.canWrite('PROJECTS'));
 
-  readonly departments = ['IT', 'Product', 'Operations', 'HR', 'Finance'];
-  readonly statusOptions = ['Planned', 'Active', 'On Hold'];
-  readonly priorityOptions = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+  readonly departmentOptions = computed(() => this.departmentsStore.departments());
+  readonly priorityOptions = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
 
   readonly managerOptions = computed(() =>
     this.store.users().map((u) => ({
@@ -69,11 +88,11 @@ export class ProjectsComponent implements OnInit {
 
   form = {
     name: '',
-    department: 'IT',
+    description: '',
+    department: '',
     managerId: null as number | null,
     startDate: '',
     endDate: '',
-    status: 'Planned',
     priority: 'MEDIUM',
   };
 
@@ -82,32 +101,49 @@ export class ProjectsComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    // Always refresh so the list is not stuck empty after a failed earlier load.
     this.store.loadFromApi();
+    void this.departmentsStore.load();
     const q = this.route.snapshot.queryParamMap.get('q');
     if (q) {
       this.search.set(q);
     }
+    if (this.route.snapshot.queryParamMap.get('create') === '1' && this.canCreate()) {
+      this.openCreateModal();
+      void this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { create: null },
+        queryParamsHandling: 'merge',
+        replaceUrl: true,
+      });
+    }
+  }
+
+  hasUnsavedChanges(): boolean {
+    return this.showCreateModal() && isFormDirty(this.form, this.createFormBaseline);
   }
 
   openCreateModal(): void {
     this.formError.set(null);
     const managers = this.managerOptions();
+    const depts = this.departmentOptions();
     this.form = {
       name: '',
-      department: 'IT',
+      description: '',
+      department: depts[0]?.name ?? '',
       managerId: managers[0]?.id ?? null,
       startDate: new Date().toISOString().slice(0, 10),
       endDate: '',
-      status: 'Planned',
       priority: 'MEDIUM',
     };
+    this.createFormBaseline = formSnapshot(this.form);
     this.showCreateModal.set(true);
   }
 
   closeCreateModal(): void {
+    if (!allowLeaveIfClean(this.hasUnsavedChanges(), this.lang)) return;
     this.showCreateModal.set(false);
     this.formError.set(null);
+    this.createFormBaseline = null;
   }
 
   saveProject(): void {
@@ -115,15 +151,15 @@ export class ProjectsComponent implements OnInit {
       this.formError.set('projects.errorName');
       return;
     }
+    if (!this.form.department.trim()) {
+      this.formError.set('projects.errorDepartment');
+      return;
+    }
     if (this.form.managerId == null) {
       this.formError.set('projects.errorManager');
       return;
     }
-    if (!this.form.endDate) {
-      this.formError.set('projects.errorEndDate');
-      return;
-    }
-    if (this.form.endDate < this.form.startDate) {
+    if (this.form.startDate && this.form.endDate && this.form.endDate < this.form.startDate) {
       this.formError.set('projects.errorDates');
       return;
     }
@@ -140,19 +176,23 @@ export class ProjectsComponent implements OnInit {
     this.store
       .addProject({
         name: this.form.name,
+        description: this.form.description,
         department: this.form.department,
         manager: manager.name,
         managerId: this.form.managerId,
         startDate: this.form.startDate,
         endDate: this.form.endDate,
-        status: this.form.status,
+        status: 'ACTIVE',
         priority: this.form.priority,
       })
       .subscribe({
         next: (project) => {
           this.submitting.set(false);
-          this.closeCreateModal();
-          this.router.navigate(['/projects', project.id]);
+          this.createFormBaseline = null;
+          this.showCreateModal.set(false);
+          this.formError.set(null);
+          // Land in the project workspace, not the portfolio list.
+          void this.router.navigate(['/projects', project.id]);
         },
         error: () => {
           this.submitting.set(false);

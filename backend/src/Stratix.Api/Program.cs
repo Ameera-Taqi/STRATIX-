@@ -107,10 +107,18 @@ builder.Services.AddAuthorization(options =>
 });
 
 // Rate limiting — throttles abuse. The "auth" policy caps sign-in/refresh attempts per IP
-// to blunt brute-force, on top of per-account lockout.
+// to blunt brute-force, on top of per-account lockout. Disabled for integration tests.
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    if (builder.Environment.IsEnvironment("Testing"))
+    {
+        options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(_ =>
+            RateLimitPartition.GetNoLimiter("testing"));
+        options.AddPolicy("auth", _ => RateLimitPartition.GetNoLimiter("testing"));
+        return;
+    }
+
     options.AddPolicy("auth", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",

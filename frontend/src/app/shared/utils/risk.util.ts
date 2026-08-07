@@ -1,9 +1,14 @@
 import { RiskHeatMapCell, RiskImpact, RiskLevel, RiskProbability } from '../../core/models/risk.model';
 
+/**
+ * Mirrors backend RiskLevelCalculator — keep in sync.
+ * HIGH×HIGH → CRITICAL; otherwise HIGH if either axis is HIGH;
+ * MEDIUM if either is MEDIUM; else LOW.
+ */
 const MATRIX: Record<RiskImpact, Record<RiskProbability, RiskLevel>> = {
-  LOW: { LOW: 'LOW', MEDIUM: 'LOW', HIGH: 'MEDIUM' },
-  MEDIUM: { LOW: 'LOW', MEDIUM: 'MEDIUM', HIGH: 'HIGH' },
-  HIGH: { LOW: 'MEDIUM', MEDIUM: 'HIGH', HIGH: 'CRITICAL' },
+  LOW: { LOW: 'LOW', MEDIUM: 'MEDIUM', HIGH: 'HIGH' },
+  MEDIUM: { LOW: 'MEDIUM', MEDIUM: 'MEDIUM', HIGH: 'HIGH' },
+  HIGH: { LOW: 'HIGH', MEDIUM: 'HIGH', HIGH: 'CRITICAL' },
 };
 
 export function calculateRiskLevel(impact: RiskImpact, probability: RiskProbability): RiskLevel {
@@ -34,14 +39,14 @@ export function aggregateHeatMap(
   return cells;
 }
 
-export function riskLevelClass(level: RiskLevel): string {
-  const map: Record<RiskLevel, string> = {
+export function riskLevelClass(level: RiskLevel | string): string {
+  const map: Record<string, string> = {
     LOW: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
     MEDIUM: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
     HIGH: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
     CRITICAL: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
   };
-  return map[level];
+  return map[level] ?? 'bg-slate-100 text-slate-600';
 }
 
 export function riskStatusClass(status: string): string {
@@ -51,4 +56,13 @@ export function riskStatusClass(status: string): string {
     CLOSED: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
   };
   return map[status] ?? 'bg-slate-100 text-slate-600';
+}
+
+export function countRisksByLevel(risks: { riskLevel: RiskLevel | string }[]): Record<RiskLevel, number> {
+  return {
+    CRITICAL: risks.filter((r) => r.riskLevel === 'CRITICAL').length,
+    HIGH: risks.filter((r) => r.riskLevel === 'HIGH').length,
+    MEDIUM: risks.filter((r) => r.riskLevel === 'MEDIUM').length,
+    LOW: risks.filter((r) => r.riskLevel === 'LOW').length,
+  };
 }

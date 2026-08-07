@@ -8,6 +8,7 @@ export interface TaskCard {
   assignee: string;
   assigneeId: number | null;
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  startDate?: string;
   dueDate: string;
   status: 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE' | 'BLOCKED';
   description?: string;
@@ -15,6 +16,9 @@ export interface TaskCard {
   blockedReason?: string | null;
   reopenReason?: string | null;
   reviewReason?: string | null;
+  submittedForReviewAt?: string | null;
+  submittedForReviewById?: number | null;
+  submittedForReviewBy?: string | null;
 }
 
 export interface CreateTaskRequest {
@@ -27,6 +31,7 @@ export interface CreateTaskRequest {
   assigneeId?: number | null;
   startDate?: string | null;
   dueDate?: string | null;
+  estimatedHours?: number | null;
 }
 
 export interface UpdateTaskRequest {
@@ -39,4 +44,5 @@ export interface UpdateTaskRequest {
   assigneeId?: number | null;
   startDate?: string | null;
   dueDate?: string | null;
+  estimatedHours?: number | null;
 }

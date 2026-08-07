@@ -5,9 +5,18 @@ import { TaskCard } from '../../../core/data/mock-data';
 import { TasksStore } from '../../../core/services/tasks.store';
 import { EmployeesStore } from '../../../core/services/employees.store';
 import { ProjectsStore } from '../../../core/services/projects.store';
+import { LanguageService } from '../../../core/i18n/language.service';
+import { CurrentUserService } from '../../../core/services/current-user.service';
 import { priorityClass } from '../../utils/status.util';
+import { priorityLabelKey } from '../../utils/enum-labels';
+import {
+  analyzeTaskTransition,
+  TaskStatus,
+  TransitionAnalysis,
+} from '../../utils/task-transition.util';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { UiIconComponent } from '../ui-icon/ui-icon.component';
+import { UserRole } from '../../../core/models/user.model';
 
 export type BoardColumnStatus = TaskCard['status'];
 
@@ -30,6 +39,8 @@ const DEFAULT_COLUMNS: BoardColumn[] = [
     dotClass: 'bg-sky-500',
     builtIn: true,
   },
+  { id: 'REVIEW', labelKey: 'work.workflow.review', status: 'REVIEW', dotClass: 'bg-violet-500', builtIn: true },
+  { id: 'BLOCKED', labelKey: 'work.workflow.blocked', status: 'BLOCKED', dotClass: 'bg-rose-500', builtIn: true },
   { id: 'DONE', labelKey: 'work.workflow.done', status: 'DONE', dotClass: 'bg-emerald-500', builtIn: true },
 ];
 
@@ -67,6 +78,8 @@ export class TaskBoardComponent {
   private readonly tasksStore = inject(TasksStore);
   private readonly projectsStore = inject(ProjectsStore);
   private readonly employeesStore = inject(EmployeesStore);
+  private readonly lang = inject(LanguageService);
+  private readonly currentUser = inject(CurrentUserService);
 
   readonly employees = this.employeesStore.employees;
 
@@ -74,7 +87,11 @@ export class TaskBoardComponent {
   readonly showAddColumn = signal(false);
   readonly columnError = signal<string | null>(null);
 
-  readonly boardColumns = computed(() => [...DEFAULT_COLUMNS, ...this.customColumns()]);
+  readonly boardColumns = computed(() => {
+    const builtIn = new Set(DEFAULT_COLUMNS.map((c) => c.status));
+    const custom = this.customColumns().filter((c) => !builtIn.has(c.status));
+    return [...DEFAULT_COLUMNS, ...custom];
+  });
 
   readonly showEmptyState = computed(
     () => this.tasks().length === 0 && this.customColumns().length === 0 && !this.showAddColumn(),
@@ -84,8 +101,11 @@ export class TaskBoardComponent {
     { value: 'TODO', labelKey: 'work.workflow.todo' },
     { value: 'IN_PROGRESS', labelKey: 'work.workflow.inProgress' },
     { value: 'REVIEW', labelKey: 'work.workflow.review' },
+    { value: 'BLOCKED', labelKey: 'work.workflow.blocked' },
     { value: 'DONE', labelKey: 'work.workflow.done' },
   ];
+
+  readonly priorities: TaskCard['priority'][] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
 
   columnForm = {
     name: '',
@@ -97,6 +117,49 @@ export class TaskBoardComponent {
   readonly taskError = signal<string | null>(null);
   readonly draggingTaskId = signal<number | null>(null);
   readonly dropTarget = signal<string | null>(null);
+
+  /** Friendly guidance when a drop targets an illegal column. */
+  readonly transitionHint = signal<{
+    taskId: number;
+    title: string;
+    messageKey: string;
+    suggestedStatus?: TaskStatus;
+    suggestedActionKey?: string;
+  } | null>(null);
+
+  /** Collect blocked / reopen / request-changes reason before calling the API. */
+  readonly reasonModal = signal<{
+    kind: 'blocked' | 'reopen' | 'requestChanges';
+    taskId: number;
+    title: string;
+    targetStatus: TaskStatus;
+  } | null>(null);
+  reasonText = '';
+  readonly reasonError = signal<string | null>(null);
+
+  private static readonly REVIEWER_ROLES: UserRole[] = [
+    'SUPER_ADMIN',
+    'ORG_ADMIN',
+    'ADMIN',
+    'PROJECT_MANAGER',
+    'TEAM_LEADER',
+  ];
+
+  readonly canReviewTasks = computed(() => {
+    const role = this.currentUser.profile()?.roleCode;
+    return !!role && TaskBoardComponent.REVIEWER_ROLES.includes(role);
+  });
+
+  readonly awaitingReview = computed(() =>
+    this.tasks()
+      .filter((t) => t.status === 'REVIEW')
+      .slice()
+      .sort((a, b) => {
+        const at = a.submittedForReviewAt ?? '';
+        const bt = b.submittedForReviewAt ?? '';
+        return at.localeCompare(bt);
+      }),
+  );
 
   readonly tasks = computed(() => {
     this.tasksStore.tasks();
@@ -116,8 +179,11 @@ export class TaskBoardComponent {
 
   taskForm = {
     title: '',
+    description: '',
     assigneeId: null as number | null,
     priority: 'MEDIUM' as TaskCard['priority'],
+    estimatedHours: 1,
+    startDate: '',
     dueDate: '',
     status: 'TODO' as TaskCard['status'],
     stageId: null as number | null,
@@ -133,19 +199,62 @@ export class TaskBoardComponent {
   }
 
   tasksInColumn(column: BoardColumn): TaskCard[] {
-    const columns = this.boardColumns();
-    const hasReviewColumn = columns.some((c) => c.status === 'REVIEW');
+    return this.tasks().filter((t) => t.status === column.status);
+  }
 
-    return this.tasks().filter((t) => {
-      if (column.status === 'TODO') return t.status === 'TODO';
-      if (column.status === 'DONE') return t.status === 'DONE';
-      if (column.status === 'REVIEW') return t.status === 'REVIEW';
-      // In Progress: include REVIEW only when there is no dedicated Review column
-      if (column.status === 'IN_PROGRESS') {
-        return t.status === 'IN_PROGRESS' || (!hasReviewColumn && t.status === 'REVIEW');
-      }
-      return t.status === column.status;
-    });
+  priorityLabel(priority: TaskCard['priority']): string {
+    return this.lang.t(priorityLabelKey(priority));
+  }
+
+  formatDue(date: string | undefined | null): string {
+    if (!date) return '';
+    const d = new Date(`${String(date).slice(0, 10)}T12:00:00`);
+    if (Number.isNaN(d.getTime())) return String(date);
+    const locale = this.lang.lang() === 'ar' ? 'ar' : 'en-US';
+    const formatted = d.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
+    return `${this.lang.t('common.due')} ${formatted}`;
+  }
+
+  hoursLabel(hours: number | undefined | null): string {
+    const n = Number(hours);
+    if (!Number.isFinite(n) || n <= 0) return '';
+    return `${n % 1 === 0 ? n : n.toFixed(1)}h`;
+  }
+
+  submittedByLabel(task: TaskCard): string {
+    return task.submittedForReviewBy?.trim() || task.assignee?.trim() || '—';
+  }
+
+  submittedAgo(task: TaskCard): string {
+    const raw = task.submittedForReviewAt;
+    if (!raw) return this.lang.t('tasks.review.justNow');
+    const at = new Date(raw).getTime();
+    if (Number.isNaN(at)) return this.lang.t('tasks.review.justNow');
+    const mins = Math.max(0, Math.round((Date.now() - at) / 60000));
+    if (mins < 1) return this.lang.t('tasks.review.justNow');
+    if (mins < 60) return this.lang.t('tasks.review.minutesAgo').replace('{{n}}', String(mins));
+    const hours = Math.round(mins / 60);
+    if (hours < 48) return this.lang.t('tasks.review.hoursAgo').replace('{{n}}', String(hours));
+    const days = Math.round(hours / 24);
+    return this.lang.t('tasks.review.daysAgo').replace('{{n}}', String(days));
+  }
+
+  submitForReview(taskId: number, event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+    this.requestStatusChange(taskId, 'REVIEW');
+  }
+
+  approveReview(taskId: number, event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+    this.requestStatusChange(taskId, 'DONE');
+  }
+
+  requestChanges(taskId: number, event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+    this.requestStatusChange(taskId, 'IN_PROGRESS');
   }
 
   openAddColumn(): void {
@@ -166,11 +275,6 @@ export class TaskBoardComponent {
       return;
     }
 
-    const status = this.columnForm.status;
-    if (status === 'REVIEW' && this.boardColumns().some((c) => c.status === 'REVIEW')) {
-      this.columnError.set('board.columnErrorReviewExists');
-      return;
-    }
     if (this.customColumns().some((c) => (c.label ?? '').toLowerCase() === name.toLowerCase())) {
       this.columnError.set('board.columnErrorDuplicate');
       return;
@@ -180,7 +284,7 @@ export class TaskBoardComponent {
     const next: BoardColumn = {
       id: `custom-${Date.now()}`,
       label: name,
-      status,
+      status: this.columnForm.status,
       dotClass: DOT_OPTIONS[this.customColumns().length % DOT_OPTIONS.length],
       builtIn: false,
     };
@@ -205,9 +309,12 @@ export class TaskBoardComponent {
     this.taskError.set(null);
     this.taskForm = {
       title: '',
-      assigneeId: defaultAssignee?.id ?? this.employees()[0]?.id ?? null,
+      description: '',
+      assigneeId: defaultAssignee?.id ?? null,
       priority: 'MEDIUM',
-      dueDate: p?.endDate ?? new Date().toISOString().slice(0, 10),
+      estimatedHours: 1,
+      startDate: new Date().toISOString().slice(0, 10),
+      dueDate: p?.endDate ?? '',
       status: 'TODO',
       stageId: this.stages().length === 1 ? this.stages()[0].id : null,
     };
@@ -221,17 +328,28 @@ export class TaskBoardComponent {
       this.taskError.set('tasks.errorTitle');
       return;
     }
-    if (this.taskForm.assigneeId == null) {
-      this.taskError.set('tasks.errorAssignee');
+    if (this.stages().length === 0) {
+      this.taskError.set('tasks.errorFeatureRequired');
+      return;
+    }
+    if (this.taskForm.stageId == null) {
+      this.taskError.set('tasks.errorFeature');
+      return;
+    }
+    if (!(Number(this.taskForm.estimatedHours) > 0)) {
+      this.taskError.set('tasks.errorHours');
       return;
     }
     const assignee = this.employees().find((e) => e.id === this.taskForm.assigneeId);
     this.tasksStore.addTask({
       projectId: pid,
       title: this.taskForm.title,
+      description: this.taskForm.description,
       assignee: assignee?.name ?? '',
       assigneeId: this.taskForm.assigneeId,
       priority: this.taskForm.priority,
+      estimatedHours: Number(this.taskForm.estimatedHours),
+      startDate: this.taskForm.startDate,
       dueDate: this.taskForm.dueDate,
       status: this.taskForm.status,
       stageId: this.taskForm.stageId,
@@ -255,8 +373,116 @@ export class TaskBoardComponent {
 
   onDrop(column: BoardColumn): void {
     const id = this.draggingTaskId();
-    if (id != null) this.tasksStore.moveTask(id, column.status);
     this.draggingTaskId.set(null);
     this.dropTarget.set(null);
+    if (id == null) return;
+    this.requestStatusChange(id, column.status);
+  }
+
+  /** Card CTA: unblock → In Progress (opens reopen modal only when leaving DONE). */
+  moveToInProgress(taskId: number, event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+    this.requestStatusChange(taskId, 'IN_PROGRESS');
+  }
+
+  dismissTransitionHint(): void {
+    this.transitionHint.set(null);
+  }
+
+  applySuggestedTransition(): void {
+    const hint = this.transitionHint();
+    if (!hint?.suggestedStatus) return;
+    const taskId = hint.taskId;
+    const status = hint.suggestedStatus;
+    this.transitionHint.set(null);
+    this.requestStatusChange(taskId, status);
+  }
+
+  cancelReasonModal(): void {
+    this.reasonModal.set(null);
+    this.reasonText = '';
+    this.reasonError.set(null);
+  }
+
+  confirmReasonModal(): void {
+    const modal = this.reasonModal();
+    if (!modal) return;
+    const reason = this.reasonText.trim();
+    if (!reason) {
+      const errKey =
+        modal.kind === 'blocked'
+          ? 'tasks.transition.blockedReasonRequired'
+          : modal.kind === 'requestChanges'
+            ? 'tasks.review.feedbackRequired'
+            : 'tasks.transition.reopenReasonRequired';
+      this.reasonError.set(errKey);
+      return;
+    }
+    if (modal.kind === 'blocked') {
+      this.tasksStore.moveTask(modal.taskId, modal.targetStatus, { blockedReason: reason });
+    } else if (modal.kind === 'requestChanges') {
+      this.tasksStore.moveTask(modal.taskId, modal.targetStatus, { reviewReason: reason });
+    } else {
+      this.tasksStore.moveTask(modal.taskId, modal.targetStatus, { reopenReason: reason });
+    }
+    this.cancelReasonModal();
+  }
+
+  private requestStatusChange(taskId: number, targetStatus: TaskStatus): void {
+    const task = this.tasksStore.getById(taskId);
+    if (!task || task.status === targetStatus) return;
+
+    this.transitionHint.set(null);
+    const plan: TransitionAnalysis = analyzeTaskTransition(task.status, targetStatus);
+
+    if (!plan.allowed) {
+      this.transitionHint.set({
+        taskId: task.id,
+        title: task.title,
+        messageKey: plan.messageKey ?? 'tasks.transition.notAllowed',
+        suggestedStatus: plan.suggestedStatus,
+        suggestedActionKey: plan.suggestedActionKey,
+      });
+      return;
+    }
+
+    if (plan.requirement === 'blockedReason') {
+      this.reasonText = '';
+      this.reasonError.set(null);
+      this.reasonModal.set({
+        kind: 'blocked',
+        taskId: task.id,
+        title: task.title,
+        targetStatus: 'BLOCKED',
+      });
+      return;
+    }
+
+    if (plan.requirement === 'reopenReason') {
+      this.reasonText = '';
+      this.reasonError.set(null);
+      this.reasonModal.set({
+        kind: 'reopen',
+        taskId: task.id,
+        title: task.title,
+        targetStatus,
+      });
+      return;
+    }
+
+    if (plan.requirement === 'requestChanges') {
+      this.reasonText = '';
+      this.reasonError.set(null);
+      this.reasonModal.set({
+        kind: 'requestChanges',
+        taskId: task.id,
+        title: task.title,
+        targetStatus: 'IN_PROGRESS',
+      });
+      return;
+    }
+
+    this.tasksStore.moveTask(taskId, targetStatus);
   }
 }

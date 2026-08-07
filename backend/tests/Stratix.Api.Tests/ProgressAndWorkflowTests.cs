@@ -203,8 +203,17 @@ public class TaskTransitionRulesTests
     [Fact]
     public void Rejects_illegal_edge()
     {
-        Assert.Throws<InvalidOperationException>(() =>
+        var ex = Assert.Throws<InvalidOperationException>(() =>
             TaskTransitionRules.EnsureTransition(DomainTaskStatus.TODO, DomainTaskStatus.DONE, null, null, null));
+        Assert.Equal("This task must be started before it can be completed.", ex.Message);
+    }
+
+    [Fact]
+    public void Requires_feedback_when_requesting_changes()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            TaskTransitionRules.EnsureTransition(
+                DomainTaskStatus.REVIEW, DomainTaskStatus.IN_PROGRESS, null, null, null));
     }
 }
 

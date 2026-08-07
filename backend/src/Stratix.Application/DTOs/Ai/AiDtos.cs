@@ -17,4 +17,5 @@ public record ProjectHealthAnalysisResponse(
     IReadOnlyList<string> MainConcerns,
     IReadOnlyList<string> Recommendations,
     IReadOnlyList<string> ManagementInsights,
-    string AnalysisEngine);
+    string AnalysisEngine,
+    DateTimeOffset AnalyzedAt);

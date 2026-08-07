@@ -22,20 +22,17 @@ public class OrganizationBrandingService : IOrganizationBrandingService
     private readonly IApplicationDbContext _db;
     private readonly ITenantContext _tenant;
     private readonly ICurrentUserService _currentUser;
-    private readonly IPlatformCmsService _cms;
     private readonly ITenantFileStorage _files;
 
     public OrganizationBrandingService(
         IApplicationDbContext db,
         ITenantContext tenant,
         ICurrentUserService currentUser,
-        IPlatformCmsService cms,
         ITenantFileStorage files)
     {
         _db = db;
         _tenant = tenant;
         _currentUser = currentUser;
-        _cms = cms;
         _files = files;
     }
 
@@ -153,16 +150,13 @@ public class OrganizationBrandingService : IOrganizationBrandingService
     private static string NormalizeLogoKey(long organizationId, string stored) =>
         stored.Contains('/') ? stored : $"org-{organizationId}/{Path.GetFileName(stored)}";
 
-    private async Task<bool> CanUploadAsync(CancellationToken ct)
+    private Task<bool> CanUploadAsync(CancellationToken ct)
     {
         var role = _currentUser.Role;
-        if (role == UserRole.SUPER_ADMIN) return true;
-        if (role is not (UserRole.ORG_ADMIN or UserRole.ADMIN)) return false;
-
-        var permissions = await _cms.GetAllAsync(ct);
-        var branding = permissions.FirstOrDefault(p =>
-            string.Equals(p.ModuleCode, BrandingModuleCode, StringComparison.OrdinalIgnoreCase));
-        return branding is { VisibleToCompanyAdmin: true, WritableByCompanyAdmin: true };
+        if (role == UserRole.SUPER_ADMIN) return Task.FromResult(true);
+        // Org admins may always set logo (onboarding + settings); CMS still gates the settings nav.
+        if (role is UserRole.ORG_ADMIN or UserRole.ADMIN) return Task.FromResult(true);
+        return Task.FromResult(false);
     }
 
     private async Task<Domain.Entities.Organization> RequireCurrentOrgAsync(CancellationToken ct)

@@ -18,7 +18,7 @@
         </button>
       }
     </div>
-    <ul class="max-h-80 overflow-y-auto">
+    <ul class="max-h-[28rem] overflow-y-auto">
       @if (recentNotifications().length === 0) {
         <li class="px-4 py-10 text-center text-sm stratix-muted">{{ 'notifications.empty' | t }}</li>
       } @else {
@@ -28,7 +28,7 @@
               type="button"
               class="w-full border-b border-slate-50 px-4 py-3 text-start transition hover:bg-slate-50 dark:border-slate-700/50 dark:hover:bg-slate-700/50"
               [class.stratix-notification-unread]="!n.read"
-              (click)="openNotification(n.id)"
+              (click)="openNotification(n)"
             >
               <div class="flex items-start gap-2">
                 @if (!n.read) {
@@ -38,8 +38,32 @@
                 }
                 <div class="min-w-0 flex-1">
                   <p class="text-sm font-medium text-dark dark:text-slate-100">{{ title(n) }}</p>
-                  <p class="mt-0.5 line-clamp-2 text-xs stratix-muted">{{ body(n) }}</p>
-                  <p class="mt-1 text-[10px] text-slate-400">{{ store.timeAgo(n.createdAt) }}</p>
+                  @if (entityLabel(n); as label) {
+                    <p class="mt-0.5 text-sm text-slate-700 dark:text-slate-200">"{{ label }}"</p>
+                  } @else if (body(n)) {
+                    <p class="mt-0.5 line-clamp-2 text-xs stratix-muted">{{ body(n) }}</p>
+                  }
+                  @if (project(n); as projectName) {
+                    <p class="mt-1 text-xs stratix-muted">
+                      {{ 'notifications.projectLabel' | t }}: {{ projectName }}
+                    </p>
+                  } @else if (entityLabel(n) && body(n)) {
+                    <p class="mt-1 line-clamp-1 text-xs stratix-muted">{{ body(n) }}</p>
+                  }
+                  <div class="mt-2 flex flex-wrap items-center gap-2">
+                    <span class="text-[10px] text-slate-400">{{ store.timeAgo(n.createdAt) }}</span>
+                    @if (ctaKey(n); as cta) {
+                      <span
+                        role="link"
+                        tabindex="0"
+                        class="rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary hover:bg-primary/15"
+                        (click)="openCta(n, $event)"
+                        (keydown.enter)="openCta(n, $event)"
+                      >
+                        {{ cta | t }}
+                      </span>
+                    }
+                  </div>
                 </div>
               </div>
             </button>

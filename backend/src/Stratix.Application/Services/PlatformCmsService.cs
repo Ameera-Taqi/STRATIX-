@@ -23,6 +23,7 @@ public class PlatformCmsService : IPlatformCmsService
         ("SETTINGS", 11, true, true),
         ("ROLES", 12, true, true),
         ("BRANDING", 13, true, false),
+        ("DEPARTMENTS", 14, true, true),
     ];
 
     private readonly IApplicationDbContext _db;

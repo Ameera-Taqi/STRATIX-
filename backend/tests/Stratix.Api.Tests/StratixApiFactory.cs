@@ -35,7 +35,8 @@ public sealed class StratixApiFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("Development");
+        // Testing disables auth rate limits so persona E2E register/login journeys can run.
+        builder.UseEnvironment("Testing");
         builder.ConfigureAppConfiguration((_, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>

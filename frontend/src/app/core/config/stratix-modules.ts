@@ -18,6 +18,7 @@ export type SystemModuleCode =
   | 'ORGANIZATIONS'
   | 'PLATFORM_CMS'
   | 'ROLES'
+  | 'DEPARTMENTS'
   | 'BRANDING';
 
 export interface StratixModule {
@@ -76,7 +77,7 @@ export const STRATIX_MODULES: readonly StratixModule[] = [
   {
     id: 4,
     code: 'STAGES',
-    labelKey: 'nav.timeline',
+    labelKey: 'module.stages',
     path: '/timeline',
     sidebar: false,
     rolesRead: ALL_ROLES,
@@ -94,8 +95,17 @@ export const STRATIX_MODULES: readonly StratixModule[] = [
   {
     id: 6,
     code: 'EMPLOYEES',
-    labelKey: 'nav.employees',
+    labelKey: 'nav.team',
     path: '/team',
+    sidebar: true,
+    rolesRead: READ_MOST,
+    rolesWrite: ['ADMIN'],
+  },
+  {
+    id: 17,
+    code: 'DEPARTMENTS',
+    labelKey: 'nav.departments',
+    path: '/departments',
     sidebar: true,
     rolesRead: READ_MOST,
     rolesWrite: ['ADMIN'],
@@ -209,7 +219,10 @@ export function canAccessModule(
   // Company admins: gated by Super Admin CMS settings. Fail closed when CMS
   // has not loaded or the module has no permission row.
   if (COMPANY_ADMIN_ROLES.includes(role)) {
-    const cms = cmsMap?.[module.code];
+    const cms =
+      cmsMap?.[module.code] ??
+      // New DEPARTMENTS module: reuse ROLES grant until CMS defaults are seeded.
+      (module.code === 'DEPARTMENTS' ? cmsMap?.['ROLES'] : undefined);
     if (!cms) return false;
     if (mode === 'read') return cms.visible;
     return cms.visible && cms.writable;

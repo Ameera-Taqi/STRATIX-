@@ -48,6 +48,7 @@ public record TaskResponse(
     string Assignee,
     long? AssigneeId,
     string Priority,
+    DateOnly? StartDate,
     DateOnly? DueDate,
     string Status,
     string? Description,
@@ -55,4 +56,7 @@ public record TaskResponse(
     decimal? ActualHours = null,
     string? BlockedReason = null,
     string? ReopenReason = null,
-    string? ReviewReason = null);
+    string? ReviewReason = null,
+    DateTimeOffset? SubmittedForReviewAt = null,
+    long? SubmittedForReviewById = null,
+    string? SubmittedForReviewBy = null);

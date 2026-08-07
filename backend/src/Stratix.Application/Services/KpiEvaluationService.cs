@@ -29,6 +29,7 @@ public interface IKpiEvaluationService
     Task<EmployeeEvaluationResponse> ReopenAsync(long evaluationId, string reason, CancellationToken ct = default);
     /// <summary>Adjust result values/score while evaluation is unlocked (not APPROVED).</summary>
     Task<EmployeeEvaluationResponse> AdjustResultAsync(long resultId, AdjustKpiResultRequest request, CancellationToken ct = default);
+    Task<EmployeeEvaluationResponse> UpdateNotesAsync(long evaluationId, string? notes, CancellationToken ct = default);
     Task<IReadOnlyList<EmployeeEvaluationResponse>> ListEvaluationsAsync(long? periodId, CancellationToken ct = default);
 
     Task<TaskQualityEvaluationResponse> RateTaskQualityAsync(CreateTaskQualityRequest request, CancellationToken ct = default);
@@ -81,6 +82,7 @@ public class KpiEvaluationService : IKpiEvaluationService
     public async Task<EvaluationPeriodResponse> OpenPeriodAsync(long id, CancellationToken ct = default)
     {
         var period = await FindPeriodAsync(id, ct);
+        await EnsureDefaultDefinitionsAsync(ct);
         await EnsureActiveWeightsValidAsync(ct);
         period.Status = EvaluationPeriodStatus.OPEN;
         // Freeze KPI defs once at period start — later definition edits must not rewrite this snapshot.
@@ -100,9 +102,12 @@ public class KpiEvaluationService : IKpiEvaluationService
         return ToPeriod(period, snaps);
     }
 
-    public async Task<IReadOnlyList<KpiDefinitionResponse>> GetDefinitionsAsync(CancellationToken ct = default) =>
-        await _db.KpiDefinitions.OrderBy(d => d.Code)
+    public async Task<IReadOnlyList<KpiDefinitionResponse>> GetDefinitionsAsync(CancellationToken ct = default)
+    {
+        await EnsureDefaultDefinitionsAsync(ct);
+        return await _db.KpiDefinitions.OrderBy(d => d.Code)
             .Select(d => ToDef(d)).ToListAsync(ct);
+    }
 
     public async Task<KpiDefinitionResponse> UpsertDefinitionAsync(UpsertKpiDefinitionRequest request, CancellationToken ct = default)
     {
@@ -208,6 +213,14 @@ public class KpiEvaluationService : IKpiEvaluationService
             .ToListAsync(ct);
         var qualityAvg = qualityScores.Count == 0 ? 0m : (decimal)qualityScores.Average();
 
+        // Keep prior manager-entered scores across recalculation.
+        var priorManager = eval.Results
+            .Where(r => IsManagerFormula(r.SnapshotFormula) || IsManagerFormula(r.KpiDefinition?.Formula))
+            .GroupBy(r => r.KpiDefinitionId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.First());
+
         foreach (var old in eval.Results.ToList())
             _db.Remove(old);
 
@@ -215,6 +228,12 @@ public class KpiEvaluationService : IKpiEvaluationService
         foreach (var snap in frozen)
         {
             var (value, score) = CalculateKpi(snap.Formula, snap.HigherIsBetter, tasks, qualityAvg);
+            if (IsManagerFormula(snap.Formula) && priorManager.TryGetValue(snap.KpiDefinitionId, out var prev))
+            {
+                score = prev.Score;
+                value = prev.AdjustedValue ?? prev.CalculatedValue;
+            }
+
             var weight = snap.Weight > 0 ? snap.Weight : 1m;
             var result = new EmployeeKpiResult
             {
@@ -228,7 +247,13 @@ public class KpiEvaluationService : IKpiEvaluationService
                 SnapshotFormula = snap.Formula,
                 SnapshotHigherIsBetter = snap.HigherIsBetter,
                 CalculatedValue = value,
+                AdjustedValue = IsManagerFormula(snap.Formula) && priorManager.TryGetValue(snap.KpiDefinitionId, out var p)
+                    ? p.AdjustedValue ?? p.Score
+                    : null,
                 Score = score,
+                Comment = IsManagerFormula(snap.Formula) && priorManager.TryGetValue(snap.KpiDefinitionId, out var c)
+                    ? c.Comment
+                    : null,
             };
             _db.Add(result);
             weighted += score * weight;
@@ -255,7 +280,7 @@ public class KpiEvaluationService : IKpiEvaluationService
 
         await _events.DispatchAsync(new EvaluationSubmittedEvent(
             eval.OrganizationId, eval.Id, eval.UserId, eval.PeriodId,
-            _currentUser.UserId ?? 0, DateTimeOffset.UtcNow), ct);
+            _currentUser.UserId ?? 0, _currentUser.UserName ?? "", DateTimeOffset.UtcNow), ct);
 
         return ToEval(await LoadEvaluationAsync(eval.Id, ct)!);
     }
@@ -289,6 +314,10 @@ public class KpiEvaluationService : IKpiEvaluationService
         eval.RejectionReason = null;
         eval.ReopenReason = null;
         await _db.SaveChangesAsync(ct);
+
+        await _events.DispatchAsync(new EvaluationApprovedEvent(
+            eval.OrganizationId, eval.Id, eval.UserId, eval.PeriodId,
+            _currentUser.UserId ?? 0, _currentUser.UserName ?? "", DateTimeOffset.UtcNow), ct);
 
         await _audit.RecordUpdateAsync(
             AuditEntityType.EVALUATION,
@@ -395,6 +424,17 @@ public class KpiEvaluationService : IKpiEvaluationService
         return ToEval(reloaded);
     }
 
+    public async Task<EmployeeEvaluationResponse> UpdateNotesAsync(long evaluationId, string? notes, CancellationToken ct = default)
+    {
+        var eval = await LoadEvaluationAsync(evaluationId, ct)
+            ?? throw new KeyNotFoundException("Evaluation not found");
+        EvaluationLockPolicy.EnsureCanAdjust(eval);
+
+        eval.Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
+        await _db.SaveChangesAsync(ct);
+        return ToEval(await LoadEvaluationAsync(eval.Id, ct)!);
+    }
+
     public async Task<IReadOnlyList<EmployeeEvaluationResponse>> ListEvaluationsAsync(long? periodId, CancellationToken ct = default)
     {
         var q = _db.EmployeeEvaluations
@@ -403,6 +443,14 @@ public class KpiEvaluationService : IKpiEvaluationService
             .Include(e => e.Period)
             .AsQueryable();
         if (periodId.HasValue) q = q.Where(e => e.PeriodId == periodId);
+
+        // Employees / viewers only see their own scorecard; managers see the team.
+        var role = _currentUser.Role;
+        var canManageTeam = role is UserRole.SUPER_ADMIN or UserRole.ORG_ADMIN or UserRole.ADMIN
+            or UserRole.PROJECT_MANAGER or UserRole.TEAM_LEADER;
+        if (!canManageTeam && _currentUser.UserId is long uid)
+            q = q.Where(e => e.UserId == uid);
+
         var rows = await q.OrderByDescending(e => e.UpdatedAt).ToListAsync(ct);
         return rows.Select(ToEval).ToList();
     }
@@ -479,6 +527,11 @@ public class KpiEvaluationService : IKpiEvaluationService
         return await _db.PeriodKpiSnapshots.Where(s => s.PeriodId == period.Id).ToListAsync(ct);
     }
 
+    private static bool IsManagerFormula(string? formula) =>
+        string.Equals(formula?.Trim(), "MANAGER_SCORE", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(formula?.Trim(), "COLLABORATION", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(formula?.Trim(), "QUALITY", StringComparison.OrdinalIgnoreCase);
+
     private static (decimal value, decimal score) CalculateKpi(
         string formula,
         bool higherIsBetter,
@@ -487,29 +540,89 @@ public class KpiEvaluationService : IKpiEvaluationService
     {
         var code = formula.Trim().ToUpperInvariant();
         var completed = tasks.Where(TaskCompletionPolicy.CountsAsCompleted).ToList();
+        var total = tasks.Count;
+        var onTimeCount = completed.Count(t =>
+            t.DueDate is null ||
+            (t.CompletedAt is { } c && DateOnly.FromDateTime(c.UtcDateTime) <= t.DueDate));
+
+        var completionPct = total == 0 ? 100m : Math.Round(completed.Count * 100m / total, 2);
+        var onTimePct = completed.Count == 0 ? 100m : Math.Round(onTimeCount * 100m / completed.Count, 2);
+        var productivityPct = Math.Round((completionPct + onTimePct) / 2m, 2);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var compliantCount = total == 0
+            ? 0
+            : tasks.Count(t =>
+            {
+                if (TaskCompletionPolicy.CountsAsCompleted(t))
+                {
+                    return t.DueDate is null ||
+                           (t.CompletedAt is { } c && DateOnly.FromDateTime(c.UtcDateTime) <= t.DueDate);
+                }
+                return t.DueDate is null || t.DueDate >= today;
+            });
+        var compliancePct = total == 0 ? 100m : Math.Round(compliantCount * 100m / total, 2);
+
         decimal value = code switch
         {
-            "TASKS_COMPLETED" => completed.Count,
-            "TASKS_ON_TIME" => completed.Count(t =>
-                t.DueDate is null ||
-                (t.CompletedAt is { } c && DateOnly.FromDateTime(c.UtcDateTime) <= t.DueDate)),
+            "TASKS_COMPLETED" or "TASK_COMPLETION" => completionPct,
+            "TASKS_ON_TIME" or "ON_TIME_DELIVERY" => onTimePct,
+            "PRODUCTIVITY" => productivityPct,
+            "COMPLIANCE" => compliancePct,
             "TASK_QUALITY" => qualityAvg,
             "EFFORT_HOURS" => completed.Sum(t => t.EstimatedHours),
-            _ => completed.Count,
+            "MANAGER_SCORE" or "QUALITY" or "COLLABORATION" => 0m,
+            _ => completionPct,
         };
 
         decimal score = code switch
         {
             "TASK_QUALITY" => qualityAvg <= 0 ? 0 : Math.Round(qualityAvg / 5m * 100m, 2),
-            "TASKS_COMPLETED" or "TASKS_ON_TIME" => Math.Min(100m, value * 10m),
+            "TASKS_COMPLETED" or "TASK_COMPLETION" or "TASKS_ON_TIME" or "ON_TIME_DELIVERY"
+                or "PRODUCTIVITY" or "COMPLIANCE"
+                => value,
             "EFFORT_HOURS" => Math.Min(100m, value * 5m),
-            _ => Math.Min(100m, value * 10m),
+            "MANAGER_SCORE" or "QUALITY" or "COLLABORATION" => 0m,
+            _ => Math.Min(100m, value),
         };
 
         if (!higherIsBetter)
             score = Math.Max(0, 100 - score);
 
         return (value, score);
+    }
+
+    /// <summary>Seeds the standard evaluation scorecard when the tenant has no KPI definitions yet.</summary>
+    private async Task EnsureDefaultDefinitionsAsync(CancellationToken ct)
+    {
+        if (await _db.KpiDefinitions.AnyAsync(ct)) return;
+
+        var defaults = new (string Code, string Name, string Formula, decimal Weight)[]
+        {
+            ("TASK_COMPLETION", "Task Completion", "TASK_COMPLETION", 25m),
+            ("ON_TIME_DELIVERY", "On-Time Delivery", "ON_TIME_DELIVERY", 25m),
+            ("QUALITY", "Quality", "MANAGER_SCORE", 20m),
+            ("PRODUCTIVITY", "Productivity", "PRODUCTIVITY", 15m),
+            ("COLLABORATION", "Collaboration", "MANAGER_SCORE", 10m),
+            ("COMPLIANCE", "Compliance", "COMPLIANCE", 5m),
+        };
+
+        foreach (var d in defaults)
+        {
+            _db.Add(new KpiDefinition
+            {
+                Code = d.Code,
+                Name = d.Name,
+                Formula = d.Formula,
+                Weight = d.Weight,
+                HigherIsBetter = true,
+                IsActive = true,
+                Description = d.Formula == "MANAGER_SCORE"
+                    ? "Manager evaluation score (0–100)."
+                    : "System-calculated metric for the evaluation period.",
+            });
+        }
+
+        await _db.SaveChangesAsync(ct);
     }
 
     private async Task<EvaluationPeriod> FindPeriodAsync(long id, CancellationToken ct) =>

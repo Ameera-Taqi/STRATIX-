@@ -5,6 +5,15 @@ export interface TaskProgressInput {
   estimatedHours?: number | null;
 }
 
+export interface EffortBreakdown {
+  progress: number;
+  taskCount: number;
+  /** Total estimated hours (effort weights). */
+  effortTotal: number;
+  /** Completed effort hours (DONE tasks only). */
+  effortDone: number;
+}
+
 const DEFAULT_EFFORT = 1;
 
 function effortOf(task: TaskProgressInput): number {
@@ -16,11 +25,15 @@ function isDone(status: string): boolean {
   return status === 'DONE';
 }
 
-/** Stage progress = done effort / total effort for tasks in the stage.
- * Empty stage (no tasks) → 0. Always derived — never a manual/unknown value.
- */
-export function stageProgressFromTasks(tasks: TaskProgressInput[]): number {
-  if (tasks.length === 0) return 0;
+function roundHours(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
+/** Full effort breakdown used by read-only progress UI. */
+export function effortBreakdownFromTasks(tasks: TaskProgressInput[]): EffortBreakdown {
+  if (tasks.length === 0) {
+    return { progress: 0, taskCount: 0, effortTotal: 0, effortDone: 0 };
+  }
   let total = 0;
   let done = 0;
   for (const t of tasks) {
@@ -28,8 +41,20 @@ export function stageProgressFromTasks(tasks: TaskProgressInput[]): number {
     total += e;
     if (isDone(t.status)) done += e;
   }
-  if (total <= 0) return 0;
-  return Math.round((done / total) * 100);
+  const progress = total <= 0 ? 0 : Math.round((done / total) * 100);
+  return {
+    progress,
+    taskCount: tasks.length,
+    effortTotal: roundHours(total),
+    effortDone: roundHours(done),
+  };
+}
+
+/** Stage progress = done effort / total effort for tasks in the stage.
+ * Empty stage (no tasks) → 0. Always derived — never a manual/unknown value.
+ */
+export function stageProgressFromTasks(tasks: TaskProgressInput[]): number {
+  return effortBreakdownFromTasks(tasks).progress;
 }
 
 /**
@@ -40,8 +65,7 @@ export function stageProgressFromTasks(tasks: TaskProgressInput[]): number {
  * For a still-PLANNED project, 0% with no tasks is the normal expected state.
  */
 export function progressFromTasks(tasks: TaskProgressInput[]): number {
-  if (tasks.length === 0) return 0;
-  return stageProgressFromTasks(tasks);
+  return effortBreakdownFromTasks(tasks).progress;
 }
 
 /**

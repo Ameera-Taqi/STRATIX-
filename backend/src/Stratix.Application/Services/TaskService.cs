@@ -103,6 +103,10 @@ public class TaskService : ITaskService
             task.ProjectId,
             task.Project.Name,
             ct);
+
+        if (task.AssigneeId is long assigneeId)
+            await DispatchAssignedEventAsync(task, assigneeId, ct);
+
         return EntityMappers.ToResponse(await FindAsync(task.Id, ct));
     }
 
@@ -110,6 +114,7 @@ public class TaskService : ITaskService
     {
         var task = await FindAsync(id, ct);
         var oldStatus = task.Status;
+        var oldAssigneeId = task.AssigneeId;
         var oldProjectId = task.ProjectId;
         var oldStageId = task.StageId;
         var oldValues = AuditSnapshot.Serialize(Snapshot(task));
@@ -128,7 +133,14 @@ public class TaskService : ITaskService
         task.DueDate = request.DueDate;
         if (request.EstimatedHours is > 0) task.EstimatedHours = request.EstimatedHours.Value;
         if (request.ActualHours.HasValue) task.ActualHours = request.ActualHours;
-        ApplyReasons(task, oldStatus, request.Status, request.BlockedReason, request.ReopenReason, request.ReviewReason);
+        ApplyReasons(
+            task,
+            oldStatus,
+            request.Status,
+            request.BlockedReason,
+            request.ReopenReason,
+            request.ReviewReason,
+            _currentUser.UserId);
         task.UpdatedAt = DateTimeOffset.UtcNow;
         ApplyCompletion(task, request.Status);
         await ValidateRelationsAsync(task, ct);
@@ -138,6 +150,9 @@ public class TaskService : ITaskService
         await _progress.RecalculateProjectAsync(task.ProjectId, ct);
         if (oldProjectId != task.ProjectId)
             await _progress.RecalculateProjectAsync(oldProjectId, ct);
+
+        if (request.AssigneeId is long newAssignee && newAssignee != oldAssigneeId)
+            await DispatchAssignedEventAsync(task, newAssignee, ct);
 
         if (oldStatus != request.Status)
             await DispatchStatusEventAsync(task, oldStatus, request.Status, ct);
@@ -150,7 +165,7 @@ public class TaskService : ITaskService
             oldValues,
             AuditSnapshot.Serialize(Snapshot(task)),
             stageMoved
-                ? $"Task updated (stage {oldStageId?.ToString() ?? "none"} → {task.StageId?.ToString() ?? "none"}): {task.Title}"
+                ? $"Task updated (feature {oldStageId?.ToString() ?? "none"} → {task.StageId?.ToString() ?? "none"}): {task.Title}"
                 : $"Task updated: {task.Title}",
             task.ProjectId,
             task.Project.Name,
@@ -171,7 +186,14 @@ public class TaskService : ITaskService
 
         var oldValues = AuditSnapshot.Serialize(new { Status = task.Status.ToString() });
         task.Status = request.Status;
-        ApplyReasons(task, oldStatus, request.Status, request.BlockedReason, request.ReopenReason, request.ReviewReason);
+        ApplyReasons(
+            task,
+            oldStatus,
+            request.Status,
+            request.BlockedReason,
+            request.ReopenReason,
+            request.ReviewReason,
+            _currentUser.UserId);
         task.UpdatedAt = DateTimeOffset.UtcNow;
         ApplyCompletion(task, request.Status);
         await _db.SaveChangesAsync(ct);
@@ -214,6 +236,20 @@ public class TaskService : ITaskService
         await _audit.RecordDeleteAsync(AuditEntityType.TASK, id, title, snapshot, $"Task deleted: {title}", projectId, projectName, ct);
     }
 
+    private async Task DispatchAssignedEventAsync(TaskItem task, long assigneeId, CancellationToken ct)
+    {
+        await _events.DispatchAsync(new TaskAssignedEvent(
+            task.OrganizationId,
+            task.ProjectId,
+            task.Project?.Name ?? "",
+            task.Id,
+            task.Title,
+            assigneeId,
+            _currentUser.UserId ?? 0,
+            _currentUser.UserName ?? "",
+            DateTimeOffset.UtcNow), ct);
+    }
+
     private async Task DispatchStatusEventAsync(TaskItem task, DomainTaskStatus oldStatus, DomainTaskStatus newStatus, CancellationToken ct)
     {
         await _events.DispatchAsync(new TaskStatusChangedEvent(
@@ -227,6 +263,7 @@ public class TaskService : ITaskService
             oldStatus,
             newStatus,
             _currentUser.UserId ?? 0,
+            _currentUser.UserName ?? "",
             DateTimeOffset.UtcNow), ct);
     }
 
@@ -236,7 +273,8 @@ public class TaskService : ITaskService
         DomainTaskStatus to,
         string? blockedReason,
         string? reopenReason,
-        string? reviewReason)
+        string? reviewReason,
+        long? actorUserId)
     {
         if (to == DomainTaskStatus.BLOCKED)
             task.BlockedReason = blockedReason?.Trim();
@@ -246,8 +284,21 @@ public class TaskService : ITaskService
         if (from == DomainTaskStatus.DONE && to != DomainTaskStatus.DONE)
             task.ReopenReason = reopenReason?.Trim();
 
-        if (to == DomainTaskStatus.REVIEW && !string.IsNullOrWhiteSpace(reviewReason))
-            task.ReviewReason = reviewReason.Trim();
+        if (to == DomainTaskStatus.REVIEW)
+        {
+            if (!string.IsNullOrWhiteSpace(reviewReason))
+                task.ReviewReason = reviewReason.Trim();
+            task.SubmittedForReviewAt = DateTimeOffset.UtcNow;
+            task.SubmittedForReviewById = actorUserId ?? task.AssigneeId;
+        }
+        else if (from == DomainTaskStatus.REVIEW)
+        {
+            // Request Changes stores reviewer feedback in ReviewReason.
+            if (to == DomainTaskStatus.IN_PROGRESS && !string.IsNullOrWhiteSpace(reviewReason))
+                task.ReviewReason = reviewReason.Trim();
+            task.SubmittedForReviewAt = null;
+            task.SubmittedForReviewById = null;
+        }
     }
 
     private static object Snapshot(TaskItem t) => new
@@ -265,7 +316,9 @@ public class TaskService : ITaskService
         t.EstimatedHours,
         t.BlockedReason,
         t.ReopenReason,
-        t.ReviewReason
+        t.ReviewReason,
+        t.SubmittedForReviewAt,
+        t.SubmittedForReviewById
     };
 
     private static void ApplyCompletion(TaskItem task, DomainTaskStatus status) =>
@@ -276,12 +329,14 @@ public class TaskService : ITaskService
 
     private IQueryable<TaskItem> ScopedQuery() =>
         RoleDataScope.Apply(
-            _db.Tasks.Include(t => t.Project).Include(t => t.Stage).Include(t => t.Assignee),
+            _db.Tasks.Include(t => t.Project).Include(t => t.Stage).Include(t => t.Assignee)
+                .Include(t => t.SubmittedForReviewBy),
             _currentUser.UserId,
             _currentUser.Role);
 
     private IQueryable<TaskItem> Query() =>
-        _db.Tasks.Include(t => t.Project).Include(t => t.Stage).Include(t => t.Assignee);
+        _db.Tasks.Include(t => t.Project).Include(t => t.Stage).Include(t => t.Assignee)
+            .Include(t => t.SubmittedForReviewBy);
 
     private async Task<TaskItem> FindAsync(long id, CancellationToken ct) =>
         await Query().FirstOrDefaultAsync(t => t.Id == id, ct)

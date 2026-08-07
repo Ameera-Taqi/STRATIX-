@@ -1,27 +1,117 @@
-<app-topbar titleKey="page.projects" />
+<app-topbar titleKey="page.projectWorkspace" />
 
-<main class="stratix-page p-6">
-  <a routerLink="/projects" class="mb-4 inline-flex items-center gap-1 text-sm text-primary hover:underline">
-    <span class="stratix-chevron-flip"><app-ui-icon name="chevron-left" size="xs" /></span>
-    {{ 'projects.back' | t }}
-  </a>
-
+<main class="stratix-page flex min-h-0 flex-1 flex-col overflow-hidden p-0" [appWarnUnsaved]="hasUnsavedChanges()">
   @if (store.loading() && !project()) {
     <p class="py-16 text-center text-sm stratix-muted">{{ 'common.loading' | t }}</p>
   } @else if (!project()) {
-    <div class="stratix-card px-6 py-16 text-center">
-      <p class="text-sm stratix-muted">{{ 'project.notFound' | t }}</p>
-      <a routerLink="/projects" class="mt-4 inline-block text-sm font-medium text-primary hover:underline">
-        {{ 'projects.back' | t }}
-      </a>
+    <div class="p-6">
+      <div class="stratix-card px-6 py-16 text-center">
+        <p class="text-sm stratix-muted">{{ 'project.notFound' | t }}</p>
+        <a routerLink="/projects" class="mt-4 inline-block text-sm font-medium text-primary hover:underline">
+          {{ 'projects.back' | t }}
+        </a>
+      </div>
     </div>
   } @else {
-    <div class="mb-4 overflow-x-auto border-b border-slate-200 dark:border-slate-700">
-      <div class="flex min-w-max gap-1">
+    <!-- Persistent workspace chrome -->
+    <header class="shrink-0 border-b border-slate-200 bg-white/90 px-6 pb-0 pt-4 backdrop-blur dark:border-slate-700 dark:bg-slate-950/80">
+      <app-breadcrumbs [items]="breadcrumbs()" />
+
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div class="min-w-0 flex-1">
+          <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
+            {{ 'project.workspaceLabel' | t }}
+          </p>
+          <h1 class="mt-1 truncate text-2xl font-bold tracking-tight text-dark dark:text-slate-100">
+            {{ project()!.name }}
+          </h1>
+          <div class="mt-3 flex flex-wrap items-center gap-3">
+            @if (health(); as h) {
+              <span class="inline-flex items-center gap-2 text-sm">
+                <span class="font-semibold text-dark dark:text-slate-100">{{ 'health.score' | t }}:</span>
+                <span
+                  class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold"
+                  [class]="healthStatusClass(h.status)"
+                >
+                  {{ h.score }} — {{ 'dashboard.health.' + h.status | t }}
+                </span>
+              </span>
+            }
+            <span class="text-sm text-slate-600 dark:text-slate-300">
+              <span class="font-semibold text-dark dark:text-slate-100">{{ 'progress.project' | t }}:</span>
+              {{ projectProgress().progress }}%
+            </span>
+            <app-status-badge [status]="project()!.status" />
+          </div>
+        </div>
+        <div class="w-full max-w-sm sm:w-64">
+          <div class="mb-1 flex items-center justify-between gap-2 text-[11px] stratix-muted">
+            <span class="inline-flex items-center gap-1">
+              {{ 'progress.project' | t }}
+              <button
+                type="button"
+                class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-300 text-[10px] font-bold text-slate-500 hover:border-primary hover:text-primary dark:border-slate-600"
+                [attr.aria-label]="'progress.infoAria' | t"
+                [attr.title]="'progress.infoAria' | t"
+                (click)="toggleProgressInfo($event)"
+              >
+                i
+              </button>
+            </span>
+            <span class="tabular-nums font-semibold text-dark dark:text-slate-100">{{ projectProgress().progress }}%</span>
+          </div>
+          <div class="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+            <div class="h-full rounded-full bg-primary transition-all" [style.width.%]="projectProgress().progress"></div>
+          </div>
+          <p class="mt-1.5 text-[11px] leading-snug stratix-muted">
+            {{ 'progress.calculatedFromPrefix' | t }}
+            {{ formatHours(projectProgress().effortTotal) }}
+            {{ 'progress.estimatedHoursUnit' | t }}
+          </p>
+          <p class="text-[11px] leading-snug stratix-muted">
+            {{ formatHours(projectProgress().effortDone) }}
+            {{ 'progress.hoursCompleted' | t }}
+          </p>
+          @if (showProgressInfo()) {
+            <p class="mt-2 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-2 text-[11px] leading-snug text-sky-900 dark:border-sky-900/50 dark:bg-sky-950/40 dark:text-sky-100">
+              {{ 'progress.infoBody' | t }}
+            </p>
+          }
+        </div>
+      </div>
+
+      <!-- Meta row -->
+      <dl class="mt-5 grid gap-3 border-t border-slate-100 py-4 text-sm dark:border-slate-800 sm:grid-cols-2 lg:grid-cols-5">
+        <div>
+          <dt class="text-[11px] font-medium uppercase tracking-wide stratix-muted">{{ 'projects.manager' | t }}</dt>
+          <dd class="mt-0.5 font-medium text-dark dark:text-slate-100">{{ project()!.manager || '—' }}</dd>
+        </div>
+        <div>
+          <dt class="text-[11px] font-medium uppercase tracking-wide stratix-muted">{{ 'common.department' | t }}</dt>
+          <dd class="mt-0.5 font-medium text-dark dark:text-slate-100">{{ project()!.department || '—' }}</dd>
+        </div>
+        <div>
+          <dt class="text-[11px] font-medium uppercase tracking-wide stratix-muted">{{ 'common.start' | t }}</dt>
+          <dd class="mt-0.5 tabular-nums font-medium text-dark dark:text-slate-100">{{ project()!.startDate || '—' }}</dd>
+        </div>
+        <div>
+          <dt class="text-[11px] font-medium uppercase tracking-wide stratix-muted">{{ 'projects.targetEnd' | t }}</dt>
+          <dd class="mt-0.5 tabular-nums font-medium text-dark dark:text-slate-100">{{ project()!.endDate || '—' }}</dd>
+        </div>
+        <div>
+          <dt class="text-[11px] font-medium uppercase tracking-wide stratix-muted">{{ 'common.priority' | t }}</dt>
+          <dd class="mt-0.5 font-medium text-dark dark:text-slate-100">
+            {{ project()!.priority ? (priorityLabelKeyFn(project()!.priority!) | t) : '—' }}
+          </dd>
+        </div>
+      </dl>
+
+      <!-- Workspace tabs -->
+      <nav class="-mb-px flex gap-1 overflow-x-auto" aria-label="Project workspace">
         @for (key of tabKeys; track key) {
           <button
             type="button"
-            class="shrink-0 border-b-2 px-4 py-2 text-sm font-medium transition whitespace-nowrap"
+            class="shrink-0 border-b-2 px-4 py-2.5 text-sm font-medium transition whitespace-nowrap"
             [class.border-primary]="activeTabKey === key"
             [class.text-primary]="activeTabKey === key"
             [class.border-transparent]="activeTabKey !== key"
@@ -31,269 +121,651 @@
             {{ key | t }}
           </button>
         }
-      </div>
-    </div>
+      </nav>
+    </header>
 
-    @if (activeTabKey === 'project.tabs.overview') {
-      <div class="mb-6 stratix-card p-6">
-        <div class="flex flex-wrap items-start justify-between gap-4">
-          <div class="min-w-0 flex-1">
-            <h2 class="text-2xl font-bold text-dark dark:text-slate-100">{{ project()!.name }}</h2>
-            <app-status-badge class="mt-2 inline-block" [status]="project()!.status" />
-          </div>
-          <div class="flex flex-col items-end gap-3">
-            <app-project-health-score [health]="health()" />
-          </div>
-        </div>
-        <div class="mt-5">
-          <div class="mb-1.5 flex items-center justify-between text-xs">
-            <span class="stratix-muted">{{ 'common.progress' | t }}</span>
-            <span class="font-medium tabular-nums text-slate-600 dark:text-slate-300">{{ project()!.progress }}%</span>
-          </div>
-          <div class="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
-            <div class="h-full rounded-full bg-primary" [style.width.%]="project()!.progress"></div>
-          </div>
-        </div>
-      </div>
+    <div class="min-h-0 flex-1 overflow-y-auto p-6">
+      <!-- Overview -->
+      @if (activeTabKey === 'project.tabs.overview') {
+        <div class="space-y-6">
+          <app-project-health-overview [projectId]="projectId()" [health]="health()" />
 
-      <div class="stratix-card p-6">
-        <p class="text-sm stratix-muted">{{ 'project.overviewHint' | t }}</p>
-        @if (health()) {
-          <div class="mt-6 border-t border-slate-100 pt-6 dark:border-slate-700">
-            <h4 class="mb-4 text-sm font-semibold text-dark dark:text-slate-100">{{ 'health.breakdown' | t }}</h4>
-            <app-health-breakdown [factors]="health()!.factors" />
-          </div>
-        }
-      </div>
-    }
-
-    @if (activeTabKey === 'project.tabs.list') {
-      <div class="stratix-card overflow-hidden">
-        <div class="overflow-x-auto">
-          <table class="w-full min-w-[720px] text-start text-sm">
-            <thead class="stratix-table-head">
-              <tr>
-                <th class="px-4 py-3 font-medium">{{ 'work.type' | t }}</th>
-                <th class="px-4 py-3 font-medium">{{ 'work.key' | t }}</th>
-                <th class="px-4 py-3 font-medium">{{ 'common.name' | t }}</th>
-                <th class="px-4 py-3 font-medium">{{ 'common.status' | t }}</th>
-                <th class="px-4 py-3 font-medium">{{ 'common.assigned' | t }}</th>
-                <th class="px-4 py-3 font-medium">{{ 'common.due' | t }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              @if (workItems().length === 0) {
-                <tr>
-                  <td colspan="6" class="px-4 py-10 text-center stratix-muted">{{ 'work.listEmpty' | t }}</td>
-                </tr>
+          <div class="grid gap-6 lg:grid-cols-3">
+            <div class="space-y-6 lg:col-span-2">
+              <section class="stratix-card p-6">
+                <h2 class="text-sm font-semibold text-dark dark:text-slate-100">{{ 'project.overviewHint' | t }}</h2>
+                <div class="mt-5 rounded-xl border border-slate-100 bg-slate-50/80 p-4 dark:border-slate-700 dark:bg-slate-800/40">
+                  <div class="flex items-start justify-between gap-3">
+                    <div>
+                      <p class="text-xs font-semibold uppercase tracking-wide stratix-muted">{{ 'progress.project' | t }}</p>
+                      <p class="mt-1 text-3xl font-bold tabular-nums text-dark dark:text-slate-100">{{ projectProgress().progress }}%</p>
+                    </div>
+                    <button
+                      type="button"
+                      class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-slate-300 text-xs font-bold text-slate-500 hover:border-primary hover:text-primary dark:border-slate-600"
+                      [attr.aria-label]="'progress.infoAria' | t"
+                      (click)="toggleProgressInfo($event)"
+                    >
+                      i
+                    </button>
+                  </div>
+                  <p class="mt-2 text-xs stratix-muted">
+                    {{ 'progress.calculatedFromPrefix' | t }}
+                    <span class="font-medium text-slate-700 dark:text-slate-200">{{ formatHours(projectProgress().effortTotal) }}</span>
+                    {{ 'progress.estimatedHoursUnit' | t }}
+                  </p>
+                  <p class="mt-0.5 text-xs stratix-muted">
+                    <span class="font-medium text-slate-700 dark:text-slate-200">{{ formatHours(projectProgress().effortDone) }}</span>
+                    {{ 'progress.hoursCompleted' | t }}
+                  </p>
+                  @if (showProgressInfo()) {
+                    <p class="mt-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs leading-relaxed text-sky-900 dark:border-sky-900/50 dark:bg-sky-950/40 dark:text-sky-100">
+                      {{ 'progress.infoBody' | t }}
+                    </p>
+                  }
+                </div>
+                <div class="mt-5 grid gap-3 sm:grid-cols-3">
+                  <div class="rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-800/50">
+                    <p class="text-2xl font-bold tabular-nums text-dark dark:text-slate-100">{{ stages().length }}</p>
+                    <p class="text-xs stratix-muted">{{ 'project.tabs.features' | t }}</p>
+                  </div>
+                  <div class="rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-800/50">
+                    <p class="text-2xl font-bold tabular-nums text-dark dark:text-slate-100">{{ tasks().length }}</p>
+                    <p class="text-xs stratix-muted">{{ 'project.tabs.tasks' | t }}</p>
+                  </div>
+                  <div class="rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-800/50">
+                    <p class="text-2xl font-bold tabular-nums text-dark dark:text-slate-100">{{ openRiskCount() }}</p>
+                    <p class="text-xs stratix-muted">{{ 'risks.statOpen' | t }}</p>
+                  </div>
+                </div>
+                <div class="mt-5 flex flex-wrap gap-2">
+                  <button type="button" class="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white" (click)="setTab('project.tabs.features')">
+                    {{ 'project.tabs.features' | t }}
+                  </button>
+                  <button type="button" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-dark dark:border-slate-600 dark:text-slate-100" (click)="setTab('project.tabs.tasks')">
+                    {{ 'project.tabs.tasks' | t }}
+                  </button>
+                  <button type="button" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-dark dark:border-slate-600 dark:text-slate-100" (click)="setTab('project.tabs.risks')">
+                    {{ 'project.tabs.risks' | t }}
+                  </button>
+                </div>
+              </section>
+            </div>
+            <section class="stratix-card p-6">
+              <h3 class="mb-4 text-sm font-semibold text-dark dark:text-slate-100">{{ 'health.formulaTitle' | t }}</h3>
+              @if (health()) {
+                <app-health-breakdown [factors]="health()!.factors" />
               } @else {
-                @for (item of workItems(); track item.id) {
-                  <tr class="stratix-table-row">
-                    <td class="px-4 py-3">
-                      <span class="inline-flex rounded px-2 py-0.5 text-[11px] font-semibold" [class]="workTypeClass(item.type)">
-                        {{ workTypeLabel(item.type) | t }}
-                      </span>
-                    </td>
-                    <td class="px-4 py-3 font-mono text-xs text-slate-500">{{ item.id }}</td>
-                    <td class="px-4 py-3 font-medium text-dark dark:text-slate-100">
-                      @if (taskLink(item); as link) {
-                        <a [routerLink]="link" class="hover:text-primary hover:underline">{{ item.title }}</a>
-                      } @else {
-                        {{ item.title }}
-                      }
-                      @if (item.parentName) {
-                        <span class="mt-0.5 block text-xs stratix-muted">{{ item.parentName }}</span>
-                      }
-                    </td>
-                    <td class="px-4 py-3">
-                      <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium" [class]="statusPillClass(item.status)">
-                        {{ item.status }}
-                      </span>
-                    </td>
-                    <td class="px-4 py-3 text-slate-600 dark:text-slate-300">{{ item.assignee }}</td>
-                    <td class="px-4 py-3 tabular-nums text-slate-500 dark:text-slate-400">{{ item.dueDate }}</td>
-                  </tr>
-                }
+                <p class="text-sm stratix-muted">{{ 'dashboard.noProjects' | t }}</p>
               }
-            </tbody>
-          </table>
+            </section>
+          </div>
         </div>
-      </div>
-    }
+      }
 
-    @if (activeTabKey === 'project.tabs.board') {
-      <app-task-board [projectId]="projectId()" [embedded]="true" />
-    }
-
-    @if (activeTabKey === 'project.tabs.backlog') {
-      <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p class="text-sm stratix-muted">{{ 'work.backlogHint' | t }}</p>
-        <div class="flex flex-wrap gap-2">
+      <!-- Features — functional slices of the project (Project → Feature → Tasks) -->
+      @if (activeTabKey === 'project.tabs.features') {
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p class="text-sm font-medium text-dark dark:text-slate-100">{{ 'project.featuresIntro' | t }}</p>
+            <p class="mt-0.5 text-xs stratix-muted">{{ 'project.featuresHint' | t }}</p>
+          </div>
           <button
             type="button"
-            class="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-violet-700 active:scale-[0.98]"
+            class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:brightness-110"
             (click)="openStageForm()"
           >
             + {{ 'project.addFeature' | t }}
           </button>
+        </div>
+
+        @if (showStageForm()) {
+          <div class="stratix-card mb-4 p-5">
+            <h3 class="stratix-heading text-base">{{ 'project.addFeatureTitle' | t }}</h3>
+            <p class="mt-1 text-xs stratix-muted">{{ 'project.addFeatureHint' | t }}</p>
+            @if (stageError()) {
+              <p class="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-danger dark:bg-red-900/30">{{ stageError()! | t }}</p>
+            }
+            <form class="mt-4 space-y-4" (ngSubmit)="saveStage()">
+              <div>
+                <label class="stratix-muted mb-1 block text-sm">{{ 'project.featureName' | t }} *</label>
+                <input type="text" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="stageForm.name" name="featureName" required />
+              </div>
+              <div>
+                <label class="stratix-muted mb-1 block text-sm">{{ 'common.description' | t }}</label>
+                <textarea
+                  class="stratix-input min-h-[72px] w-full px-3 py-2 text-sm"
+                  [(ngModel)]="stageForm.description"
+                  name="featureDescription"
+                  rows="3"
+                ></textarea>
+              </div>
+              <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label class="stratix-muted mb-1 block text-sm">{{ 'common.start' | t }}</label>
+                  <input type="date" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="stageForm.startDate" name="featureStart" />
+                </div>
+                <div>
+                  <label class="stratix-muted mb-1 block text-sm">{{ 'project.featureTargetDate' | t }}</label>
+                  <input type="date" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="stageForm.endDate" name="featureEnd" />
+                </div>
+              </div>
+              <div class="flex justify-end gap-2">
+                <button type="button" class="stratix-input px-4 py-2 text-sm" (click)="cancelStageForm()">{{ 'projects.cancel' | t }}</button>
+                <button type="submit" class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white">{{ 'project.saveFeature' | t }}</button>
+              </div>
+            </form>
+          </div>
+        }
+
+        @if (createdFeature(); as created) {
+          <div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/80 px-5 py-4 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+            <div>
+              <p class="text-sm font-semibold text-emerald-800 dark:text-emerald-200">{{ 'project.featureCreated' | t }}</p>
+              <p class="mt-0.5 text-xs text-emerald-700/80 dark:text-emerald-300/80">{{ created.name }}</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button
+                type="button"
+                class="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm"
+                (click)="addTasksToCreatedFeature()"
+              >
+                {{ 'project.addTasksCta' | t }}
+              </button>
+              <button type="button" class="text-xs font-medium text-emerald-800 hover:underline dark:text-emerald-200" (click)="dismissCreatedFeature()">
+                {{ 'common.dismiss' | t }}
+              </button>
+            </div>
+          </div>
+        }
+
+        @if (featureCards().length === 0) {
+          <div class="stratix-card px-6 py-14 text-center">
+            <p class="text-sm stratix-muted">{{ 'project.noFeatures' | t }}</p>
+            <p class="mt-1 text-xs stratix-muted">{{ 'project.noFeaturesHint' | t }}</p>
+          </div>
+        } @else {
+          <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            @for (card of featureCards(); track card.stage.id) {
+              <article
+                class="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition dark:border-slate-700 dark:bg-slate-900/40"
+                [class.ring-2]="openedFeatureId() === card.stage.id"
+                [class.ring-primary]="openedFeatureId() === card.stage.id"
+              >
+                <div class="flex items-start justify-between gap-2">
+                  <div class="min-w-0">
+                    <h3 class="truncate text-base font-semibold text-dark dark:text-slate-100">{{ card.stage.name }}</h3>
+                    <span class="mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium" [class]="stageStatusClass(card.stage.status)">
+                      {{ card.stage.status }}
+                    </span>
+                  </div>
+                  <div class="flex shrink-0 flex-col gap-1">
+                    <button
+                      type="button"
+                      class="rounded-md border border-slate-200 px-2 py-0.5 text-xs text-slate-600 disabled:opacity-30 dark:border-slate-600 dark:text-slate-300"
+                      [disabled]="!card.canMoveUp"
+                      [attr.aria-label]="'project.moveUp' | t"
+                      (click)="moveFeature(card.stage.id, 'up')"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      class="rounded-md border border-slate-200 px-2 py-0.5 text-xs text-slate-600 disabled:opacity-30 dark:border-slate-600 dark:text-slate-300"
+                      [disabled]="!card.canMoveDown"
+                      [attr.aria-label]="'project.moveDown' | t"
+                      (click)="moveFeature(card.stage.id, 'down')"
+                    >
+                      ↓
+                    </button>
+                  </div>
+                </div>
+
+                <dl class="mt-4 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                  <div class="col-span-2">
+                    <div class="flex items-center justify-between gap-2">
+                      <dt class="stratix-muted">{{ 'progress.feature' | t }}</dt>
+                      <dd class="tabular-nums font-semibold text-dark dark:text-slate-100">{{ card.progress }}%</dd>
+                    </div>
+                    <p class="mt-1 text-[11px] leading-snug stratix-muted">
+                      {{ 'progress.featureCalculated' | t }}
+                      {{ card.tasksTotal }} {{ 'progress.tasksUnit' | t }} /
+                      {{ formatHours(card.effortTotal) }} {{ 'progress.estimatedHoursUnit' | t }}
+                    </p>
+                  </div>
+                  <div class="flex justify-between gap-2">
+                    <dt class="stratix-muted">{{ 'project.tabs.tasks' | t }}</dt>
+                    <dd class="tabular-nums font-semibold text-dark dark:text-slate-100">{{ card.tasksDone }} / {{ card.tasksTotal }}</dd>
+                  </div>
+                  <div class="flex justify-between gap-2">
+                    <dt class="stratix-muted">{{ 'project.featureOverdue' | t }}</dt>
+                    <dd class="tabular-nums font-semibold" [class]="card.overdue > 0 ? 'text-danger' : 'text-dark dark:text-slate-100'">{{ card.overdue }}</dd>
+                  </div>
+                  <div class="flex justify-between gap-2">
+                    <dt class="stratix-muted">{{ 'project.featureBlocked' | t }}</dt>
+                    <dd class="tabular-nums font-semibold" [class]="card.blocked > 0 ? 'text-amber-600 dark:text-amber-300' : 'text-dark dark:text-slate-100'">{{ card.blocked }}</dd>
+                  </div>
+                  <div class="col-span-2 flex justify-between gap-2 border-t border-slate-100 pt-2 dark:border-slate-700">
+                    <dt class="stratix-muted">{{ 'common.due' | t }}</dt>
+                    <dd class="font-medium text-dark dark:text-slate-100">{{ card.dueLabel }}</dd>
+                  </div>
+                </dl>
+
+                <div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                  <div class="h-full rounded-full bg-primary transition-all" [style.width.%]="card.progress"></div>
+                </div>
+
+                <div class="mt-4 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    class="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white"
+                    (click)="openFeature(card.stage.id)"
+                  >
+                    {{ openedFeatureId() === card.stage.id ? ('project.closeFeature' | t) : ('project.openFeature' | t) }}
+                  </button>
+                  <button type="button" class="text-xs font-medium text-primary hover:underline" (click)="completeStage(card.stage.id)">
+                    {{ 'common.complete' | t }}
+                  </button>
+                  <button type="button" class="text-xs font-medium text-danger hover:underline" (click)="deleteStage(card.stage.id)">
+                    {{ 'common.delete' | t }}
+                  </button>
+                </div>
+              </article>
+            }
+          </div>
+        }
+
+        @if (openedFeature(); as open) {
+          <section class="stratix-card mt-6 overflow-hidden">
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3 dark:border-slate-700">
+              <div>
+                <p class="text-[11px] font-semibold uppercase tracking-wide text-primary">{{ 'work.type.feature' | t }}</p>
+                <h3 class="text-sm font-semibold text-dark dark:text-slate-100">{{ open.stage.name }}</h3>
+                <p class="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                  <span class="font-semibold">{{ 'progress.feature' | t }}:</span>
+                  {{ open.progress }}%
+                  <span class="stratix-muted">
+                    · {{ 'progress.featureCalculated' | t }}
+                    {{ open.tasksTotal }} {{ 'progress.tasksUnit' | t }} /
+                    {{ formatHours(open.effortTotal) }} {{ 'progress.estimatedHoursUnit' | t }}
+                  </span>
+                </p>
+                <p class="text-xs stratix-muted">{{ 'project.featureTasksHint' | t }}</p>
+              </div>
+              <button type="button" class="text-xs font-medium text-primary hover:underline" (click)="closeFeature()">
+                {{ 'project.closeFeature' | t }}
+              </button>
+            </div>
+            @if (open.tasks.length === 0) {
+              <div class="px-5 py-10 text-center text-sm stratix-muted">{{ 'project.featureNoTasks' | t }}</div>
+            } @else {
+              <ul class="divide-y divide-slate-100 dark:divide-slate-700/80">
+                @for (t of open.tasks; track t.id) {
+                  <li class="flex flex-wrap items-center gap-3 px-5 py-3">
+                    <a [routerLink]="['/tasks', t.id]" class="min-w-0 flex-1 font-medium text-primary hover:underline">{{ t.title }}</a>
+                    <span class="text-xs stratix-muted">{{ t.assignee || '—' }}</span>
+                    <span class="tabular-nums text-xs text-slate-500">{{ t.dueDate || '—' }}</span>
+                    <span class="text-xs font-medium">{{ t.status }}</span>
+                  </li>
+                }
+              </ul>
+            }
+          </section>
+        }
+      }
+
+      <!-- Tasks -->
+      @if (activeTabKey === 'project.tabs.tasks') {
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <p class="text-sm stratix-muted">{{ 'project.tasksHint' | t }}</p>
           <button
             type="button"
-            class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-sky-700 active:scale-[0.98]"
+            class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:brightness-110"
             (click)="openTaskForm()"
           >
             + {{ 'tasks.add' | t }}
           </button>
         </div>
-      </div>
 
-      @if (showStageForm()) {
-        <div class="stratix-card mb-4 p-5">
-          <h3 class="stratix-heading text-base">{{ 'project.addFeatureTitle' | t }}</h3>
-          @if (stageError()) {
-            <p class="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-danger dark:bg-red-900/30">{{ stageError()! | t }}</p>
-          }
-          <form class="mt-4 grid gap-4 sm:grid-cols-2" (ngSubmit)="saveStage()">
-            <div class="sm:col-span-2">
-              <label class="stratix-muted mb-1 block text-sm">{{ 'project.featureName' | t }} *</label>
-              <input type="text" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="stageForm.name" name="featureName" required />
-            </div>
-            <div>
-              <label class="stratix-muted mb-1 block text-sm">{{ 'common.start' | t }}</label>
-              <input type="date" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="stageForm.startDate" name="featureStart" />
-            </div>
-            <div>
-              <label class="stratix-muted mb-1 block text-sm">{{ 'common.end' | t }} *</label>
-              <input type="date" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="stageForm.endDate" name="featureEnd" required />
-            </div>
-            <div class="flex justify-end gap-2 sm:col-span-2">
-              <button type="button" class="stratix-input px-4 py-2 text-sm" (click)="cancelStageForm()">{{ 'projects.cancel' | t }}</button>
-              <button type="submit" class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white">{{ 'project.saveFeature' | t }}</button>
-            </div>
-          </form>
-        </div>
-      }
-
-      @if (showTaskForm()) {
-        <div class="stratix-card mb-4 p-5">
-          <h3 class="stratix-heading text-base">{{ 'tasks.addTitle' | t }}</h3>
-          @if (taskError()) {
-            <p class="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-danger dark:bg-red-900/30">{{ taskError()! | t }}</p>
-          }
-          <form class="mt-4 grid gap-4 sm:grid-cols-2" (ngSubmit)="saveTask()">
-            <div class="sm:col-span-2">
-              <label class="stratix-muted mb-1 block text-sm">{{ 'tasks.titlePlaceholder' | t }} *</label>
-              <input type="text" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="taskForm.title" name="taskTitle" required />
-            </div>
-            <div>
-              <label class="stratix-muted mb-1 block text-sm">{{ 'common.assigned' | t }} *</label>
-              <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="taskForm.assigneeId" name="taskAssignee" required>
-                <option [ngValue]="null" disabled>{{ 'common.assigned' | t }}</option>
-                @for (e of employees(); track e.id) {
-                  <option [ngValue]="e.id">{{ e.name }}</option>
-                }
-              </select>
-            </div>
-            <div>
-              <label class="stratix-muted mb-1 block text-sm">{{ 'common.due' | t }}</label>
-              <input type="date" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="taskForm.dueDate" name="taskDue" />
-            </div>
-            @if (stages().length > 0) {
+        @if (showTaskForm()) {
+          <div class="stratix-card mb-4 p-5">
+            <h3 class="stratix-heading text-base">{{ 'tasks.addTitle' | t }}</h3>
+            @if (taskError()) {
+              <p class="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-danger dark:bg-red-900/30">{{ taskError()! | t }}</p>
+            }
+            <form class="mt-4 grid gap-4 sm:grid-cols-2" (ngSubmit)="saveTask()">
               <div class="sm:col-span-2">
-                <label class="stratix-muted mb-1 block text-sm">{{ 'work.type.feature' | t }}</label>
-                <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="taskForm.stageId" name="taskStage">
-                  <option [ngValue]="null">{{ 'tasks.noFeature' | t }}</option>
+                <label class="stratix-muted mb-1 block text-sm">{{ 'tasks.fieldTitle' | t }} *</label>
+                <input type="text" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="taskForm.title" name="taskTitle" required />
+              </div>
+              <div class="sm:col-span-2">
+                <label class="stratix-muted mb-1 block text-sm">{{ 'work.type.feature' | t }} *</label>
+                <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="taskForm.stageId" name="taskStage" required>
+                  <option [ngValue]="null" disabled>{{ 'tasks.selectFeature' | t }}</option>
                   @for (s of stages(); track s.id) {
                     <option [ngValue]="s.id">{{ s.name }}</option>
                   }
                 </select>
               </div>
+              <div>
+                <label class="stratix-muted mb-1 block text-sm">{{ 'tasks.assignedTo' | t }}</label>
+                <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="taskForm.assigneeId" name="taskAssignee">
+                  <option [ngValue]="null">{{ 'tasks.unassigned' | t }}</option>
+                  @for (e of employees(); track e.id) {
+                    <option [ngValue]="e.id">{{ e.name }}</option>
+                  }
+                </select>
+              </div>
+              <div>
+                <label class="stratix-muted mb-1 block text-sm">{{ 'common.priority' | t }}</label>
+                <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="taskForm.priority" name="taskPriority">
+                  <option value="LOW">{{ 'priority.low' | t }}</option>
+                  <option value="MEDIUM">{{ 'priority.medium' | t }}</option>
+                  <option value="HIGH">{{ 'priority.high' | t }}</option>
+                  <option value="URGENT">{{ 'priority.urgent' | t }}</option>
+                </select>
+              </div>
+              <div>
+                <label class="stratix-muted mb-1 block text-sm">{{ 'tasks.estimatedHours' | t }} *</label>
+                <input
+                  type="number"
+                  min="0.5"
+                  step="0.5"
+                  class="stratix-input w-full px-3 py-2 text-sm"
+                  [(ngModel)]="taskForm.estimatedHours"
+                  name="taskHours"
+                  required
+                />
+              </div>
+              <div>
+                <label class="stratix-muted mb-1 block text-sm">{{ 'common.start' | t }}</label>
+                <input type="date" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="taskForm.startDate" name="taskStart" />
+              </div>
+              <div>
+                <label class="stratix-muted mb-1 block text-sm">{{ 'common.due' | t }}</label>
+                <input type="date" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="taskForm.dueDate" name="taskDue" />
+              </div>
+              <div class="sm:col-span-2">
+                <label class="stratix-muted mb-1 block text-sm">{{ 'common.description' | t }}</label>
+                <textarea
+                  class="stratix-input min-h-[72px] w-full px-3 py-2 text-sm"
+                  [(ngModel)]="taskForm.description"
+                  name="taskDescription"
+                  rows="3"
+                ></textarea>
+              </div>
+              <div class="flex justify-end gap-2 sm:col-span-2">
+                <button type="button" class="stratix-input px-4 py-2 text-sm" (click)="cancelTaskForm()">{{ 'projects.cancel' | t }}</button>
+                <button type="submit" class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white">{{ 'tasks.add' | t }}</button>
+              </div>
+            </form>
+          </div>
+        }
+
+        <app-task-board [projectId]="projectId()" [embedded]="true" />
+      }
+
+      <!-- Risks -->
+      @if (activeTabKey === 'project.tabs.risks') {
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p class="text-sm font-medium text-dark dark:text-slate-100">{{ 'project.tabs.risks' | t }}</p>
+            <p class="mt-0.5 text-xs stratix-muted">{{ 'project.risksHint' | t }}</p>
+          </div>
+          <button
+            type="button"
+            class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:brightness-110"
+            (click)="openRiskForm()"
+          >
+            + {{ 'risks.add' | t }}
+          </button>
+        </div>
+
+        <div class="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div class="rounded-xl border border-red-200 bg-red-50/80 px-4 py-3 dark:border-red-900/40 dark:bg-red-950/30">
+            <p class="text-xs font-semibold uppercase tracking-wide text-red-700 dark:text-red-300">{{ 'priority.critical' | t }}</p>
+            <p class="mt-1 text-2xl font-bold tabular-nums text-red-800 dark:text-red-200">{{ projectRiskLevelCounts().CRITICAL }}</p>
+          </div>
+          <div class="rounded-xl border border-orange-200 bg-orange-50/80 px-4 py-3 dark:border-orange-900/40 dark:bg-orange-950/30">
+            <p class="text-xs font-semibold uppercase tracking-wide text-orange-700 dark:text-orange-300">{{ 'priority.high' | t }}</p>
+            <p class="mt-1 text-2xl font-bold tabular-nums text-orange-800 dark:text-orange-200">{{ projectRiskLevelCounts().HIGH }}</p>
+          </div>
+          <div class="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 dark:border-amber-900/40 dark:bg-amber-950/30">
+            <p class="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">{{ 'priority.medium' | t }}</p>
+            <p class="mt-1 text-2xl font-bold tabular-nums text-amber-800 dark:text-amber-200">{{ projectRiskLevelCounts().MEDIUM }}</p>
+          </div>
+          <div class="rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 dark:border-emerald-900/40 dark:bg-emerald-950/30">
+            <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">{{ 'priority.low' | t }}</p>
+            <p class="mt-1 text-2xl font-bold tabular-nums text-emerald-800 dark:text-emerald-200">{{ projectRiskLevelCounts().LOW }}</p>
+          </div>
+        </div>
+
+        @if (showRiskForm()) {
+          <div class="stratix-card mb-5 p-5">
+            <h3 class="stratix-heading text-base">{{ 'risks.createTitle' | t }}</h3>
+            <p class="mt-1 text-xs stratix-muted">{{ 'risks.levelCalculatedHint' | t }}</p>
+            @if (riskFormError()) {
+              <p class="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-danger dark:bg-red-900/30">{{ riskFormError()! | t }}</p>
             }
-            <div class="flex justify-end gap-2 sm:col-span-2">
-              <button type="button" class="stratix-input px-4 py-2 text-sm" (click)="cancelTaskForm()">{{ 'projects.cancel' | t }}</button>
-              <button type="submit" class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white">{{ 'tasks.add' | t }}</button>
+            <form class="mt-4 grid gap-4 sm:grid-cols-2" (ngSubmit)="saveRisk()">
+              <div class="sm:col-span-2">
+                <label class="stratix-muted mb-1 block text-sm">{{ 'risks.title' | t }} *</label>
+                <input type="text" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="riskForm.title" name="projRiskTitle" required />
+              </div>
+              <div class="sm:col-span-2">
+                <label class="stratix-muted mb-1 block text-sm">{{ 'common.description' | t }}</label>
+                <textarea class="stratix-input min-h-[64px] w-full px-3 py-2 text-sm" rows="2" [(ngModel)]="riskForm.description" name="projRiskDesc"></textarea>
+              </div>
+              <div>
+                <label class="stratix-muted mb-1 block text-sm">{{ 'risks.impact' | t }}</label>
+                <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="riskForm.impact" name="projRiskImpact">
+                  @for (i of impactOptions; track i) {
+                    <option [ngValue]="i">{{ riskImpactKey(i) | t }}</option>
+                  }
+                </select>
+              </div>
+              <div>
+                <label class="stratix-muted mb-1 block text-sm">{{ 'risks.probability' | t }}</label>
+                <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="riskForm.probability" name="projRiskProb">
+                  @for (p of probabilityOptions; track p) {
+                    <option [ngValue]="p">{{ riskProbabilityKey(p) | t }}</option>
+                  }
+                </select>
+              </div>
+              <div class="sm:col-span-2">
+                <label class="stratix-muted mb-1 block text-sm">{{ 'risks.level' | t }}</label>
+                <div class="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/50">
+                  <span class="stratix-badge text-xs font-bold uppercase" [class]="riskLevelClass(calculatedRiskLevel())">
+                    {{ riskLevelKey(calculatedRiskLevel()) | t }}
+                  </span>
+                  <span class="text-xs stratix-muted">{{ 'risks.levelCalculated' | t }}</span>
+                </div>
+              </div>
+              <div>
+                <label class="stratix-muted mb-1 block text-sm">{{ 'common.owner' | t }}</label>
+                <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="riskForm.ownerId" name="projRiskOwner">
+                  @for (e of employees(); track e.id) {
+                    <option [ngValue]="e.id">{{ e.name }}</option>
+                  }
+                </select>
+              </div>
+              <div>
+                <label class="stratix-muted mb-1 block text-sm">{{ 'common.status' | t }}</label>
+                <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="riskForm.status" name="projRiskStatus">
+                  @for (s of riskStatusOptions; track s) {
+                    <option [ngValue]="s">{{ riskStatusKey(s) | t }}</option>
+                  }
+                </select>
+              </div>
+              <div class="sm:col-span-2">
+                <label class="stratix-muted mb-1 block text-sm">{{ 'risks.mitigation' | t }}</label>
+                <textarea class="stratix-input min-h-[72px] w-full px-3 py-2 text-sm" rows="3" [(ngModel)]="riskForm.mitigationPlan" name="projRiskMitigation"></textarea>
+              </div>
+              <div class="flex justify-end gap-2 sm:col-span-2">
+                <button type="button" class="stratix-input px-4 py-2 text-sm" (click)="cancelRiskForm()">{{ 'projects.cancel' | t }}</button>
+                <button type="submit" class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white">{{ 'risks.save' | t }}</button>
+              </div>
+            </form>
+          </div>
+        }
+
+        @if (projectRisks().length === 0) {
+          <div class="stratix-card px-6 py-14 text-center">
+            <p class="text-sm stratix-muted">{{ 'risks.empty' | t }}</p>
+            <button type="button" class="mt-3 text-sm font-medium text-primary hover:underline" (click)="openRiskForm()">
+              + {{ 'risks.add' | t }}
+            </button>
+          </div>
+        } @else {
+          <div class="grid gap-4 md:grid-cols-2">
+            @for (r of projectRisks(); track r.id) {
+              <article class="stratix-card flex flex-col p-5">
+                <div class="flex flex-wrap items-start justify-between gap-2">
+                  <a [routerLink]="['/risks', r.id]" class="text-base font-semibold text-dark hover:text-primary dark:text-slate-100">
+                    {{ r.title }}
+                  </a>
+                  <span class="stratix-badge text-[10px] font-bold uppercase tracking-wide" [class]="riskLevelClass(r.riskLevel)">
+                    {{ r.riskLevel }}
+                  </span>
+                </div>
+
+                <dl class="mt-4 space-y-2 text-sm">
+                  <div class="flex flex-wrap gap-x-4 gap-y-1">
+                    <div>
+                      <dt class="text-[11px] stratix-muted">{{ 'risks.level' | t }}</dt>
+                      <dd class="font-semibold uppercase text-dark dark:text-slate-100">{{ r.riskLevel }}</dd>
+                    </div>
+                    <div>
+                      <dt class="text-[11px] stratix-muted">{{ 'risks.impact' | t }}</dt>
+                      <dd class="font-semibold uppercase text-dark dark:text-slate-100">{{ r.impact }}</dd>
+                    </div>
+                    <div>
+                      <dt class="text-[11px] stratix-muted">{{ 'risks.probability' | t }}</dt>
+                      <dd class="font-semibold uppercase text-dark dark:text-slate-100">{{ r.probability }}</dd>
+                    </div>
+                  </div>
+                  <div class="flex flex-wrap gap-x-6 gap-y-1 border-t border-slate-100 pt-2 dark:border-slate-700">
+                    <div>
+                      <dt class="text-[11px] stratix-muted">{{ 'common.owner' | t }}</dt>
+                      <dd class="font-medium text-dark dark:text-slate-100">{{ r.ownerName || '—' }}</dd>
+                    </div>
+                    <div>
+                      <dt class="text-[11px] stratix-muted">{{ 'common.status' | t }}</dt>
+                      <dd>
+                        <span class="rounded px-1.5 py-0.5 text-xs font-semibold" [class]="riskStatusClass(r.status)">
+                          {{ riskStatusKey(r.status) | t }}
+                        </span>
+                      </dd>
+                    </div>
+                  </div>
+                </dl>
+
+                <div class="mt-3 border-t border-slate-100 pt-3 dark:border-slate-700">
+                  <p class="text-[11px] font-semibold uppercase tracking-wide stratix-muted">{{ 'risks.mitigation' | t }}</p>
+                  <p class="mt-1 text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+                    {{ r.mitigationPlan?.trim() || ('risks.noMitigation' | t) }}
+                  </p>
+                </div>
+
+                @if (r.status === 'CLOSED') {
+                  <div class="mt-3 border-t border-slate-100 pt-3 dark:border-slate-700">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide stratix-muted">{{ 'risks.closureDetails' | t }}</p>
+                    <p class="mt-1 text-sm text-slate-700 dark:text-slate-300">{{ r.closureReason || '—' }}</p>
+                    @if (r.residualRisk) {
+                      <p class="mt-1 text-xs stratix-muted">
+                        {{ 'risks.residualRisk' | t }}:
+                        <span class="font-semibold uppercase text-dark dark:text-slate-100">{{ r.residualRisk }}</span>
+                      </p>
+                    }
+                  </div>
+                } @else {
+                  <div class="mt-4 flex justify-end">
+                    <button
+                      type="button"
+                      class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-dark hover:bg-slate-50 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
+                      (click)="openCloseRisk(r.id)"
+                    >
+                      {{ 'risks.closeAction' | t }}
+                    </button>
+                  </div>
+                }
+              </article>
+            }
+          </div>
+        }
+      }
+
+      @if (showCloseRiskModal()) {
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" (click)="cancelCloseRisk()">
+          <div
+            class="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl dark:bg-slate-900"
+            (click)="$event.stopPropagation()"
+            role="dialog"
+            aria-modal="true"
+          >
+            <h3 class="stratix-heading text-base">{{ 'risks.closeTitle' | t }}</h3>
+            @if (closeRiskError()) {
+              <p class="mt-2 text-sm text-danger">{{ closeRiskError()! | t }}</p>
+            }
+            <label class="stratix-muted mt-4 mb-1 block text-sm">{{ 'risks.closureReason' | t }} *</label>
+            <textarea
+              class="stratix-input min-h-[96px] w-full px-3 py-2 text-sm"
+              rows="4"
+              [(ngModel)]="closeRiskForm.closureReason"
+              name="projCloseReason"
+              autofocus
+            ></textarea>
+            <label class="stratix-muted mt-3 mb-1 block text-sm">{{ 'risks.residualRisk' | t }}</label>
+            <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="closeRiskForm.residualRisk" name="projResidualRisk">
+              @for (opt of residualOptions; track $index) {
+                <option [ngValue]="opt">
+                  {{ opt ? (riskImpactKey(opt) | t) : ('risks.residualNone' | t) }}
+                </option>
+              }
+            </select>
+            <div class="mt-4 flex justify-end gap-2">
+              <button type="button" class="stratix-input px-4 py-2 text-sm" (click)="cancelCloseRisk()">
+                {{ 'projects.cancel' | t }}
+              </button>
+              <button
+                type="button"
+                class="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white"
+                (click)="confirmCloseRisk()"
+              >
+                {{ 'risks.closeAction' | t }}
+              </button>
             </div>
-          </form>
+          </div>
         </div>
       }
 
-      <div class="stratix-card overflow-hidden">
-        @if (backlogItems().length === 0) {
-          <div class="px-6 py-12 text-center text-sm stratix-muted">{{ 'work.backlogEmpty' | t }}</div>
-        } @else {
-          <ul class="divide-y divide-slate-100 dark:divide-slate-700/80">
-            @for (item of backlogItems(); track item.id) {
-              <li class="flex flex-wrap items-center gap-3 px-4 py-3 transition hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-[10px] font-bold" [class]="workTypeClass(item.type)">
-                  {{ item.type === 'FEATURE' ? 'F' : 'T' }}
-                </span>
-                <span class="w-16 shrink-0 font-mono text-xs text-slate-400">{{ item.id }}</span>
-                <div class="min-w-0 flex-1">
-                  @if (taskLink(item); as link) {
-                    <a [routerLink]="link" class="font-medium text-dark hover:text-primary hover:underline dark:text-slate-100">{{ item.title }}</a>
-                  } @else {
-                    <p class="font-medium text-dark dark:text-slate-100">{{ item.title }}</p>
-                  }
-                  @if (item.parentName) {
-                    <p class="text-xs stratix-muted">{{ item.parentName }}</p>
-                  }
-                </div>
-                <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium" [class]="statusPillClass(item.status)">
-                  {{ item.status }}
-                </span>
-                <span class="hidden text-xs text-slate-500 sm:inline dark:text-slate-400">{{ item.assignee }}</span>
-                <span class="tabular-nums text-xs text-slate-400">{{ item.dueDate }}</span>
-              </li>
-            }
-          </ul>
-        }
-      </div>
-    }
+      <!-- Files -->
+      @if (activeTabKey === 'project.tabs.files') {
+        <div class="stratix-card p-6">
+          <h3 class="mb-4 stratix-heading text-sm">{{ 'project.tabs.files' | t }}</h3>
+          <app-attachments-panel [projectId]="projectId()" [projectName]="project()!.name" />
+        </div>
+      }
 
-    @if (activeTabKey === 'project.tabs.timeline') {
-      <div class="stratix-card overflow-hidden">
-        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3 dark:border-slate-700">
-          <div>
-            <h3 class="text-sm font-semibold text-dark dark:text-slate-100">{{ 'project.tabs.timeline' | t }}</h3>
-            <p class="text-xs stratix-muted">{{ 'work.timelineHint' | t }}</p>
+      <!-- AI Insights -->
+      @if (activeTabKey === 'project.tabs.ai') {
+        <app-project-ai-insights [projectId]="projectId()" [embedded]="false" />
+      }
+
+      <!-- Activity -->
+      @if (activeTabKey === 'project.tabs.activity') {
+        <div class="stratix-card p-6">
+          <div class="mb-2 flex items-center justify-between">
+            <h3 class="stratix-heading text-sm">{{ 'activity.title' | t }}</h3>
+            <a routerLink="/audit" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+              {{ 'audit.viewAll' | t }}
+              <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span>
+            </a>
           </div>
-          <div class="flex flex-wrap gap-2 text-xs">
-            <span class="inline-flex items-center gap-1.5 rounded-full bg-violet-100 px-2.5 py-1 font-medium text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
-              {{ 'work.type.feature' | t }}
-            </span>
-            <span class="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-2.5 py-1 font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
-              {{ 'work.type.task' | t }}
-            </span>
-          </div>
+          <p class="mb-6 text-xs stratix-muted">{{ 'activity.hint' | t }}</p>
+          <app-activity-timeline [projectId]="projectId()" [limit]="50" />
         </div>
-        <div class="p-5">
-          <app-gantt-chart [rows]="ganttRows()" [markers]="ganttMarkers()" [emptyLabel]="'timeline.noFeatures' | t" />
-        </div>
-      </div>
-    }
-
-    @if (activeTabKey === 'project.tabs.files') {
-      <div class="stratix-card p-6">
-        <h3 class="mb-4 stratix-heading text-sm">{{ 'project.tabs.files' | t }}</h3>
-        <app-attachments-panel [projectId]="projectId()" [projectName]="project()!.name" />
-      </div>
-    }
-
-    @if (activeTabKey === 'project.tabs.activity') {
-      <div class="stratix-card p-6">
-        <div class="mb-2 flex items-center justify-between">
-          <h3 class="stratix-heading text-sm">{{ 'activity.title' | t }}</h3>
-          <a routerLink="/audit" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-            {{ 'audit.viewAll' | t }}
-            <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span>
-          </a>
-        </div>
-        <p class="mb-6 text-xs stratix-muted">{{ 'activity.hint' | t }}</p>
-        <app-activity-timeline [projectId]="projectId()" [limit]="50" />
-      </div>
-    }
+      }
+    </div>
   }
 </main>
-
-@if (project()) {
-  <app-project-ai-bot [projectId]="projectId()" />
-}

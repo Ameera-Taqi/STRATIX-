@@ -55,6 +55,11 @@ public class RisksController : ControllerBase
     public async Task<RiskResponse> Update(long id, [FromBody] UpdateRiskRequest request, CancellationToken ct) =>
         await _risks.UpdateAsync(id, request, ct);
 
+    [HttpPost("{id:long}/close")]
+    [Authorize(Policy = AuthPolicies.ProjectManagers)]
+    public async Task<RiskResponse> Close(long id, [FromBody] CloseRiskRequest request, CancellationToken ct) =>
+        await _risks.CloseAsync(id, request, ct);
+
     [HttpDelete("{id:long}")]
     [Authorize(Policy = AuthPolicies.OrgAdmins)]
     public async Task<IActionResult> Delete(long id, CancellationToken ct)

@@ -47,6 +47,10 @@ export class ProjectsApiService {
     return this.http.put<StageRow>(`${this.base}/stages/${id}`, body);
   }
 
+  moveStage(id: number, direction: 'up' | 'down'): Observable<StageRow[]> {
+    return this.http.patch<StageRow[]>(`${this.base}/stages/${id}/move`, { direction });
+  }
+
   deleteStage(id: number): Observable<void> {
     return this.http.delete<void>(`${this.base}/stages/${id}`);
   }

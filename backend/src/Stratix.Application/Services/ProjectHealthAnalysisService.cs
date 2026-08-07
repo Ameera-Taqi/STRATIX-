@@ -85,7 +85,8 @@ public class ProjectHealthAnalysisService : IProjectHealthAnalysisService
             concerns,
             recommendations,
             insights,
-            "STRATIX_ENGINE");
+            "STRATIX_ENGINE",
+            DateTimeOffset.UtcNow);
     }
 
     private static DeliveryRisk ClassifyDeliveryRisk(ProjectHealthAnalysisRequestMetrics request)
@@ -104,7 +105,7 @@ public class ProjectHealthAnalysisService : IProjectHealthAnalysisService
         var list = new List<string>();
         if (r.Risks.CriticalRisks > 0) list.Add($"{r.Risks.CriticalRisks} critical risk(s) require immediate attention.");
         if (r.Tasks.OverdueTasks > 0) list.Add($"{r.Tasks.OverdueTasks} task(s) are overdue.");
-        if (r.Stages.DelayedStages > 0) list.Add($"{r.Stages.DelayedStages} stage(s) are behind schedule.");
+        if (r.Stages.DelayedStages > 0) list.Add($"{r.Stages.DelayedStages} feature(s) are behind schedule.");
         return list;
     }
 
@@ -122,7 +123,7 @@ public class ProjectHealthAnalysisService : IProjectHealthAnalysisService
         var list = new List<string>();
         if (r.Performance.TeamKpiScore >= 80) list.Add("Team KPI performance is strong.");
         if (r.Stages.CompletedStages == r.Stages.TotalStages && r.Stages.TotalStages > 0)
-            list.Add("All stages completed — focus on closure activities.");
+            list.Add("All features completed — focus on closure activities.");
         return list;
     }
 

@@ -11,7 +11,7 @@ public static class AuthPolicies
     /// <summary>Tenant / org administration (users, departments, roles, branding).</summary>
     public const string OrgAdmins = "OrgAdmins";
 
-    /// <summary>Can create and manage projects, stages, risks, files.</summary>
+    /// <summary>Can create and manage projects, features, risks, files.</summary>
     public const string ProjectManagers = "ProjectManagers";
 
     /// <summary>Can assign / lead work (includes team leaders).</summary>

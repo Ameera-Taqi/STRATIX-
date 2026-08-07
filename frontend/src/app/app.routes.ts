@@ -1,6 +1,11 @@
 import { Routes } from '@angular/router';
 import { authGuard, guestGuard } from './core/guards/auth.guard';
 import { moduleGuard } from './core/guards/role.guard';
+import { unsavedChangesGuard } from './core/guards/unsaved-changes.guard';
+import {
+  blockDashboardUntilOnboardedGuard,
+  requireOnboardingGuard,
+} from './core/guards/onboarding.guard';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'auth/login' },
@@ -27,6 +32,12 @@ export const routes: Routes = [
     canActivate: [guestGuard],
   },
   {
+    path: 'onboarding',
+    loadComponent: () =>
+      import('./pages/onboarding/onboarding.component').then((m) => m.OnboardingComponent),
+    canActivate: [authGuard, requireOnboardingGuard],
+  },
+  {
     path: 'forbidden',
     loadComponent: () =>
       import('./pages/errors/forbidden.component').then((m) => m.ForbiddenComponent),
@@ -38,7 +49,7 @@ export const routes: Routes = [
       import('./layout/dashboard-layout/dashboard-layout.component').then(
         (m) => m.DashboardLayoutComponent,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, blockDashboardUntilOnboardedGuard],
     children: [
       {
         path: 'dashboard',
@@ -51,12 +62,14 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./pages/projects/projects.component').then((m) => m.ProjectsComponent),
         canActivate: [moduleGuard('PROJECTS')],
+        canDeactivate: [unsavedChangesGuard],
       },
       {
         path: 'projects/:id',
         loadComponent: () =>
           import('./pages/projects/project-detail.component').then((m) => m.ProjectDetailComponent),
         canActivate: [moduleGuard('PROJECTS')],
+        canDeactivate: [unsavedChangesGuard],
       },
       { path: 'timeline', pathMatch: 'full', redirectTo: 'projects' },
       { path: 'tasks', pathMatch: 'full', redirectTo: 'projects' },
@@ -82,6 +95,7 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./pages/performance/performance.component').then((m) => m.PerformanceComponent),
         canActivate: [moduleGuard('PERFORMANCE')],
+        canDeactivate: [unsavedChangesGuard],
       },
       {
         path: 'reports',
@@ -133,10 +147,17 @@ export const routes: Routes = [
         canActivate: [moduleGuard('ROLES')],
       },
       {
+        path: 'departments',
+        loadComponent: () =>
+          import('./pages/departments/departments.component').then((m) => m.DepartmentsComponent),
+        canActivate: [moduleGuard('DEPARTMENTS')],
+      },
+      {
         path: 'settings',
         loadComponent: () =>
           import('./pages/settings/settings.component').then((m) => m.SettingsComponent),
         canActivate: [moduleGuard('SETTINGS')],
+        canDeactivate: [unsavedChangesGuard],
       },
     ],
   },

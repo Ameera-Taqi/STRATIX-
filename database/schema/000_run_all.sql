@@ -44,3 +44,7 @@
 :r 039_evaluation_reopen_reason.sql
 :r 040_kpi_period_definition_snapshots.sql
 :r 041_kpi_weight_total_and_role_scope.sql
+:r 042_organization_onboarding.sql
+:r 043_task_review_submission.sql
+:r 044_risk_closure.sql
+:r 045_notification_context.sql

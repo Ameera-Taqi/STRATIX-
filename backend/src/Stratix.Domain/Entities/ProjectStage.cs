@@ -14,6 +14,10 @@ public class ProjectStage : ITenantScoped, ISoftDeletable, IHasCreatedAt, IHasUp
     public DateOnly? StartDate { get; set; }
     public DateOnly? EndDate { get; set; }
     public decimal Progress { get; set; }
+    /// <summary>
+    /// Display/sort position within the project only.
+    /// Not a schedule dependency — features may run in parallel with overlapping dates.
+    /// </summary>
     public int OrderNumber { get; set; } = 1;
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }

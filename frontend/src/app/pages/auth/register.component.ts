@@ -5,6 +5,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LangSwitcherComponent } from '../../layout/lang-switcher/lang-switcher.component';
 import { ThemeToggleComponent } from '../../layout/theme-toggle/theme-toggle.component';
 import { AuthService } from '../../core/services/auth.service';
+import { OnboardingService } from '../../core/services/onboarding.service';
 
 @Component({
   selector: 'app-register',
@@ -126,6 +127,7 @@ import { AuthService } from '../../core/services/auth.service';
 export class RegisterComponent {
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
+  private readonly onboarding = inject(OnboardingService);
 
   organizationName = '';
   adminName = '';
@@ -153,13 +155,14 @@ export class RegisterComponent {
         },
         true,
       )
-      .subscribe((result) => {
+      .subscribe(async (result) => {
         this.submitting.set(false);
         if (!result.ok) {
           this.error.set(result.error ?? 'auth.registerError');
           return;
         }
-        this.router.navigate(['/dashboard']);
+        const path = await this.onboarding.resolveHomePath();
+        void this.router.navigate([path]);
       });
   }
 }

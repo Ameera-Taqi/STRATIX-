@@ -46,7 +46,8 @@ function isStageCompleted(entry: AuditEntry): boolean {
   return (
     entry.activityKey === 'STAGE_COMPLETED' ||
     (done && (entry.action === 'STATUS_CHANGE' || entry.action === 'UPDATE')) ||
-    entry.details.toLowerCase().includes('stage completed')
+    entry.details.toLowerCase().includes('stage completed') ||
+    entry.details.toLowerCase().includes('feature completed')
   );
 }
 

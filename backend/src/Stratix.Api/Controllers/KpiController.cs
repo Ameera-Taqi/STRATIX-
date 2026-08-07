@@ -94,10 +94,17 @@ public class KpiController : ControllerBase
 
     /// <summary>Adjust result actual/score while unlocked (blocked when APPROVED).</summary>
     [HttpPatch("results/{resultId:long}")]
-    [Authorize(Policy = AuthPolicies.OrgAdmins)]
+    [Authorize(Policy = AuthPolicies.ProjectManagers)]
     public async Task<EmployeeEvaluationResponse> AdjustResult(
         long resultId, [FromBody] AdjustKpiResultRequest request, CancellationToken ct) =>
         await _kpi.AdjustResultAsync(resultId, request, ct);
+
+    /// <summary>Manager notes shown on the employee scorecard explanation.</summary>
+    [HttpPatch("evaluations/{id:long}/notes")]
+    [Authorize(Policy = AuthPolicies.ProjectManagers)]
+    public async Task<EmployeeEvaluationResponse> UpdateNotes(
+        long id, [FromBody] UpdateEvaluationNotesRequest request, CancellationToken ct) =>
+        await _kpi.UpdateNotesAsync(id, request.Notes, ct);
 
     [HttpPost("task-quality")]
     [Authorize(Policy = AuthPolicies.TeamLeaders)]

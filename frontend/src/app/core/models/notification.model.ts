@@ -1,4 +1,5 @@
 export type NotificationApiType = 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR';
+export type NotificationEntityType = 'TASK' | 'RISK' | 'PROJECT' | 'STAGE' | 'EVALUATION' | string;
 
 export interface NotificationApiResponse {
   id: number;
@@ -9,6 +10,11 @@ export interface NotificationApiResponse {
   isRead: boolean;
   link: string | null;
   createdAt: string;
+  actorName?: string | null;
+  projectName?: string | null;
+  entityType?: NotificationEntityType | null;
+  entityId?: number | null;
+  entityLabel?: string | null;
 }
 
 export interface CreateNotificationRequest {
@@ -17,4 +23,9 @@ export interface CreateNotificationRequest {
   message?: string | null;
   type?: NotificationApiType | null;
   link?: string | null;
+  actorName?: string | null;
+  projectName?: string | null;
+  entityType?: NotificationEntityType | null;
+  entityId?: number | null;
+  entityLabel?: string | null;
 }

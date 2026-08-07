@@ -1,0 +1,128 @@
+<app-topbar titleKey="page.departments" />
+<main class="stratix-page p-6">
+  <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div class="max-w-2xl">
+      <h2 class="text-lg font-semibold text-dark dark:text-slate-100">{{ 'page.departments' | t }}</h2>
+      <p class="mt-1 text-sm stratix-muted">{{ 'roles.deptHint' | t }}</p>
+    </div>
+    @if (canWrite()) {
+      <button
+        type="button"
+        class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary/90"
+        (click)="openAdd()"
+      >
+        <span class="text-lg leading-none">+</span>
+        {{ 'roles.deptAdd' | t }}
+      </button>
+    }
+  </div>
+
+  @if (error(); as err) {
+    <p class="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
+      {{ err | t }}
+    </p>
+  }
+
+  @if (loading()) {
+    <p class="stratix-muted">{{ 'roles.deptLoading' | t }}</p>
+  } @else {
+    <div class="stratix-card overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[520px] text-start text-sm">
+          <thead class="stratix-table-head">
+            <tr>
+              <th class="px-5 py-3.5 font-medium">{{ 'common.name' | t }}</th>
+              <th class="px-5 py-3.5 font-medium">{{ 'roles.deptDescription' | t }}</th>
+              @if (canWrite()) {
+                <th class="px-5 py-3.5 font-medium">{{ 'common.actions' | t }}</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @if (departments().length === 0) {
+              <tr>
+                <td [attr.colspan]="canWrite() ? 3 : 2" class="px-5 py-12 text-center stratix-muted">
+                  {{ 'roles.deptEmpty' | t }}
+                </td>
+              </tr>
+            } @else {
+              @for (d of departments(); track d.id) {
+                <tr class="stratix-table-row">
+                  <td class="px-5 py-3.5 font-medium text-dark dark:text-slate-100">{{ d.name }}</td>
+                  <td class="px-5 py-3.5 stratix-muted">{{ d.description || '—' }}</td>
+                  @if (canWrite()) {
+                    <td class="px-5 py-3.5">
+                      <div class="flex gap-2">
+                        <button type="button" class="stratix-btn-ghost" (click)="openEdit(d.id, d.name, d.description)">
+                          {{ 'common.edit' | t }}
+                        </button>
+                        <button
+                          type="button"
+                          class="stratix-btn-ghost text-rose-600 hover:text-rose-700"
+                          [disabled]="saving()"
+                          (click)="remove(d.id)"
+                        >
+                          {{ 'common.delete' | t }}
+                        </button>
+                      </div>
+                    </td>
+                  }
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</main>
+
+@if (showModal()) {
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-dark/50 p-4 backdrop-blur-sm"
+    role="dialog"
+    aria-modal="true"
+    (click)="closeModal()"
+  >
+    <div class="stratix-card w-full max-w-md overflow-hidden shadow-2xl" (click)="$event.stopPropagation()">
+      <div class="h-1 bg-gradient-to-r from-primary to-primary/50"></div>
+      <div class="p-6">
+        <div class="mb-1 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <app-ui-icon name="building" size="lg" />
+        </div>
+        <h2 class="mt-3 stratix-heading text-lg">
+          {{ (editingId() == null ? 'roles.deptCreateTitle' : 'roles.deptEditTitle') | t }}
+        </h2>
+
+        @if (formError(); as err) {
+          <p class="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-danger dark:bg-red-900/30 dark:text-red-300">
+            {{ err | t }}
+          </p>
+        }
+
+        <form class="mt-5 space-y-4" (ngSubmit)="save()">
+          <div>
+            <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'common.name' | t }} *</label>
+            <input type="text" class="stratix-input w-full px-3 py-2.5 text-sm" [(ngModel)]="form.name" name="deptName" required />
+          </div>
+          <div>
+            <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'roles.deptDescription' | t }}</label>
+            <input type="text" class="stratix-input w-full px-3 py-2.5 text-sm" [(ngModel)]="form.description" name="deptDesc" />
+          </div>
+          <div class="flex justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-700">
+            <button type="button" class="stratix-btn-ghost px-4 py-2" (click)="closeModal()">
+              {{ 'projects.cancel' | t }}
+            </button>
+            <button
+              type="submit"
+              class="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-white disabled:opacity-60"
+              [disabled]="saving()"
+            >
+              {{ 'roles.deptSave' | t }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+}

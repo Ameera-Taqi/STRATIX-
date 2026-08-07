@@ -16,8 +16,11 @@ import {
 
 } from '../models/ai-health-analysis.model';
 
+import { ProjectHealthSnapshot } from '../models/health-snapshot.model';
+
 import {
 
+  CloseRiskRequest,
   CreateRiskRequest,
   ProjectRisk,
 
@@ -61,6 +64,11 @@ import {
 } from '../models/project-file.model';
 
 import { EmployeeKpiResponse } from '../models/employee-kpi.model';
+import {
+  AdjustKpiResultRequest,
+  EmployeeEvaluation,
+  EvaluationPeriod,
+} from '../models/kpi-evaluation.model';
 
 import {
   CreateTaskCommentRequest,
@@ -88,6 +96,10 @@ import {
   OrganizationBranding,
   OrganizationLogoUploadResult,
 } from '../models/branding.model';
+import {
+  OrganizationOnboardingStatus,
+  UpdateOrganizationProfileRequest,
+} from '../models/onboarding.model';
 import { CreateReportPayload, ReportResponse } from '../models/report.model';
 
 
@@ -273,6 +285,10 @@ export class ApiService {
     return this.http.patch<StageRow>(`${this.base}/stages/${id}/complete`, {});
   }
 
+  moveStage(id: number, direction: 'up' | 'down'): Observable<StageRow[]> {
+    return this.projectsApi.moveStage(id, direction);
+  }
+
   deleteStage(id: number): Observable<void> {
     return this.projectsApi.deleteStage(id);
   }
@@ -392,6 +408,14 @@ export class ApiService {
 
 
 
+  closeRisk(id: number, body: CloseRiskRequest): Observable<ProjectRisk> {
+
+    return this.http.post<ProjectRisk>(`${this.base}/risks/${id}/close`, body);
+
+  }
+
+
+
   deleteRisk(id: number): Observable<void> {
 
     return this.http.delete<void>(`${this.base}/risks/${id}`);
@@ -401,9 +425,20 @@ export class ApiService {
 
 
   analyzeProjectHealth(body: ProjectHealthAnalysisRequest): Observable<ProjectHealthAnalysisResponse> {
-
     return this.http.post<ProjectHealthAnalysisResponse>(`${this.base}/ai/project-health-analysis`, body);
+  }
 
+  getHealthSnapshotHistory(projectId: number, take = 30): Observable<ProjectHealthSnapshot[]> {
+    return this.http.get<ProjectHealthSnapshot[]>(
+      `${this.base}/health-snapshots/projects/${projectId}`,
+      { params: { take: String(take) } },
+    );
+  }
+
+  getLatestHealthSnapshot(projectId: number): Observable<ProjectHealthSnapshot> {
+    return this.http.get<ProjectHealthSnapshot>(
+      `${this.base}/health-snapshots/projects/${projectId}/latest`,
+    );
   }
 
   getOrganizations(): Observable<OrganizationRow[]> {
@@ -420,6 +455,24 @@ export class ApiService {
 
   getPlans(): Observable<PlanRow[]> {
     return this.http.get<PlanRow[]>(`${this.base}/plans`);
+  }
+
+  getCurrentSubscription(): Observable<{
+    organizationId: number;
+    planCode: string;
+    status: string;
+    startedAt: string;
+    trialEndsAt: string | null;
+    endsAt: string | null;
+  }> {
+    return this.http.get<{
+      organizationId: number;
+      planCode: string;
+      status: string;
+      startedAt: string;
+      trialEndsAt: string | null;
+      endsAt: string | null;
+    }>(`${this.base}/organizations/current/subscription`);
   }
 
   deleteOrganization(id: number): Observable<void> {
@@ -478,6 +531,50 @@ export class ApiService {
     return this.http.get<EmployeeKpiResponse[]>(url);
   }
 
+  getKpiPeriods(): Observable<EvaluationPeriod[]> {
+    return this.http.get<EvaluationPeriod[]>(`${this.base}/kpi/periods`);
+  }
+
+  getKpiEvaluations(periodId?: number): Observable<EmployeeEvaluation[]> {
+    const q = periodId != null ? `?periodId=${periodId}` : '';
+    return this.http.get<EmployeeEvaluation[]>(`${this.base}/kpi/evaluations${q}`);
+  }
+
+  ensureKpiEvaluation(periodId: number, userId: number): Observable<EmployeeEvaluation> {
+    return this.http.post<EmployeeEvaluation>(
+      `${this.base}/kpi/evaluations/ensure?periodId=${periodId}&userId=${userId}`,
+      {},
+    );
+  }
+
+  calculateKpiEvaluation(id: number): Observable<EmployeeEvaluation> {
+    return this.http.post<EmployeeEvaluation>(`${this.base}/kpi/evaluations/${id}/calculate`, {});
+  }
+
+  submitKpiEvaluation(id: number): Observable<EmployeeEvaluation> {
+    return this.http.post<EmployeeEvaluation>(`${this.base}/kpi/evaluations/${id}/submit`, {});
+  }
+
+  startKpiReview(id: number): Observable<EmployeeEvaluation> {
+    return this.http.post<EmployeeEvaluation>(`${this.base}/kpi/evaluations/${id}/review`, {});
+  }
+
+  approveKpiEvaluation(id: number): Observable<EmployeeEvaluation> {
+    return this.http.post<EmployeeEvaluation>(`${this.base}/kpi/evaluations/${id}/approve`, {});
+  }
+
+  rejectKpiEvaluation(id: number, reason: string): Observable<EmployeeEvaluation> {
+    return this.http.post<EmployeeEvaluation>(`${this.base}/kpi/evaluations/${id}/reject`, { reason });
+  }
+
+  adjustKpiResult(resultId: number, body: AdjustKpiResultRequest): Observable<EmployeeEvaluation> {
+    return this.http.patch<EmployeeEvaluation>(`${this.base}/kpi/results/${resultId}`, body);
+  }
+
+  updateKpiEvaluationNotes(id: number, notes: string | null): Observable<EmployeeEvaluation> {
+    return this.http.patch<EmployeeEvaluation>(`${this.base}/kpi/evaluations/${id}/notes`, { notes });
+  }
+
   getCompanyAdminPermissions(): Observable<CompanyAdminModulePermission[]> {
     return this.http.get<CompanyAdminModulePermission[]>(`${this.base}/cms/company-admin-permissions`);
   }
@@ -490,6 +587,23 @@ export class ApiService {
 
   getOrganizationBranding(): Observable<OrganizationBranding> {
     return this.http.get<OrganizationBranding>(`${this.base}/organization/branding`);
+  }
+
+  getOrganizationOnboarding(): Observable<OrganizationOnboardingStatus> {
+    return this.http.get<OrganizationOnboardingStatus>(`${this.base}/organization/onboarding`);
+  }
+
+  updateOrganizationProfile(
+    body: UpdateOrganizationProfileRequest,
+  ): Observable<OrganizationOnboardingStatus> {
+    return this.http.put<OrganizationOnboardingStatus>(`${this.base}/organization/profile`, body);
+  }
+
+  completeOrganizationOnboarding(): Observable<OrganizationOnboardingStatus> {
+    return this.http.post<OrganizationOnboardingStatus>(
+      `${this.base}/organization/onboarding/complete`,
+      {},
+    );
   }
 
   uploadOrganizationLogo(file: File): Observable<OrganizationLogoUploadResult> {

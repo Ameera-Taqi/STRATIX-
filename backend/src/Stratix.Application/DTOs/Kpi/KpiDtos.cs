@@ -38,3 +38,4 @@ public record TaskQualityEvaluationResponse(
 public record RejectEvaluationRequest(string Reason);
 public record ReopenEvaluationRequest(string Reason);
 public record AdjustKpiResultRequest(decimal? AdjustedValue, decimal? Score, string? Comment);
+public record UpdateEvaluationNotesRequest(string? Notes);

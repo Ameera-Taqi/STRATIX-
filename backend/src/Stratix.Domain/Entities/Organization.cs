@@ -22,6 +22,19 @@ public class Organization : IHasCreatedAt, IHasUpdatedAt
 
     /// <summary>Relative storage key for the tenant logo file (e.g. "org-12.png"), or null for default branding.</summary>
     public string? LogoFileName { get; set; }
+
+    /// <summary>Optional industry label from onboarding / settings.</summary>
+    public string? Industry { get; set; }
+
+    /// <summary>IANA timezone id (e.g. Asia/Riyadh).</summary>
+    public string? Timezone { get; set; }
+
+    /// <summary>Preferred UI language code: en | ar.</summary>
+    public string? PreferredLanguage { get; set; }
+
+    /// <summary>When set, ORG_ADMIN has finished or skipped the guided onboarding wizard.</summary>
+    public DateTimeOffset? OnboardingCompletedAt { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 }

@@ -25,7 +25,11 @@ public class TaskItem : ITenantScoped, ISoftDeletable, IHasCreatedAt, IHasUpdate
     public decimal? ActualHours { get; set; }
     public string? BlockedReason { get; set; }
     public string? ReopenReason { get; set; }
+    /// <summary>Submit note and/or reviewer feedback when requesting changes.</summary>
     public string? ReviewReason { get; set; }
+    public DateTimeOffset? SubmittedForReviewAt { get; set; }
+    public long? SubmittedForReviewById { get; set; }
+    public User? SubmittedForReviewBy { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public bool IsDeleted { get; set; }

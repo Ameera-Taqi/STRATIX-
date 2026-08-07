@@ -1,173 +1,507 @@
-<app-topbar titleKey="page.dashboard" />
+<app-topbar [titleKey]="titleKey()" />
 <main class="stratix-page p-6">
-  <!-- Executive overview with gauge + spark KPIs -->
-  <div class="stratix-card mb-6 overflow-hidden">
-    <div class="grid gap-6 p-6 lg:grid-cols-[auto_1fr] lg:items-center">
-      <div class="flex flex-col items-center gap-2">
-        <p class="text-xs font-medium uppercase tracking-wide stratix-muted">{{ 'dashboard.executiveOverview' | t }}</p>
-        <app-donut-chart
-          [segments]="portfolioDonut()"
-          [size]="140"
-          [centerLabel]="overallHealth().score + '%'"
-          [centerSubLabel]="('dashboard.health.' + overallHealth().status) | t"
-          [showLegend]="false"
-        />
-        @if (apiConnected()) {
-          <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-            {{ 'common.apiConnected' | t }}
-          </span>
-        }
-      </div>
-      <div>
-        <h2 class="text-lg font-bold text-dark dark:text-slate-100">{{ 'dashboard.portfolioHealth' | t }}</h2>
-        <p class="mt-1 text-sm stratix-muted">{{ 'dashboard.chartOverviewHint' | t }}</p>
-        <div class="mt-5">
-          <app-bar-chart [items]="kpiSparkBars()" [height]="100" [maxValue]="kpiSparkMax()" />
-        </div>
-      </div>
-    </div>
-  </div>
+  @if (showAdminEmpty()) {
+    <section class="mx-auto max-w-2xl py-8 text-center sm:py-14">
+      <p class="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
+        {{ 'dashboard.emptyEyebrow' | t }}
+      </p>
+      <h2 class="mt-3 text-2xl font-bold tracking-tight text-dark dark:text-slate-100 sm:text-3xl">
+        {{ 'dashboard.emptyTitle' | t }}
+      </h2>
+      <p class="mx-auto mt-3 max-w-md text-sm leading-relaxed stratix-muted">
+        {{ 'dashboard.emptyHint' | t }}
+      </p>
 
-  <div class="grid gap-6 xl:grid-cols-2">
-    <!-- 1. Project Health -->
-    <section class="stratix-card overflow-hidden">
-      <div class="stratix-card-header flex items-center justify-between">
-        <h3 class="stratix-heading text-sm">{{ 'dashboard.projectHealth' | t }}</h3>
-        <a routerLink="/projects" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">{{ 'common.view' | t }} <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span></a>
-      </div>
-      <div class="grid gap-4 p-5 md:grid-cols-[minmax(0,1fr)_auto]">
-        @if (projectHealth().length === 0) {
-          <p class="col-span-full rounded-lg bg-slate-50 px-4 py-8 text-center text-sm stratix-muted dark:bg-slate-800/60">
-            {{ 'dashboard.noProjects' | t }}
-          </p>
-        } @else {
-          <div class="min-w-0">
-            <app-bar-chart [items]="projectHealthBars()" [height]="200" [maxValue]="100" />
-          </div>
-          <div class="flex flex-col items-center justify-center border-t border-slate-100 pt-4 md:border-t-0 md:border-s border-slate-100 md:pt-0 md:ps-4 dark:border-slate-700">
-            <p class="mb-2 text-xs stratix-muted">{{ 'dashboard.chartHealthMix' | t }}</p>
-            <app-donut-chart [segments]="healthMixDonut()" [size]="120" [showLegend]="true" />
-          </div>
-        }
-      </div>
-    </section>
+      @if (canCreateProject()) {
+        <button
+          type="button"
+          class="mt-8 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition hover:brightness-110"
+          (click)="createFirstProject()"
+        >
+          <span class="text-lg leading-none" aria-hidden="true">+</span>
+          {{ 'dashboard.createFirstProject' | t }}
+        </button>
+      } @else {
+        <a
+          routerLink="/projects"
+          class="mt-8 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition hover:brightness-110"
+        >
+          {{ 'dashboard.viewProjects' | t }}
+        </a>
+      }
 
-    <!-- 2. Tasks Overdue -->
-    <section class="stratix-card overflow-hidden">
-      <div class="stratix-card-header flex items-center justify-between">
-        <h3 class="stratix-heading text-sm">{{ 'dashboard.tasksOverdue' | t }}</h3>
-        <a routerLink="/projects" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">{{ 'common.view' | t }} <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span></a>
-      </div>
-      <div class="p-5">
-        <p class="mb-3 text-xs stratix-muted">{{ 'dashboard.chartOverdueDays' | t }}</p>
-        @if (overdueTasks().length === 0) {
-          <p class="rounded-lg bg-slate-50 px-4 py-8 text-center text-sm stratix-muted dark:bg-slate-800/60">
-            {{ 'dashboard.noOverdueTasks' | t }}
-          </p>
-        } @else {
-          <app-bar-chart [items]="overdueTaskBars()" [height]="200" />
-        }
-      </div>
-    </section>
-
-    <!-- 4. Employee Load -->
-    <section class="stratix-card overflow-hidden">
-      <div class="stratix-card-header flex items-center justify-between">
-        <h3 class="stratix-heading text-sm">{{ 'dashboard.employeeLoad' | t }}</h3>
-        <a routerLink="/team" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">{{ 'common.view' | t }} <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span></a>
-      </div>
-      <div class="p-5">
-        @if (employeeLoad().length === 0) {
-          <p class="rounded-lg bg-slate-50 px-4 py-8 text-center text-sm stratix-muted dark:bg-slate-800/60">
-            {{ 'dashboard.noEmployeeLoad' | t }}
-          </p>
-        } @else {
-          <app-horizontal-bar-chart [items]="employeeLoadBars()" [maxValue]="110" />
-        }
-      </div>
-    </section>
-
-    <!-- 5. Department Performance -->
-    <section class="stratix-card overflow-hidden">
-      <div class="stratix-card-header flex items-center justify-between">
-        <h3 class="stratix-heading text-sm">{{ 'dashboard.departmentPerformance' | t }}</h3>
-        <a routerLink="/performance" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">{{ 'common.view' | t }} <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span></a>
-      </div>
-      <div class="p-5">
-        @if (departmentPerformance().length === 0) {
-          <p class="rounded-lg bg-slate-50 px-4 py-8 text-center text-sm stratix-muted dark:bg-slate-800/60">
-            {{ 'dashboard.noDepartmentData' | t }}
-          </p>
-        } @else {
-          <app-bar-chart [items]="departmentBars()" [height]="200" [maxValue]="100" />
-        }
-      </div>
-    </section>
-
-    <!-- 6. Risk Level -->
-    <section class="stratix-card overflow-hidden">
-      <div class="stratix-card-header flex items-center justify-between">
-        <h3 class="stratix-heading text-sm">{{ 'dashboard.riskLevel' | t }}</h3>
-        <a routerLink="/risks" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">{{ 'common.view' | t }} <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span></a>
-      </div>
-      <div class="grid gap-4 p-5 md:grid-cols-2">
-        <app-donut-chart
-          [segments]="riskDonut()"
-          [size]="150"
-          [centerLabel]="riskStats().totalRisks + ''"
-          [centerSubLabel]="'risks.statTotal' | t"
-        />
-        <ul class="space-y-2 self-center">
-          @for (r of topRisks(); track r.id) {
-            <li class="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm dark:bg-slate-800/60">
-              <a [routerLink]="['/risks', r.id]" class="min-w-0 truncate text-primary hover:underline">{{ r.title }}</a>
-              <span class="stratix-badge shrink-0" [class]="riskLevelClass(r.riskLevel)">{{ r.riskLevel }}</span>
-            </li>
-          } @empty {
-            <li class="rounded-lg bg-slate-50 px-3 py-4 text-center text-xs stratix-muted dark:bg-slate-800/60">
-              {{ 'dashboard.noOpenRisks' | t }}
+      <div class="mt-12 text-start">
+        <h3 class="text-sm font-semibold text-dark dark:text-slate-100">{{ 'dashboard.nextSteps' | t }}</h3>
+        <ul class="mt-4 space-y-3">
+          @for (step of setupSteps(); track step.key) {
+            <li class="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white/70 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/40">
+              <span
+                class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold"
+                [class]="
+                  step.done
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                    : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500'
+                "
+              >
+                {{ step.done ? '✓' : '○' }}
+              </span>
+              @if (step.done || !step.link) {
+                <span class="text-sm" [class]="step.done ? 'font-medium text-dark dark:text-slate-100' : 'stratix-muted'">
+                  {{ step.labelKey | t }}
+                </span>
+              } @else {
+                <a [routerLink]="step.link" class="text-sm font-medium text-primary hover:underline">{{ step.labelKey | t }}</a>
+              }
             </li>
           }
         </ul>
       </div>
     </section>
+  } @else {
+    <div class="mb-6 max-w-3xl">
+      <h2 class="text-lg font-semibold text-dark dark:text-slate-100">{{ titleKey() | t }}</h2>
+      <p class="mt-1 text-sm stratix-muted">{{ hintKey() | t }}</p>
+    </div>
 
-    <!-- 7. Schedule / progress vs plan -->
-    <section class="stratix-card overflow-hidden xl:col-span-2">
-      <div class="stratix-card-header flex items-center justify-between">
-        <h3 class="stratix-heading text-sm">{{ 'dashboard.scheduleStatus' | t }}</h3>
-        <span class="text-xs stratix-muted">{{ 'dashboard.chartScheduleHint' | t }}</span>
-      </div>
-      <div class="p-5">
-        @if (budgetStatus().length === 0) {
-          <p class="rounded-lg bg-slate-50 px-4 py-8 text-center text-sm stratix-muted dark:bg-slate-800/60">
-            {{ 'dashboard.noProjects' | t }}
-          </p>
-        } @else {
-          <app-grouped-bar-chart
-            [items]="budgetGrouped()"
-            [series]="budgetSeries()"
-            [height]="220"
-          />
-          <div class="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            @for (b of budgetStatus(); track b.projectId) {
-              <div class="rounded-lg border border-slate-100 p-3 dark:border-slate-700">
-                <div class="flex items-center justify-between gap-2">
-                  <a [routerLink]="['/projects', b.projectId]" class="truncate text-sm font-medium text-primary hover:underline">
-                    {{ b.projectName }}
-                  </a>
-                  <span class="stratix-badge shrink-0" [class]="budgetStatusClass(b.status)">
-                    {{ 'dashboard.schedule.' + b.status | t }}
-                  </span>
-                </div>
-                <p class="mt-2 text-xs stratix-muted">
-                  {{ budgetUsedPct(b.spent, b.budget) }}% {{ 'common.progress' | t }}
-                </p>
+    <!-- Health / portfolio overview (admin + executive) -->
+    @if (has('healthOverview') || has('projectPortfolio') || has('healthTrends')) {
+      <div class="stratix-card mb-6 overflow-hidden">
+        <div class="grid gap-6 p-6 lg:grid-cols-[auto_1fr] lg:items-center">
+          <div class="flex flex-col items-center gap-2">
+            <p class="text-xs font-medium uppercase tracking-wide stratix-muted">
+              {{ (has('projectPortfolio') ? 'dashboard.widget.projectPortfolio' : 'dashboard.executiveOverview') | t }}
+            </p>
+            <app-donut-chart
+              [segments]="portfolioDonut()"
+              [size]="140"
+              [centerLabel]="overallHealth().score + '%'"
+              [centerSubLabel]="('dashboard.health.' + overallHealth().status) | t"
+              [showLegend]="false"
+            />
+            @if (apiConnected()) {
+              <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                {{ 'common.apiConnected' | t }}
+              </span>
+            }
+          </div>
+          <div>
+            <h2 class="text-lg font-bold text-dark dark:text-slate-100">{{ 'dashboard.portfolioHealth' | t }}</h2>
+            <p class="mt-1 text-sm stratix-muted">{{ 'dashboard.chartOverviewHint' | t }}</p>
+            @if (has('healthTrends') || has('healthOverview')) {
+              <div class="mt-5">
+                <app-donut-chart [segments]="healthMixDonut()" [size]="120" [showLegend]="true" />
               </div>
             }
           </div>
-        }
+        </div>
       </div>
-    </section>
-  </div>
+    }
+
+    <div class="grid gap-6 xl:grid-cols-2">
+      <!-- Projects (admin) -->
+      @if (has('projects')) {
+        <section class="stratix-card overflow-hidden">
+          <div class="stratix-card-header flex items-center justify-between">
+            <h3 class="stratix-heading text-sm">{{ 'dashboard.widget.projects' | t }}</h3>
+            <a routerLink="/projects" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+              {{ 'common.view' | t }}
+              <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span>
+            </a>
+          </div>
+          <ul class="divide-y divide-slate-100 dark:divide-slate-700">
+            @for (p of recentProjects(); track p.id) {
+              <li class="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+                <a [routerLink]="['/projects', p.id]" class="min-w-0 truncate font-medium text-primary hover:underline">{{ p.name }}</a>
+                <span class="tabular-nums stratix-muted">{{ p.progress }}%</span>
+              </li>
+            } @empty {
+              <li class="px-5 py-8 text-center text-sm stratix-muted">{{ 'dashboard.noProjects' | t }}</li>
+            }
+          </ul>
+        </section>
+      }
+
+      <!-- My Projects (PM) -->
+      @if (has('myProjects')) {
+        <section class="stratix-card overflow-hidden">
+          <div class="stratix-card-header flex items-center justify-between">
+            <h3 class="stratix-heading text-sm">{{ 'dashboard.widget.myProjects' | t }}</h3>
+            <a routerLink="/projects" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+              {{ 'common.view' | t }}
+              <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span>
+            </a>
+          </div>
+          <ul class="divide-y divide-slate-100 dark:divide-slate-700">
+            @for (p of myProjects(); track p.id) {
+              <li class="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+                <a [routerLink]="['/projects', p.id]" class="min-w-0 truncate font-medium text-primary hover:underline">{{ p.name }}</a>
+                <span class="tabular-nums stratix-muted">{{ p.progress }}%</span>
+              </li>
+            } @empty {
+              <li class="px-5 py-8 text-center text-sm stratix-muted">{{ 'dashboard.noProjects' | t }}</li>
+            }
+          </ul>
+        </section>
+      }
+
+      <!-- Project Health (PM / admin via health) -->
+      @if (has('projectHealth') || has('criticalProjects')) {
+        <section class="stratix-card overflow-hidden">
+          <div class="stratix-card-header flex items-center justify-between">
+            <h3 class="stratix-heading text-sm">
+              {{ (has('criticalProjects') ? 'dashboard.widget.criticalProjects' : 'dashboard.widget.projectHealth') | t }}
+            </h3>
+            <a routerLink="/projects" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+              {{ 'common.view' | t }}
+              <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span>
+            </a>
+          </div>
+          <div class="p-5">
+            @if (has('criticalProjects')) {
+              <ul class="space-y-2">
+                @for (p of criticalProjects(); track p.projectId) {
+                  <li class="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm dark:bg-slate-800/60">
+                    <a [routerLink]="['/projects', p.projectId]" class="min-w-0 truncate text-primary hover:underline">{{ p.projectName }}</a>
+                    <span class="stratix-badge shrink-0" [class]="healthStatusClass(p.status)">{{ 'dashboard.health.' + p.status | t }}</span>
+                  </li>
+                } @empty {
+                  <li class="rounded-lg bg-slate-50 px-3 py-4 text-center text-xs stratix-muted dark:bg-slate-800/60">
+                    {{ 'dashboard.noCriticalProjects' | t }}
+                  </li>
+                }
+              </ul>
+            } @else if (projectHealthBars().length === 0) {
+              <p class="rounded-lg bg-slate-50 px-4 py-8 text-center text-sm stratix-muted dark:bg-slate-800/60">{{ 'dashboard.noProjects' | t }}</p>
+            } @else {
+              <app-bar-chart [items]="projectHealthBars()" [height]="200" [maxValue]="100" />
+            }
+          </div>
+        </section>
+      }
+
+      <!-- Critical / Risk exposure -->
+      @if (has('criticalRisks') || has('riskExposure')) {
+        <section class="stratix-card overflow-hidden">
+          <div class="stratix-card-header flex items-center justify-between">
+            <h3 class="stratix-heading text-sm">
+              {{ (has('riskExposure') ? 'dashboard.widget.riskExposure' : 'dashboard.widget.criticalRisks') | t }}
+            </h3>
+            <a routerLink="/risks" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+              {{ 'common.view' | t }}
+              <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span>
+            </a>
+          </div>
+          <div class="grid gap-4 p-5 md:grid-cols-2">
+            @if (has('riskExposure')) {
+              <app-donut-chart
+                [segments]="riskDonut()"
+                [size]="140"
+                [centerLabel]="riskStats().totalRisks + ''"
+                [centerSubLabel]="'risks.statTotal' | t"
+              />
+            }
+            <ul class="space-y-2 self-center" [class.md:col-span-2]="!has('riskExposure')">
+              @for (r of criticalRisks(); track r.id) {
+                <li class="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm dark:bg-slate-800/60">
+                  <a [routerLink]="['/risks', r.id]" class="min-w-0 truncate text-primary hover:underline">{{ r.title }}</a>
+                  <span class="stratix-badge shrink-0" [class]="riskLevelClass(r.riskLevel)">{{ r.riskLevel }}</span>
+                </li>
+              } @empty {
+                <li class="rounded-lg bg-slate-50 px-3 py-4 text-center text-xs stratix-muted dark:bg-slate-800/60">
+                  {{ 'dashboard.noOpenRisks' | t }}
+                </li>
+              }
+            </ul>
+          </div>
+        </section>
+      }
+
+      <!-- Team performance / Performance -->
+      @if (has('teamPerformance') || has('performance')) {
+        <section class="stratix-card overflow-hidden">
+          <div class="stratix-card-header flex items-center justify-between">
+            <h3 class="stratix-heading text-sm">
+              {{ (has('performance') ? 'dashboard.widget.performance' : 'dashboard.widget.teamPerformance') | t }}
+            </h3>
+            <a routerLink="/performance" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+              {{ 'common.view' | t }}
+              <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span>
+            </a>
+          </div>
+          <div class="p-5">
+            @if (departmentBars().length === 0) {
+              <p class="rounded-lg bg-slate-50 px-4 py-8 text-center text-sm stratix-muted dark:bg-slate-800/60">
+                {{ 'dashboard.noDepartmentData' | t }}
+              </p>
+            } @else {
+              <app-bar-chart [items]="departmentBars()" [height]="200" [maxValue]="100" />
+            }
+          </div>
+        </section>
+      }
+
+      <!-- Subscription usage (admin) -->
+      @if (has('subscriptionUsage')) {
+        <section class="stratix-card overflow-hidden">
+          <div class="stratix-card-header flex items-center justify-between">
+            <h3 class="stratix-heading text-sm">{{ 'dashboard.widget.subscriptionUsage' | t }}</h3>
+          </div>
+          <div class="space-y-4 p-5">
+            @if (subscriptionUsage(); as usage) {
+              <p class="text-sm">
+                <span class="font-semibold text-dark dark:text-slate-100">{{ usage.planCode }}</span>
+                <span class="ms-2 text-xs uppercase stratix-muted">{{ usage.status }}</span>
+              </p>
+              <div>
+                <div class="mb-1 flex justify-between text-xs stratix-muted">
+                  <span>{{ 'dashboard.usageUsers' | t }}</span>
+                  <span>{{ usage.usersUsed }} / {{ usage.usersMax || '—' }}</span>
+                </div>
+                <div class="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                  <div class="h-full rounded-full bg-primary" [style.width.%]="usagePct(usage.usersUsed, usage.usersMax)"></div>
+                </div>
+              </div>
+              <div>
+                <div class="mb-1 flex justify-between text-xs stratix-muted">
+                  <span>{{ 'dashboard.usageProjects' | t }}</span>
+                  <span>{{ usage.projectsUsed }} / {{ usage.projectsMax || '—' }}</span>
+                </div>
+                <div class="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                  <div class="h-full rounded-full bg-primary" [style.width.%]="usagePct(usage.projectsUsed, usage.projectsMax)"></div>
+                </div>
+              </div>
+            } @else {
+              <p class="text-sm stratix-muted">{{ 'dashboard.usageUnavailable' | t }}</p>
+            }
+          </div>
+        </section>
+      }
+
+      <!-- Tasks awaiting review / Review queue -->
+      @if (has('tasksAwaitingReview') || has('reviewQueue')) {
+        <section class="stratix-card overflow-hidden">
+          <div class="stratix-card-header flex items-center justify-between">
+            <h3 class="stratix-heading text-sm">
+              {{ (has('reviewQueue') ? 'dashboard.widget.reviewQueue' : 'dashboard.widget.tasksAwaitingReview') | t }}
+            </h3>
+            <a routerLink="/projects" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+              {{ 'common.view' | t }}
+              <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span>
+            </a>
+          </div>
+          <ul class="divide-y divide-slate-100 dark:divide-slate-700">
+            @for (t of inReview().slice(0, 8); track t.id) {
+              <li class="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+                <span class="min-w-0 truncate font-medium text-dark dark:text-slate-100">{{ t.title }}</span>
+                <span class="shrink-0 text-xs stratix-muted">{{ t.assignee }}</span>
+              </li>
+            } @empty {
+              <li class="px-5 py-8 text-center text-sm stratix-muted">{{ 'dashboard.noReviewTasks' | t }}</li>
+            }
+          </ul>
+        </section>
+      }
+
+      <!-- Delayed / Overdue -->
+      @if (has('delayedTasks') || has('overdue')) {
+        <section class="stratix-card overflow-hidden">
+          <div class="stratix-card-header flex items-center justify-between">
+            <h3 class="stratix-heading text-sm">
+              {{ (has('overdue') ? 'dashboard.widget.overdue' : 'dashboard.widget.delayedTasks') | t }}
+            </h3>
+          </div>
+          <ul class="divide-y divide-slate-100 dark:divide-slate-700">
+            @for (t of (has('overdue') ? myOverdue() : delayedTasks()).slice(0, 8); track t.id) {
+              <li class="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+                <span class="min-w-0 truncate font-medium text-dark dark:text-slate-100">{{ t.title }}</span>
+                <span class="shrink-0 tabular-nums text-xs text-danger">{{ t.dueDate }}</span>
+              </li>
+            } @empty {
+              <li class="px-5 py-8 text-center text-sm stratix-muted">{{ 'dashboard.noOverdueTasks' | t }}</li>
+            }
+          </ul>
+        </section>
+      }
+
+      <!-- Team workload -->
+      @if (has('teamWorkload')) {
+        <section class="stratix-card overflow-hidden">
+          <div class="stratix-card-header flex items-center justify-between">
+            <h3 class="stratix-heading text-sm">{{ 'dashboard.widget.teamWorkload' | t }}</h3>
+            <a routerLink="/team" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+              {{ 'common.view' | t }}
+              <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span>
+            </a>
+          </div>
+          <div class="p-5">
+            @if (employeeLoadBars().length === 0) {
+              <p class="rounded-lg bg-slate-50 px-4 py-8 text-center text-sm stratix-muted dark:bg-slate-800/60">
+                {{ 'dashboard.noEmployeeLoad' | t }}
+              </p>
+            } @else {
+              <app-horizontal-bar-chart [items]="employeeLoadBars()" [maxValue]="110" />
+            }
+          </div>
+        </section>
+      }
+
+      <!-- Team tasks (TL) -->
+      @if (has('teamTasks')) {
+        <section class="stratix-card overflow-hidden">
+          <div class="stratix-card-header flex items-center justify-between">
+            <h3 class="stratix-heading text-sm">{{ 'dashboard.widget.teamTasks' | t }}</h3>
+          </div>
+          <ul class="divide-y divide-slate-100 dark:divide-slate-700">
+            @for (t of teamOpenTasks(); track t.id) {
+              <li class="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+                <span class="min-w-0 truncate font-medium text-dark dark:text-slate-100">{{ t.title }}</span>
+                <span class="shrink-0 text-xs stratix-muted">{{ t.status }}</span>
+              </li>
+            } @empty {
+              <li class="px-5 py-8 text-center text-sm stratix-muted">{{ 'dashboard.noTeamTasks' | t }}</li>
+            }
+          </ul>
+        </section>
+      }
+
+      <!-- Blocked tasks -->
+      @if (has('blockedTasks')) {
+        <section class="stratix-card overflow-hidden">
+          <div class="stratix-card-header">
+            <h3 class="stratix-heading text-sm">{{ 'dashboard.widget.blockedTasks' | t }}</h3>
+          </div>
+          <ul class="divide-y divide-slate-100 dark:divide-slate-700">
+            @for (t of blockedTasks().slice(0, 8); track t.id) {
+              <li class="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+                <span class="min-w-0 truncate font-medium text-dark dark:text-slate-100">{{ t.title }}</span>
+                <span class="shrink-0 text-xs text-amber-700">{{ t.assignee }}</span>
+              </li>
+            } @empty {
+              <li class="px-5 py-8 text-center text-sm stratix-muted">{{ 'dashboard.noBlockedTasks' | t }}</li>
+            }
+          </ul>
+        </section>
+      }
+
+      <!-- Feature progress -->
+      @if (has('featureProgress')) {
+        <section class="stratix-card overflow-hidden">
+          <div class="stratix-card-header">
+            <h3 class="stratix-heading text-sm">{{ 'dashboard.widget.featureProgress' | t }}</h3>
+          </div>
+          <div class="p-5">
+            @if (featureProgress().length === 0) {
+              <p class="rounded-lg bg-slate-50 px-4 py-8 text-center text-sm stratix-muted dark:bg-slate-800/60">
+                {{ 'dashboard.noProjects' | t }}
+              </p>
+            } @else {
+              <app-bar-chart [items]="featureProgress()" [height]="200" [maxValue]="100" />
+            }
+          </div>
+        </section>
+      }
+
+      <!-- My tasks -->
+      @if (has('myTasks')) {
+        <section class="stratix-card overflow-hidden">
+          <div class="stratix-card-header flex items-center justify-between">
+            <h3 class="stratix-heading text-sm">{{ 'dashboard.widget.myTasks' | t }}</h3>
+            <a routerLink="/projects" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+              {{ 'common.view' | t }}
+              <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span>
+            </a>
+          </div>
+          <ul class="divide-y divide-slate-100 dark:divide-slate-700">
+            @for (t of myTasks(); track t.id) {
+              <li class="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+                <span class="min-w-0 truncate font-medium text-dark dark:text-slate-100">{{ t.title }}</span>
+                <span class="shrink-0 text-xs stratix-muted">{{ t.status }}</span>
+              </li>
+            } @empty {
+              <li class="px-5 py-8 text-center text-sm stratix-muted">{{ 'dashboard.noMyTasks' | t }}</li>
+            }
+          </ul>
+        </section>
+      }
+
+      <!-- Due today -->
+      @if (has('dueToday')) {
+        <section class="stratix-card overflow-hidden">
+          <div class="stratix-card-header">
+            <h3 class="stratix-heading text-sm">{{ 'dashboard.widget.dueToday' | t }}</h3>
+          </div>
+          <ul class="divide-y divide-slate-100 dark:divide-slate-700">
+            @for (t of dueToday().slice(0, 8); track t.id) {
+              <li class="px-5 py-3 text-sm font-medium text-dark dark:text-slate-100">{{ t.title }}</li>
+            } @empty {
+              <li class="px-5 py-8 text-center text-sm stratix-muted">{{ 'dashboard.noDueToday' | t }}</li>
+            }
+          </ul>
+        </section>
+      }
+
+      <!-- In review (employee) -->
+      @if (has('inReview')) {
+        <section class="stratix-card overflow-hidden">
+          <div class="stratix-card-header">
+            <h3 class="stratix-heading text-sm">{{ 'dashboard.widget.inReview' | t }}</h3>
+          </div>
+          <ul class="divide-y divide-slate-100 dark:divide-slate-700">
+            @for (t of inReview().slice(0, 8); track t.id) {
+              <li class="px-5 py-3 text-sm font-medium text-dark dark:text-slate-100">{{ t.title }}</li>
+            } @empty {
+              <li class="px-5 py-8 text-center text-sm stratix-muted">{{ 'dashboard.noReviewTasks' | t }}</li>
+            }
+          </ul>
+        </section>
+      }
+
+      <!-- My KPI -->
+      @if (has('myKpi')) {
+        <section class="stratix-card overflow-hidden">
+          <div class="stratix-card-header flex items-center justify-between">
+            <h3 class="stratix-heading text-sm">{{ 'dashboard.widget.myKpi' | t }}</h3>
+            <a routerLink="/performance" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+              {{ 'common.view' | t }}
+              <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span>
+            </a>
+          </div>
+          <div class="p-5">
+            @if (myKpiScore() != null) {
+              <p class="text-3xl font-bold tabular-nums text-primary">{{ myKpiScore() }}</p>
+              <p class="mt-1 text-sm font-semibold text-dark dark:text-slate-100">{{ kpiBandKey(myKpiScore()) | t }}</p>
+              @if (myKpiPeriod()) {
+                <p class="mt-1 text-xs stratix-muted">{{ myKpiPeriod() }}</p>
+              }
+            } @else {
+              <p class="text-sm stratix-muted">{{ 'dashboard.noKpiYet' | t }}</p>
+            }
+          </div>
+        </section>
+      }
+
+      <!-- Notifications -->
+      @if (has('notifications')) {
+        <section class="stratix-card overflow-hidden">
+          <div class="stratix-card-header flex items-center justify-between">
+            <h3 class="stratix-heading text-sm">{{ 'dashboard.widget.notifications' | t }}</h3>
+            <a routerLink="/notifications" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+              {{ 'common.view' | t }}
+              <span class="stratix-chevron-flip"><app-ui-icon name="chevron-right" size="xs" /></span>
+            </a>
+          </div>
+          <ul class="divide-y divide-slate-100 dark:divide-slate-700">
+            @for (n of notificationItems().slice(0, 6); track n.id) {
+              <li class="px-5 py-3">
+                <p class="text-sm font-medium text-dark dark:text-slate-100" [class.opacity-60]="n.read">{{ n.title }}</p>
+                <p class="mt-0.5 text-xs stratix-muted">{{ n.createdAt | date: 'short' }}</p>
+              </li>
+            } @empty {
+              <li class="px-5 py-8 text-center text-sm stratix-muted">{{ 'notifications.empty' | t }}</li>
+            }
+          </ul>
+        </section>
+      }
+    </div>
+  }
 </main>

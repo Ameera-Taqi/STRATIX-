@@ -18,6 +18,8 @@ export interface ProjectRisk {
   ownerName: string;
   createdAt: string;
   updatedAt: string;
+  closureReason?: string | null;
+  residualRisk?: RiskImpact | null;
 }
 
 export interface RiskDashboardStats {
@@ -61,4 +63,9 @@ export interface UpdateRiskRequest {
   status: RiskStatus;
   projectId: number;
   ownerId: number;
+}
+
+export interface CloseRiskRequest {
+  closureReason: string;
+  residualRisk?: RiskImpact | null;
 }

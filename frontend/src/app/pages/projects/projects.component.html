@@ -1,5 +1,5 @@
 <app-topbar titleKey="page.projects" />
-<main class="stratix-page p-6">
+<main class="stratix-page p-6" [appWarnUnsaved]="hasUnsavedChanges()">
   <div class="mb-6 max-w-3xl">
     <h2 class="text-lg font-semibold text-dark dark:text-slate-100">{{ 'page.projects' | t }}</h2>
     <p class="mt-1 text-sm stratix-muted">{{ 'projects.hint' | t }}</p>
@@ -176,7 +176,7 @@
       (click)="$event.stopPropagation()"
     >
       <h2 class="stratix-heading text-lg">{{ 'projects.createTitle' | t }}</h2>
-      <p class="stratix-muted mt-1 text-sm">{{ 'projects.createHint' | t }}</p>
+      <p class="stratix-muted mt-1 text-sm">{{ 'projects.createHintSimple' | t }}</p>
 
       @if (formError()) {
         <p class="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-danger dark:bg-red-900/30 dark:text-red-300">
@@ -189,14 +189,30 @@
           <label class="stratix-muted mb-1 block text-sm">{{ 'dashboard.projectName' | t }} *</label>
           <input type="text" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="form.name" name="name" required />
         </div>
+        <div>
+          <label class="stratix-muted mb-1 block text-sm">{{ 'common.description' | t }}</label>
+          <textarea
+            class="stratix-input min-h-[72px] w-full px-3 py-2 text-sm"
+            [(ngModel)]="form.description"
+            name="description"
+            rows="3"
+          ></textarea>
+        </div>
         <div class="grid gap-4 sm:grid-cols-2">
           <div>
-            <label class="stratix-muted mb-1 block text-sm">{{ 'common.department' | t }}</label>
-            <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="form.department" name="department">
-              @for (d of departments; track d) {
-                <option [value]="d">{{ d }}</option>
-              }
-            </select>
+            <label class="stratix-muted mb-1 block text-sm">{{ 'common.department' | t }} *</label>
+            @if (departmentOptions().length === 0) {
+              <p class="stratix-muted text-xs">{{ 'projects.noDepartments' | t }}</p>
+              <a routerLink="/roles" class="mt-1 inline-block text-xs font-medium text-primary hover:underline">
+                {{ 'dashboard.setupDept' | t }}
+              </a>
+            } @else {
+              <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="form.department" name="department" required>
+                @for (d of departmentOptions(); track d.id) {
+                  <option [value]="d.name">{{ d.name }}</option>
+                }
+              </select>
+            }
           </div>
           <div>
             <label class="stratix-muted mb-1 block text-sm">{{ 'projects.manager' | t }} *</label>
@@ -205,11 +221,19 @@
             } @else {
               <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="form.managerId" name="managerId" required>
                 @for (m of managerOptions(); track m.id) {
-                  <option [ngValue]="m.id">{{ m.name }} — {{ m.department }}</option>
+                  <option [ngValue]="m.id">{{ m.name }}</option>
                 }
               </select>
             }
           </div>
+        </div>
+        <div>
+          <label class="stratix-muted mb-1 block text-sm">{{ 'common.priority' | t }}</label>
+          <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="form.priority" name="priority">
+            @for (pr of priorityOptions; track pr) {
+              <option [value]="pr">{{ priorityLabelKeyFn(pr) | t }}</option>
+            }
+          </select>
         </div>
         <div class="grid gap-4 sm:grid-cols-2">
           <div>
@@ -217,26 +241,8 @@
             <input type="date" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="form.startDate" name="startDate" />
           </div>
           <div>
-            <label class="stratix-muted mb-1 block text-sm">{{ 'common.end' | t }} *</label>
-            <input type="date" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="form.endDate" name="endDate" required />
-          </div>
-        </div>
-        <div class="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label class="stratix-muted mb-1 block text-sm">{{ 'common.status' | t }}</label>
-            <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="form.status" name="status">
-              @for (s of statusOptions; track s) {
-                <option [value]="s">{{ statusLabelKey(s) | t }}</option>
-              }
-            </select>
-          </div>
-          <div>
-            <label class="stratix-muted mb-1 block text-sm">{{ 'common.priority' | t }}</label>
-            <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="form.priority" name="priority">
-              @for (pr of priorityOptions; track pr) {
-                <option [value]="pr">{{ priorityLabelKeyFn(pr) | t }}</option>
-              }
-            </select>
+            <label class="stratix-muted mb-1 block text-sm">{{ 'projects.targetEnd' | t }}</label>
+            <input type="date" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="form.endDate" name="endDate" />
           </div>
         </div>
         <div class="flex justify-end gap-2 pt-2">
@@ -246,7 +252,7 @@
           <button
             type="submit"
             class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60"
-            [disabled]="submitting() || managerOptions().length === 0"
+            [disabled]="submitting() || managerOptions().length === 0 || departmentOptions().length === 0"
           >
             {{ 'projects.save' | t }}
           </button>

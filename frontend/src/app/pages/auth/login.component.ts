@@ -5,6 +5,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LangSwitcherComponent } from '../../layout/lang-switcher/lang-switcher.component';
 import { ThemeToggleComponent } from '../../layout/theme-toggle/theme-toggle.component';
 import { AuthService } from '../../core/services/auth.service';
+import { OnboardingService } from '../../core/services/onboarding.service';
 import { isRememberMeEnabled } from '../../core/services/auth-token.storage';
 
 @Component({
@@ -119,6 +120,7 @@ import { isRememberMeEnabled } from '../../core/services/auth-token.storage';
 export class LoginComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
+  private readonly onboarding = inject(OnboardingService);
   private readonly fb = inject(FormBuilder);
 
   readonly form = this.fb.nonNullable.group({
@@ -149,13 +151,14 @@ export class LoginComponent implements OnInit {
     this.submitting.set(true);
     const { username, password, rememberMe } = this.form.getRawValue();
 
-    this.auth.login(username, password, rememberMe).subscribe((ok) => {
+    this.auth.login(username, password, rememberMe).subscribe(async (ok) => {
       this.submitting.set(false);
       if (!ok) {
         this.error.set('module.invalidCredentials');
         return;
       }
-      void this.router.navigate(['/dashboard']);
+      const path = await this.onboarding.resolveHomePath();
+      void this.router.navigate([path]);
     });
   }
 }

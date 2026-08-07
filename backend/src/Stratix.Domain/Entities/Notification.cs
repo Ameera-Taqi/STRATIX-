@@ -14,6 +14,14 @@ public class Notification : ITenantScoped, ISoftDeletable, IHasCreatedAt
     public NotificationType Type { get; set; } = NotificationType.INFO;
     public bool IsRead { get; set; }
     public string? Link { get; set; }
+    /// <summary>Display name of the user who triggered the event.</summary>
+    public string? ActorName { get; set; }
+    public string? ProjectName { get; set; }
+    /// <summary>TASK | RISK | PROJECT | STAGE | EVALUATION</summary>
+    public string? EntityType { get; set; }
+    public long? EntityId { get; set; }
+    /// <summary>Quoted subject (task title, risk title, etc.).</summary>
+    public string? EntityLabel { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public bool IsDeleted { get; set; }
     public DateTimeOffset? DeletedAt { get; set; }

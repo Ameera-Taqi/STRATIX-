@@ -80,7 +80,7 @@ internal static class TestAuth
     }
 
     private sealed record LoginDto(string Token, string? RefreshToken, UserDto User);
-    internal sealed record UserDto(long Id, string Name, string Email, string Role);
+    internal sealed record UserDto(long Id, string Name, string Email, string Role, string? RoleCode = null);
 }
 
 internal sealed record AuthSession(string Token, string? RefreshToken, TestAuth.UserDto User);

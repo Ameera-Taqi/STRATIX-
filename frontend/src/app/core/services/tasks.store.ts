@@ -15,25 +15,17 @@ import { tasksForEmployee } from '../../shared/utils/employee-stats.util';
 
 
 export interface NewTaskForm {
-
   projectId: number;
-
   title: string;
-
   assignee: string;
-
   assigneeId?: number | null;
-
   priority: TaskCard['priority'];
-
+  startDate?: string;
   dueDate: string;
-
   status: TaskCard['status'];
-
   stageId?: number | null;
-
   description?: string;
-
+  estimatedHours: number;
 }
 
 
@@ -209,54 +201,36 @@ export class TasksStore {
 
 
 
+    const estimatedHours = Number(form.estimatedHours) > 0 ? Number(form.estimatedHours) : 1;
+
     const body = {
-
       projectId: form.projectId,
-
       stageId: form.stageId ?? null,
-
       title: form.title.trim(),
-
-      description: form.description ?? '',
-
+      description: form.description?.trim() || null,
       status: form.status,
-
       priority: form.priority,
-
       assigneeId,
-
+      startDate: form.startDate || null,
       dueDate: form.dueDate || null,
-
+      estimatedHours,
     };
 
-
-
     const task: TaskCard = {
-
       id: -Date.now(),
-
       projectId: form.projectId,
-
       projectName: project?.name ?? 'Project',
-
       stageId: form.stageId ?? null,
-
       stageName: stage?.name ?? null,
-
       title: form.title.trim(),
-
       assignee,
-
       assigneeId,
-
       priority: form.priority,
-
+      startDate: form.startDate || '',
       dueDate: form.dueDate,
-
       status: form.status,
-
       description: form.description,
-
+      estimatedHours,
     };
 
 
@@ -267,6 +241,11 @@ export class TasksStore {
       titleKey: 'notifications.taskCreatedTitle',
       bodyKey: 'notifications.taskCreatedBody',
       params: { task: task.title, project: task.projectName },
+      link: `/tasks/${task.id}`,
+      entityType: 'TASK',
+      entityId: task.id,
+      entityLabel: task.title,
+      projectName: task.projectName,
     });
 
     this.refreshProjectProgress(task.projectId);
@@ -303,42 +282,79 @@ export class TasksStore {
 
 
 
-  moveTask(taskId: number, newStatus: TaskCard['status']): void {
+  moveTask(
+    taskId: number,
+    newStatus: TaskCard['status'],
+    reasons?: { blockedReason?: string; reopenReason?: string; reviewReason?: string },
+  ): void {
     const task = this.getById(taskId);
     if (!task || task.status === newStatus) return;
 
-    const reasons: { blockedReason?: string; reopenReason?: string } = {};
-    if (newStatus === 'BLOCKED') {
-      reasons.blockedReason = 'Blocked from board';
-    }
-    // DONE → IN_PROGRESS / TODO: clear completion on server; reopen reason required.
-    if (task.status === 'DONE' && newStatus !== 'DONE') {
-      reasons.reopenReason = 'Reopened from board';
-    }
+    const blockedReason = reasons?.blockedReason?.trim();
+    const reopenReason = reasons?.reopenReason?.trim();
+    const reviewReason = reasons?.reviewReason?.trim();
+
+    if (newStatus === 'BLOCKED' && !blockedReason) return;
+    if (task.status === 'DONE' && !reopenReason) return;
+    if (task.status === 'REVIEW' && newStatus === 'IN_PROGRESS' && !reviewReason) return;
+
+    const payload = {
+      blockedReason: blockedReason || undefined,
+      reopenReason: reopenReason || undefined,
+      reviewReason: reviewReason || undefined,
+    };
+
+    const previousStatus = task.status;
+    const previousMeta = {
+      reviewReason: task.reviewReason,
+      submittedForReviewAt: task.submittedForReviewAt,
+      submittedForReviewById: task.submittedForReviewById,
+      submittedForReviewBy: task.submittedForReviewBy,
+    };
 
     this._tasks.update((list) =>
-      list.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t)),
+      list.map((t) =>
+        t.id === taskId
+          ? {
+              ...t,
+              status: newStatus,
+              blockedReason: newStatus === 'BLOCKED' ? blockedReason ?? null : t.blockedReason,
+              reopenReason: previousStatus === 'DONE' ? reopenReason ?? null : t.reopenReason,
+              reviewReason:
+                newStatus === 'REVIEW' || (previousStatus === 'REVIEW' && newStatus === 'IN_PROGRESS')
+                  ? reviewReason ?? t.reviewReason
+                  : t.reviewReason,
+              submittedForReviewAt: newStatus === 'REVIEW' ? new Date().toISOString() : null,
+              submittedForReviewBy:
+                newStatus === 'REVIEW' ? t.submittedForReviewBy ?? t.assignee : null,
+              submittedForReviewById:
+                newStatus === 'REVIEW' ? t.submittedForReviewById ?? t.assigneeId : null,
+            }
+          : t,
+      ),
     );
 
-    this.notifications.push({
-      titleKey: 'notifications.taskMovedTitle',
-      bodyKey: 'notifications.taskMovedBody',
-      params: { task: task.title, status: newStatus.replace('_', ' ') },
-    });
-
-    // Optimistic progress (reopened task no longer counts as done).
     this.refreshProjectProgress(task.projectId);
     this.employeesStore.syncFromTasks(this._tasks());
     this.employeesStore.syncFromProjects(this.projectsStore.projects());
 
-    this.api.updateTaskStatus(taskId, newStatus, reasons).subscribe({
+    this.api.updateTaskStatus(taskId, newStatus, payload).subscribe({
       next: (updated) => {
         this._tasks.update((list) =>
           list.map((t) => (t.id === taskId ? this.normalizeTask(updated) : t)),
         );
-        // Server cleared CompletedAt, recalculated stage/project progress + health.
         this.refreshProjectProgress(updated.projectId);
         this.projectsStore.reloadStages(updated.projectId);
+      },
+      error: () => {
+        this._tasks.update((list) =>
+          list.map((t) =>
+            t.id === taskId ? { ...t, status: previousStatus, ...previousMeta } : t,
+          ),
+        );
+        this.refreshProjectProgress(task.projectId);
+        this.employeesStore.syncFromTasks(this._tasks());
+        this.employeesStore.syncFromProjects(this.projectsStore.projects());
       },
     });
   }
@@ -439,27 +455,22 @@ export class TasksStore {
   }
 
   private normalizeTask(task: TaskCard): TaskCard {
-
     return {
-
       ...task,
-
+      startDate: task.startDate ? String(task.startDate).slice(0, 10) : '',
       dueDate: task.dueDate ? String(task.dueDate).slice(0, 10) : '',
-
       stageId: task.stageId ?? null,
-
       stageName: task.stageName ?? null,
-
       assigneeId: task.assigneeId ?? null,
-
       assignee: task.assignee ?? '',
-
       priority: task.priority ?? 'MEDIUM',
-
       status: task.status ?? 'TODO',
-
+      estimatedHours: Number(task.estimatedHours) > 0 ? Number(task.estimatedHours) : 1,
+      submittedForReviewAt: task.submittedForReviewAt ?? null,
+      submittedForReviewById: task.submittedForReviewById ?? null,
+      submittedForReviewBy: task.submittedForReviewBy ?? null,
+      reviewReason: task.reviewReason ?? null,
     };
-
   }
 
 }

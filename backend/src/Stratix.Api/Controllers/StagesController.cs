@@ -36,6 +36,17 @@ public class StagesController : ControllerBase
     public async Task<StageResponse> Complete(long id, CancellationToken ct) =>
         await _stages.CompleteAsync(id, ct);
 
+    /// <summary>Reorder feature among siblings. Body: { "direction": "up" | "down" }.</summary>
+    [HttpPatch("api/stages/{id:long}/move")]
+    [Authorize(Policy = AuthPolicies.ProjectManagers)]
+    public async Task<ActionResult<IReadOnlyList<StageResponse>>> Move(
+        long id, [FromBody] MoveStageRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.Direction))
+            return BadRequest(new { message = "direction must be 'up' or 'down'." });
+        return Ok(await _stages.MoveAsync(id, request.Direction, ct));
+    }
+
     [HttpDelete("api/stages/{id:long}")]
     [Authorize(Policy = AuthPolicies.ProjectManagers)]
     public async Task<IActionResult> Delete(long id, CancellationToken ct)

@@ -5,6 +5,7 @@ using Stratix.Application.Interfaces;
 using Stratix.Application.Mapping;
 using Stratix.Domain.Entities;
 using Stratix.Domain.Enums;
+using Stratix.Domain.Events;
 using Stratix.Domain.Services;
 
 namespace Stratix.Application.Services;
@@ -14,12 +15,21 @@ public class RiskService : IRiskService
     private readonly IApplicationDbContext _db;
     private readonly IAuditTrailService _audit;
     private readonly TenantRelationGuard _tenantGuard;
+    private readonly ICurrentUserService _currentUser;
+    private readonly IDomainEventDispatcher _events;
 
-    public RiskService(IApplicationDbContext db, IAuditTrailService audit, TenantRelationGuard tenantGuard)
+    public RiskService(
+        IApplicationDbContext db,
+        IAuditTrailService audit,
+        TenantRelationGuard tenantGuard,
+        ICurrentUserService currentUser,
+        IDomainEventDispatcher events)
     {
         _db = db;
         _audit = audit;
         _tenantGuard = tenantGuard;
+        _currentUser = currentUser;
+        _events = events;
     }
 
     public async Task<IReadOnlyList<RiskResponse>> GetAllAsync(CancellationToken ct = default) =>
@@ -58,12 +68,31 @@ public class RiskService : IRiskService
             risk.ProjectId,
             risk.Project.Name,
             ct);
+
+        await _events.DispatchAsync(new RiskRaisedEvent(
+            risk.OrganizationId,
+            risk.ProjectId,
+            risk.Project.Name,
+            risk.Id,
+            risk.Title,
+            risk.RiskLevel,
+            risk.OwnerId,
+            risk.Project.ProjectManagerId,
+            _currentUser.UserId ?? 0,
+            _currentUser.UserName ?? "",
+            DateTimeOffset.UtcNow), ct);
+
         return EntityMappers.ToResponse(risk);
     }
 
     public async Task<RiskResponse> UpdateAsync(long id, UpdateRiskRequest request, CancellationToken ct = default)
     {
         var risk = await FindAsync(id, ct);
+
+        if (request.Status == RiskStatus.CLOSED && risk.Status != RiskStatus.CLOSED)
+            throw new ArgumentException(
+                "Use Close Risk with a resolution / closure reason. Status cannot be set to CLOSED via update.");
+
         var oldValues = AuditSnapshot.Serialize(Snapshot(risk));
         risk.Title = request.Title.Trim();
         risk.Description = request.Description;
@@ -71,7 +100,13 @@ public class RiskService : IRiskService
         risk.Probability = request.Probability;
         risk.RiskLevel = RiskLevelCalculator.Calculate(request.Impact, request.Probability);
         risk.MitigationPlan = request.MitigationPlan;
-        risk.Status = request.Status;
+        // Closing requires CloseAsync with a resolution reason.
+        if (request.Status != RiskStatus.CLOSED)
+        {
+            risk.Status = request.Status;
+            risk.ClosureReason = null;
+            risk.ResidualRisk = null;
+        }
         risk.ProjectId = request.ProjectId;
         risk.OwnerId = request.OwnerId;
         risk.UpdatedAt = DateTimeOffset.UtcNow;
@@ -84,6 +119,35 @@ public class RiskService : IRiskService
             oldValues,
             AuditSnapshot.Serialize(Snapshot(risk)),
             $"Risk updated: {risk.Title}",
+            risk.ProjectId,
+            risk.Project.Name,
+            ct);
+        return EntityMappers.ToResponse(await FindAsync(id, ct));
+    }
+
+    public async Task<RiskResponse> CloseAsync(long id, CloseRiskRequest request, CancellationToken ct = default)
+    {
+        var reason = request.ClosureReason?.Trim();
+        if (string.IsNullOrWhiteSpace(reason))
+            throw new ArgumentException("Resolution / closure reason is required when closing a risk.");
+
+        var risk = await FindAsync(id, ct);
+        if (risk.Status == RiskStatus.CLOSED)
+            throw new InvalidOperationException("Risk is already closed.");
+
+        var oldValues = AuditSnapshot.Serialize(Snapshot(risk));
+        risk.Status = RiskStatus.CLOSED;
+        risk.ClosureReason = reason;
+        risk.ResidualRisk = request.ResidualRisk;
+        risk.UpdatedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        await _audit.RecordUpdateAsync(
+            AuditEntityType.RISK,
+            risk.Id,
+            risk.Title,
+            oldValues,
+            AuditSnapshot.Serialize(Snapshot(risk)),
+            $"Risk closed: {risk.Title}",
             risk.ProjectId,
             risk.Project.Name,
             ct);
@@ -154,6 +218,8 @@ public class RiskService : IRiskService
         RiskLevel = r.RiskLevel.ToString(),
         r.MitigationPlan,
         Status = r.Status.ToString(),
+        r.ClosureReason,
+        ResidualRisk = r.ResidualRisk?.ToString(),
         r.ProjectId,
         r.OwnerId
     };

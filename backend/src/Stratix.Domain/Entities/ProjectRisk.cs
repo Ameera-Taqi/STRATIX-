@@ -13,6 +13,10 @@ public class ProjectRisk : ITenantScoped, ISoftDeletable, IHasCreatedAt, IHasUpd
     public RiskLevel RiskLevel { get; set; }
     public string? MitigationPlan { get; set; }
     public RiskStatus Status { get; set; } = RiskStatus.OPEN;
+    /// <summary>Required when status becomes CLOSED.</summary>
+    public string? ClosureReason { get; set; }
+    /// <summary>Optional residual risk after closure (LOW / MEDIUM / HIGH).</summary>
+    public RiskImpact? ResidualRisk { get; set; }
     public long ProjectId { get; set; }
     public Project Project { get; set; } = null!;
     public long OwnerId { get; set; }

@@ -11,15 +11,17 @@ export type { EmployeeStatus };
 
 export interface NewEmployeeForm {
   name: string;
+  email?: string;
+  jobTitle?: string;
   role: UserRole;
   department: string;
   status: EmployeeStatus;
-  email?: string;
 }
 
 export interface EditEmployeeForm {
   name: string;
   email: string;
+  jobTitle?: string;
   role: UserRole;
   department: string;
   status: EmployeeStatus;
@@ -152,7 +154,7 @@ export class EmployeesStore {
       email,
       password: DEFAULT_EMPLOYEE_PASSWORD,
       role: this.toRoleCode(form.role),
-      jobTitle: form.role,
+      jobTitle: form.jobTitle?.trim() || null,
       status: this.toUserStatus(form.status),
       departmentId: this.resolveDepartmentId(form.department),
     };
@@ -206,7 +208,7 @@ export class EmployeesStore {
       name: form.name.trim(),
       email: form.email.trim().toLowerCase(),
       role: this.toRoleCode(form.role),
-      jobTitle: form.role,
+      jobTitle: form.jobTitle?.trim() || null,
       status: this.toUserStatus(form.status),
       departmentId: this.resolveDepartmentId(form.department),
     };

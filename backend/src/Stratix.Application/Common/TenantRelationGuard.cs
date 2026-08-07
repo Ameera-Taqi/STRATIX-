@@ -59,9 +59,9 @@ public class TenantRelationGuard
         if (stageId is null) return;
         var stage = await _db.ProjectStages
             .FirstOrDefaultAsync(s => s.Id == stageId && s.OrganizationId == organizationId, ct)
-            ?? throw new ArgumentException("Stage does not belong to this organization.");
+            ?? throw new ArgumentException("Feature does not belong to this organization.");
         if (stage.ProjectId != projectId)
-            throw new ArgumentException("Stage does not belong to project.");
+            throw new ArgumentException("Feature does not belong to project.");
     }
 
     public async Task EnsureOrganizationRoleAsync(long? roleId, long organizationId, CancellationToken ct = default)

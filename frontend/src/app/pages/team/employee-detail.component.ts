@@ -17,13 +17,25 @@ import { departmentBadgeClass, employeeInitials } from '../../shared/utils/emplo
 import { computeEmployeeTaskStats } from '../../shared/utils/employee-stats.util';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { UiIconComponent } from '../../shared/components/ui-icon/ui-icon.component';
-import { assignableRolesFor, roleLabelKey } from '../../core/config/stratix-roles';
+import {
+  BreadcrumbItem,
+  BreadcrumbsComponent,
+} from '../../shared/components/breadcrumbs/breadcrumbs.component';
+import { assignableRolesFor, roleDataScopeLabelKey, roleLabelKey } from '../../core/config/stratix-roles';
 import { UserRole } from '../../core/models/user.model';
 
 @Component({
   selector: 'app-employee-detail',
   standalone: true,
-  imports: [TopbarComponent, RouterLink, TranslatePipe, FormsModule, EmployeeStatusToggleComponent, UiIconComponent],
+  imports: [
+    TopbarComponent,
+    RouterLink,
+    TranslatePipe,
+    FormsModule,
+    EmployeeStatusToggleComponent,
+    UiIconComponent,
+    BreadcrumbsComponent,
+  ],
   templateUrl: './employee-detail.component.html',
 })
 export class EmployeeDetailComponent implements OnInit {
@@ -55,6 +67,7 @@ export class EmployeeDetailComponent implements OnInit {
     return role ? assignableRolesFor(role) : [];
   });
   readonly roleKey = roleLabelKey;
+  readonly scopeKey = roleDataScopeLabelKey;
 
   form: EditEmployeeForm = {
     name: '',
@@ -65,6 +78,13 @@ export class EmployeeDetailComponent implements OnInit {
   };
 
   readonly canEdit = computed(() => this.roleAccess.canWrite('EMPLOYEES'));
+
+  readonly breadcrumbs = computed((): BreadcrumbItem[] => {
+    const e = this.employee();
+    const crumbs: BreadcrumbItem[] = [{ labelKey: 'nav.team', link: '/team' }];
+    if (e) crumbs.push({ label: e.name });
+    return crumbs;
+  });
 
   readonly priorityClass = priorityClass;
 

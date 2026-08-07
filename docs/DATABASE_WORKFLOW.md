@@ -11,7 +11,7 @@
 | 1 | `departments` | أقسام المؤسسة |
 | 2 | `users` | الموظفون + الأدوار (Employee = user) |
 | 3 | `projects` | المشاريع |
-| 4 | `project_stages` | مراحل المشروع + **Timeline** |
+| 4 | `project_stages` | ميزات المشروع + **Timeline** |
 | 5 | `tasks` | المهام |
 | 6 | `task_comments` | تعليقات ونشاط المهمة |
 | 7 | `employee_kpis` | مؤشرات أداء الموظف |
@@ -38,14 +38,14 @@ users
     └── reports.generated_by
 
 projects
-    ├── project_stages.project_id  ← Project → Stages
+    ├── project_stages.project_id  ← Project → Features
     ├── tasks.project_id
     ├── employee_kpis.project_id
     ├── project_files.project_id
     └── reports.project_id
 
 project_stages
-    └── tasks.stage_id             ← Stage → Tasks
+    └── tasks.stage_id             ← Feature → Tasks
 
 tasks
     └── task_comments.task_id
@@ -53,10 +53,12 @@ tasks
 
 ### Timeline للمشروع
 
-لا يوجد جدول `timeline` منفصل — **الـ Timeline = `projects` (start/end) + `project_stages` (ordered by `order_number`)**.
+لا يوجد جدول `timeline` منفصل — **الـ Timeline = تواريخ المشروع + تواريخ كل Feature** (يمكن أن تتداخل؛ الميزات متوازية افتراضيًا).
+
+`order_number` للعرض/الفرز فقط — **ليس** تبعية زمنية ولا شرطًا لإغلاق المشروع.
 
 ```sql
--- عرض Timeline لمشروع
+-- عرض Features لمشروع (ترتيب العرض فقط)
 SELECT name, start_date, end_date, progress, status, order_number
 FROM project_stages
 WHERE project_id = @projectId
@@ -69,7 +71,7 @@ ORDER BY order_number;
 
 ```mermaid
 flowchart LR
-    A[Create Project] --> B[Add Stages]
+    A[Create Project] --> B[Add Features]
     B --> C[Add Tasks]
     C --> D[Assign Employees]
     D --> E[Track Progress]
@@ -88,7 +90,7 @@ flowchart LR
 | خطوة | Workflow | الجداول المتأثرة |
 |------|----------|------------------|
 | 1 | **Create Project** | `INSERT projects` (+ `department_id`, `project_manager_id`) |
-| 2 | **Add Stages** | `INSERT project_stages` (مرتبة بـ `order_number`) |
+| 2 | **Add Features** | `INSERT project_stages` (`order_number` = ترتيب عرض فقط؛ التواريخ مستقلة وقد تتداخل) |
 | 3 | **Add Tasks** | `INSERT tasks` (`project_id`, `stage_id`) |
 | 4 | **Assign Employees** | `UPDATE tasks SET assigned_to = user_id` |
 | 5 | **Track Progress** | `UPDATE tasks.progress`, `project_stages.progress`, `projects.progress` |
@@ -116,7 +118,7 @@ flowchart LR
 
 ## 5. قواعد سلامة البيانات
 
-- حذف **مشروع** → يحذف مراحله ومهامه وتعليقاتها (CASCADE حيث مُعرّف).
+- حذف **مشروع** → يحذف ميزاته ومهامه وتعليقاتها (CASCADE حيث مُعرّف).
 - **Employee** = سجل في `users` (ليس جدولاً منفصلاً).
 - `tasks.project_id` إلزامي؛ `stage_id` و `assigned_to` اختياريان عند الإنشاء.
 - KPI فريد منطقياً per (`user_id`, `project_id`, `evaluation_period`) — يُفرض لاحقاً بـ UNIQUE index إن لزم.

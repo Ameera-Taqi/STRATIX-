@@ -48,6 +48,6 @@ Satrtix/
 ## Workflow
 
 ```
-Create Project → Add Stages → Add Tasks → Assign Employees
+Create Project → Add Features → Add Tasks → Assign Employees
     → Track Progress → Evaluate Performance → Generate Reports
 ```

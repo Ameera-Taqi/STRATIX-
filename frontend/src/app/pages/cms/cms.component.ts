@@ -81,9 +81,9 @@ export class CmsComponent implements OnInit {
     const map: Record<string, string> = {
       DASHBOARD: 'nav.dashboard',
       PROJECTS: 'nav.projects',
-      STAGES: 'nav.timeline',
+      STAGES: 'module.stages',
       TASKS: 'nav.tasks',
-      EMPLOYEES: 'nav.employees',
+      EMPLOYEES: 'nav.team',
       PERFORMANCE: 'nav.performance',
       REPORTS: 'nav.reports',
       NOTIFICATIONS: 'nav.notifications',
@@ -91,6 +91,7 @@ export class CmsComponent implements OnInit {
       AUDIT: 'nav.audit',
       SETTINGS: 'nav.settings',
       ROLES: 'nav.roles',
+      DEPARTMENTS: 'nav.departments',
       BRANDING: 'nav.branding',
     };
     return map[code] ?? code;

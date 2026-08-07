@@ -24,6 +24,7 @@ export function taskStatusLabelKey(status: string): string {
     IN_PROGRESS: 'status.inProgress',
     INPROGRESS: 'status.inProgress',
     REVIEW: 'status.review',
+    BLOCKED: 'task.blocked',
     DONE: 'status.done',
   };
   return map[s] ?? projectStatusLabelKey(status);

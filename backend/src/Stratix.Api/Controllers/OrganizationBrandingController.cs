@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Stratix.Application.DTOs.Branding;
+using Stratix.Application.DTOs.Onboarding;
 using Stratix.Application.Interfaces;
+using Stratix.Application.Services;
 using Stratix.Api.Auth;
 
 namespace Stratix.Api.Controllers;
@@ -12,12 +14,45 @@ namespace Stratix.Api.Controllers;
 public class OrganizationBrandingController : ControllerBase
 {
     private readonly IOrganizationBrandingService _branding;
+    private readonly IOrganizationOnboardingService _onboarding;
 
-    public OrganizationBrandingController(IOrganizationBrandingService branding) => _branding = branding;
+    public OrganizationBrandingController(
+        IOrganizationBrandingService branding,
+        IOrganizationOnboardingService onboarding)
+    {
+        _branding = branding;
+        _onboarding = onboarding;
+    }
 
     [HttpGet("branding")]
     public async Task<OrganizationBrandingResponse> GetBranding(CancellationToken ct) =>
         await _branding.GetAsync(ct);
+
+    [HttpGet("onboarding")]
+    [Authorize(Policy = AuthPolicies.OrgAdmins)]
+    public async Task<OrganizationOnboardingStatusResponse> GetOnboarding(CancellationToken ct) =>
+        await _onboarding.GetStatusAsync(ct);
+
+    [HttpPut("profile")]
+    [Authorize(Policy = AuthPolicies.OrgAdmins)]
+    public async Task<ActionResult<OrganizationOnboardingStatusResponse>> UpdateProfile(
+        [FromBody] UpdateOrganizationProfileRequest request,
+        CancellationToken ct)
+    {
+        try
+        {
+            return Ok(await _onboarding.UpdateProfileAsync(request, ct));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("onboarding/complete")]
+    [Authorize(Policy = AuthPolicies.OrgAdmins)]
+    public async Task<OrganizationOnboardingStatusResponse> CompleteOnboarding(CancellationToken ct) =>
+        await _onboarding.CompleteAsync(ct);
 
     [HttpGet("logo")]
     public async Task<IActionResult> GetLogo(CancellationToken ct)

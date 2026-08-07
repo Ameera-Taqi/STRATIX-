@@ -45,5 +45,9 @@ public static class RequiredSchemaMigrations
         "039_evaluation_reopen_reason.sql",
         "040_kpi_period_definition_snapshots.sql",
         "041_kpi_weight_total_and_role_scope.sql",
+        "042_organization_onboarding.sql",
+        "043_task_review_submission.sql",
+        "044_risk_closure.sql",
+        "045_notification_context.sql",
     ];
 }

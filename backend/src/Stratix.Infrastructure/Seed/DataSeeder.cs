@@ -61,9 +61,10 @@ public static class DataSeeder
         var securityAudit = await SaveProjectAsync(db, org.Id, "Security Audit", "Annual security audit and remediation", ProjectStatus.ON_HOLD, ProjectPriority.HIGH,
             new DateOnly(2026, 3, 1), new DateOnly(2026, 5, 30), 30, khalid.Id, it.Id, ct);
 
-        await SaveStageAsync(db, org.Id, erp.Id, "Discovery", new DateOnly(2026, 1, 10), new DateOnly(2026, 2, 28), StageStatus.DONE, 100, 1, ct);
-        var implementation = await SaveStageAsync(db, org.Id, erp.Id, "Implementation", new DateOnly(2026, 3, 1), new DateOnly(2026, 6, 30), StageStatus.ACTIVE, 65, 2, ct);
-        await SaveStageAsync(db, org.Id, erp.Id, "UAT & Go-live", new DateOnly(2026, 7, 1), new DateOnly(2026, 7, 15), StageStatus.PLANNED, 10, 3, ct);
+        // Features are independent workstreams (may overlap). OrderNumber is display-only.
+        await SaveStageAsync(db, org.Id, erp.Id, "Authentication", new DateOnly(2026, 1, 10), new DateOnly(2026, 4, 30), StageStatus.DONE, 100, 1, ct);
+        var implementation = await SaveStageAsync(db, org.Id, erp.Id, "Dashboard", new DateOnly(2026, 2, 1), new DateOnly(2026, 6, 30), StageStatus.ACTIVE, 65, 2, ct);
+        await SaveStageAsync(db, org.Id, erp.Id, "Reports", new DateOnly(2026, 3, 15), new DateOnly(2026, 7, 15), StageStatus.ACTIVE, 40, 3, ct);
 
         await SaveRiskAsync(db, org.Id, erp.Id, pm.Id, "Vendor API instability", "Third-party payroll API has intermittent outages",
             RiskImpact.HIGH, RiskProbability.HIGH, "Establish fallback batch sync and SLA monitoring", RiskStatus.OPEN, ct);
@@ -97,13 +98,22 @@ public static class DataSeeder
     private static async Task<Organization> EnsureDefaultOrganizationAsync(StratixDbContext db, CancellationToken ct)
     {
         var org = await db.OrganizationSet.FirstOrDefaultAsync(o => o.Slug == "default", ct);
-        if (org != null) return org;
+        if (org != null)
+        {
+            if (org.OnboardingCompletedAt is null)
+            {
+                org.OnboardingCompletedAt = org.CreatedAt;
+                await db.SaveChangesAsync(ct);
+            }
+            return org;
+        }
 
         var now = DateTimeOffset.UtcNow;
         org = new Organization
         {
             Name = "Stratix", Slug = "default",
             Status = OrganizationStatus.ACTIVE, SubscriptionPlan = SubscriptionPlan.ENTERPRISE,
+            OnboardingCompletedAt = now,
             CreatedAt = now, UpdatedAt = now
         };
         db.OrganizationSet.Add(org);

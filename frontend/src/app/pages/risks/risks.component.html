@@ -95,7 +95,7 @@
       </div>
       <select class="stratix-input px-3 py-2 text-sm" (change)="statusFilter.set($any($event.target).value)">
         <option value="ALL">{{ 'common.all' | t }}</option>
-        @for (s of statusOptions; track s) {
+        @for (s of filterStatusOptions; track s) {
           <option [value]="s">{{ riskStatusKey(s) | t }}</option>
         }
       </select>
@@ -168,6 +168,9 @@
                     <a [routerLink]="['/risks', r.id]" class="stratix-btn-ghost">{{ 'common.view' | t }}</a>
                     @if (canWrite()) {
                       <button type="button" class="stratix-btn-ghost" (click)="openEdit(r.id)">{{ 'common.edit' | t }}</button>
+                      @if (r.status !== 'CLOSED') {
+                        <button type="button" class="stratix-btn-ghost" (click)="openCloseRisk(r.id)">{{ 'risks.closeAction' | t }}</button>
+                      }
                     }
                     @if (canDelete()) {
                       <button type="button" class="stratix-btn-ghost text-danger" (click)="deleteRisk(r.id)">{{ 'common.delete' | t }}</button>
@@ -256,6 +259,16 @@
             </div>
           </div>
           <div>
+            <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'risks.level' | t }}</label>
+            <div class="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/50">
+              <span class="stratix-badge text-xs font-bold uppercase" [class]="riskLevelClass(calculatedLevel())">
+                {{ riskLevelKey(calculatedLevel()) | t }}
+              </span>
+              <span class="text-xs stratix-muted">{{ 'risks.levelCalculated' | t }}</span>
+            </div>
+            <p class="mt-1 text-[11px] stratix-muted">{{ 'risks.levelCalculatedHint' | t }}</p>
+          </div>
+          <div>
             <label class="stratix-muted mb-1.5 block text-sm font-medium">{{ 'risks.mitigation' | t }}</label>
             <textarea class="stratix-input w-full px-3 py-2.5 text-sm" rows="3" [(ngModel)]="form.mitigationPlan" name="mitigationPlan"></textarea>
           </div>
@@ -266,6 +279,50 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  </div>
+}
+
+@if (showCloseModal()) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" (click)="cancelCloseRisk()">
+    <div
+      class="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl dark:bg-slate-900"
+      (click)="$event.stopPropagation()"
+      role="dialog"
+      aria-modal="true"
+    >
+      <h3 class="stratix-heading text-base">{{ 'risks.closeTitle' | t }}</h3>
+      @if (closeError()) {
+        <p class="mt-2 text-sm text-danger">{{ closeError()! | t }}</p>
+      }
+      <label class="stratix-muted mt-4 mb-1 block text-sm">{{ 'risks.closureReason' | t }} *</label>
+      <textarea
+        class="stratix-input min-h-[96px] w-full px-3 py-2 text-sm"
+        rows="4"
+        [(ngModel)]="closeForm.closureReason"
+        name="closeReason"
+        autofocus
+      ></textarea>
+      <label class="stratix-muted mt-3 mb-1 block text-sm">{{ 'risks.residualRisk' | t }}</label>
+      <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="closeForm.residualRisk" name="residualRisk">
+        @for (opt of residualOptions; track $index) {
+          <option [ngValue]="opt">
+            {{ opt ? (riskImpactKey(opt) | t) : ('risks.residualNone' | t) }}
+          </option>
+        }
+      </select>
+      <div class="mt-4 flex justify-end gap-2">
+        <button type="button" class="stratix-input px-4 py-2 text-sm" (click)="cancelCloseRisk()">
+          {{ 'projects.cancel' | t }}
+        </button>
+        <button
+          type="button"
+          class="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white"
+          (click)="confirmCloseRisk()"
+        >
+          {{ 'risks.closeAction' | t }}
+        </button>
       </div>
     </div>
   </div>

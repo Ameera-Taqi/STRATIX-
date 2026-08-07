@@ -1,6 +1,7 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from '../services/auth.service';
+import { OnboardingService } from '../services/onboarding.service';
 
 /** Requires a restored session with a real profile (no default Admin). */
 export const authGuard: CanActivateFn = () => {
@@ -19,16 +20,18 @@ export const authGuard: CanActivateFn = () => {
   return router.createUrlTree(['/auth/login']);
 };
 
-export const guestGuard: CanActivateFn = () => {
+export const guestGuard: CanActivateFn = async () => {
   const auth = inject(AuthService);
   const router = inject(Router);
+  const onboarding = inject(OnboardingService);
 
   if (!auth.sessionReady()) {
     return true;
   }
 
   if (auth.isAuthenticated()) {
-    return router.createUrlTree(['/dashboard']);
+    const path = await onboarding.resolveHomePath();
+    return router.createUrlTree([path]);
   }
 
   return true;

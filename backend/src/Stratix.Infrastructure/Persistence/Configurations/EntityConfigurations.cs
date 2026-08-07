@@ -17,6 +17,10 @@ public class OrganizationConfiguration : IEntityTypeConfiguration<Organization>
         e.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20);
         e.Property(x => x.SubscriptionPlan).HasColumnName("subscription_plan").HasConversion<string>().HasMaxLength(20);
         e.Property(x => x.LogoFileName).HasColumnName("logo_file_name").HasMaxLength(255);
+        e.Property(x => x.Industry).HasColumnName("industry").HasMaxLength(100);
+        e.Property(x => x.Timezone).HasColumnName("timezone").HasMaxLength(100);
+        e.Property(x => x.PreferredLanguage).HasColumnName("preferred_language").HasMaxLength(10);
+        e.Property(x => x.OnboardingCompletedAt).HasColumnName("onboarding_completed_at");
         e.Property(x => x.CreatedAt).HasColumnName("created_at");
         e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
     }
@@ -203,6 +207,8 @@ public class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
         e.Property(x => x.BlockedReason).HasColumnName("blocked_reason").HasMaxLength(1000);
         e.Property(x => x.ReopenReason).HasColumnName("reopen_reason").HasMaxLength(1000);
         e.Property(x => x.ReviewReason).HasColumnName("review_reason").HasMaxLength(1000);
+        e.Property(x => x.SubmittedForReviewAt).HasColumnName("submitted_for_review_at");
+        e.Property(x => x.SubmittedForReviewById).HasColumnName("submitted_for_review_by_id");
         e.Property(x => x.CreatedAt).HasColumnName("created_at");
         e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
         e.Property(x => x.IsDeleted).HasColumnName("is_deleted");
@@ -210,9 +216,12 @@ public class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
         e.HasOne(x => x.Project).WithMany(p => p.Tasks).HasForeignKey(x => x.ProjectId);
         e.HasOne(x => x.Stage).WithMany().HasForeignKey(x => x.StageId);
         e.HasOne(x => x.Assignee).WithMany().HasForeignKey(x => x.AssigneeId);
+        e.HasOne(x => x.SubmittedForReviewBy).WithMany().HasForeignKey(x => x.SubmittedForReviewById)
+            .OnDelete(DeleteBehavior.NoAction);
         e.HasIndex(x => new { x.OrganizationId, x.ProjectId });
         e.HasIndex(x => new { x.OrganizationId, x.Status });
         e.HasIndex(x => new { x.OrganizationId, x.AssigneeId });
+        e.HasIndex(x => new { x.OrganizationId, x.SubmittedForReviewAt });
     }
 }
 
@@ -252,6 +261,8 @@ public class ProjectRiskConfiguration : IEntityTypeConfiguration<ProjectRisk>
         e.Property(x => x.RiskLevel).HasColumnName("risk_level").HasConversion<string>().HasMaxLength(20);
         e.Property(x => x.MitigationPlan).HasColumnName("mitigation_plan");
         e.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20);
+        e.Property(x => x.ClosureReason).HasColumnName("closure_reason").HasMaxLength(1000);
+        e.Property(x => x.ResidualRisk).HasColumnName("residual_risk").HasConversion<string>().HasMaxLength(20);
         e.Property(x => x.ProjectId).HasColumnName("project_id");
         e.Property(x => x.OwnerId).HasColumnName("owner_id");
         e.Property(x => x.CreatedAt).HasColumnName("created_at");
@@ -306,6 +317,11 @@ public class NotificationConfiguration : IEntityTypeConfiguration<Notification>
         e.Property(x => x.Type).HasColumnName("type").HasConversion<string>().HasMaxLength(20);
         e.Property(x => x.IsRead).HasColumnName("is_read");
         e.Property(x => x.Link).HasColumnName("link").HasMaxLength(500);
+        e.Property(x => x.ActorName).HasColumnName("actor_name").HasMaxLength(200);
+        e.Property(x => x.ProjectName).HasColumnName("project_name").HasMaxLength(200);
+        e.Property(x => x.EntityType).HasColumnName("entity_type").HasMaxLength(40);
+        e.Property(x => x.EntityId).HasColumnName("entity_id");
+        e.Property(x => x.EntityLabel).HasColumnName("entity_label").HasMaxLength(300);
         e.Property(x => x.CreatedAt).HasColumnName("created_at");
         e.Property(x => x.IsDeleted).HasColumnName("is_deleted");
         e.Property(x => x.DeletedAt).HasColumnName("deleted_at");

@@ -10,6 +10,12 @@ import { BrandingStore } from '../../core/services/branding.store';
 import { UiIconComponent } from '../../shared/components/ui-icon/ui-icon.component';
 import { employeeInitials } from '../../shared/utils/employee.util';
 import { roleLabelKey } from '../../core/config/stratix-roles';
+import { WarnUnsavedDirective } from '../../shared/directives/warn-unsaved.directive';
+import {
+  formSnapshot,
+  HasUnsavedChanges,
+  isFormDirty,
+} from '../../core/unsaved/unsaved-changes';
 
 interface NotificationPrefs {
   emailAlerts: boolean;
@@ -21,14 +27,22 @@ const PREFS_STORAGE_KEY = 'stratix.notificationPrefs';
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [TopbarComponent, TranslatePipe, FormsModule, RouterLink, UiIconComponent],
+  imports: [
+    TopbarComponent,
+    TranslatePipe,
+    FormsModule,
+    RouterLink,
+    UiIconComponent,
+    WarnUnsavedDirective,
+  ],
   templateUrl: './settings.component.html',
 })
-export class SettingsComponent implements OnInit {
+export class SettingsComponent implements OnInit, HasUnsavedChanges {
   private readonly currentUser = inject(CurrentUserService);
   private readonly auth = inject(AuthService);
   private readonly employeesStore = inject(EmployeesStore);
   private readonly branding = inject(BrandingStore);
+  private profileBaseline: string | null = null;
 
   readonly profile = this.currentUser.profile;
   readonly departments = this.employeesStore.departmentOptions;
@@ -111,6 +125,10 @@ export class SettingsComponent implements OnInit {
     }
   }
 
+  hasUnsavedChanges(): boolean {
+    return isFormDirty(this.form, this.profileBaseline);
+  }
+
   saveProfile(): void {
     this.error.set(null);
     this.saved.set(false);
@@ -144,5 +162,6 @@ export class SettingsComponent implements OnInit {
       email: p.email,
       department: p.department,
     };
+    this.profileBaseline = formSnapshot(this.form);
   }
 }

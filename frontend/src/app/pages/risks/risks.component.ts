@@ -1,5 +1,5 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { TopbarComponent } from '../../layout/topbar/topbar.component';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -14,7 +14,7 @@ import {
   RiskProbability,
   RiskStatus,
 } from '../../core/models/risk.model';
-import { riskLevelClass, riskStatusClass } from '../../shared/utils/risk.util';
+import { riskLevelClass, riskStatusClass, calculateRiskLevel } from '../../shared/utils/risk.util';
 import {
   riskImpactLabelKey,
   riskLevelLabelKey,
@@ -45,6 +45,7 @@ export class RisksComponent implements OnInit {
   private readonly roleAccess = inject(RoleAccessService);
   private readonly currentUser = inject(CurrentUserService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   readonly risks = this.store.risks;
   readonly stats = this.store.stats;
@@ -71,8 +72,19 @@ export class RisksComponent implements OnInit {
 
   readonly impactOptions: RiskImpact[] = ['LOW', 'MEDIUM', 'HIGH'];
   readonly probabilityOptions: RiskProbability[] = ['LOW', 'MEDIUM', 'HIGH'];
-  readonly statusOptions: RiskStatus[] = ['OPEN', 'MITIGATING', 'CLOSED'];
+  /** Form statuses — closing uses dedicated Close Risk flow. */
+  readonly statusOptions: RiskStatus[] = ['OPEN', 'MITIGATING'];
+  readonly filterStatusOptions: RiskStatus[] = ['OPEN', 'MITIGATING', 'CLOSED'];
+  readonly residualOptions: Array<RiskImpact | null> = [null, 'LOW', 'MEDIUM', 'HIGH'];
   readonly levelOptions = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as const;
+
+  readonly showCloseModal = signal(false);
+  readonly closingRiskId = signal<number | null>(null);
+  readonly closeError = signal<string | null>(null);
+  closeForm = {
+    closureReason: '',
+    residualRisk: null as RiskImpact | null,
+  };
 
   readonly projects = this.projectsStore.projects;
   readonly employees = this.employeesStore.employees;
@@ -111,6 +123,15 @@ export class RisksComponent implements OnInit {
   ngOnInit(): void {
     this.form = this.emptyForm();
     this.store.loadFromApi();
+    if (this.route.snapshot.queryParamMap.get('create') === '1' && this.canWrite()) {
+      this.openCreate();
+      void this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { create: null },
+        queryParamsHandling: 'merge',
+        replaceUrl: true,
+      });
+    }
   }
 
   modalTitle(): string {
@@ -137,7 +158,7 @@ export class RisksComponent implements OnInit {
       impact: risk.impact,
       probability: risk.probability,
       mitigationPlan: risk.mitigationPlan,
-      status: risk.status,
+      status: risk.status === 'CLOSED' ? 'OPEN' : risk.status,
       projectId: risk.projectId,
       ownerId: risk.ownerId,
     };
@@ -177,6 +198,41 @@ export class RisksComponent implements OnInit {
   deleteRisk(id: number): void {
     if (!this.canDelete()) return;
     this.store.deleteRisk(id);
+  }
+
+  openCloseRisk(id: number): void {
+    if (!this.canWrite()) return;
+    const risk = this.store.getById(id);
+    if (!risk || risk.status === 'CLOSED') return;
+    this.closingRiskId.set(id);
+    this.closeError.set(null);
+    this.closeForm = { closureReason: '', residualRisk: null };
+    this.showCloseModal.set(true);
+  }
+
+  cancelCloseRisk(): void {
+    this.showCloseModal.set(false);
+    this.closingRiskId.set(null);
+    this.closeError.set(null);
+  }
+
+  confirmCloseRisk(): void {
+    const id = this.closingRiskId();
+    if (id == null) return;
+    if (!this.closeForm.closureReason.trim()) {
+      this.closeError.set('risks.closureReasonRequired');
+      return;
+    }
+    this.store.closeRisk(id, {
+      closureReason: this.closeForm.closureReason,
+      residualRisk: this.closeForm.residualRisk,
+    });
+    this.cancelCloseRisk();
+  }
+
+  /** Preview — backend recalculates on save and is authoritative. */
+  calculatedLevel() {
+    return calculateRiskLevel(this.form.impact, this.form.probability);
   }
 
   private emptyForm(): CreateRiskForm {

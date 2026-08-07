@@ -3,8 +3,6 @@ import { FormsModule } from '@angular/forms';
 import { TopbarComponent } from '../../layout/topbar/topbar.component';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { RoleAccessService } from '../../core/services/role-access.service';
-import { DepartmentsStore } from '../../core/services/departments.store';
-import { EmployeesStore } from '../../core/services/employees.store';
 import { CmsPermissionsStore } from '../../core/services/cms-permissions.store';
 import { OrganizationRolesStore } from '../../core/services/organization-roles.store';
 import {
@@ -14,6 +12,7 @@ import {
 } from '../../core/config/stratix-modules';
 import {
   assignableRolesFor,
+  roleDataScopeLabelKey,
   roleLabelKey,
   visibleRolesFor,
 } from '../../core/config/stratix-roles';
@@ -21,7 +20,7 @@ import { UserRole } from '../../core/models/user.model';
 import { OrganizationRoleRow } from '../../core/models/organization-role.model';
 import { UiIconComponent } from '../../shared/components/ui-icon/ui-icon.component';
 
-type RolesTab = 'roles' | 'access' | 'departments';
+type RolesTab = 'roles' | 'access';
 
 type MatrixColumn =
   | { kind: 'system'; code: UserRole; labelKey: string }
@@ -35,9 +34,7 @@ type MatrixColumn =
 })
 export class RolesComponent implements OnInit {
   private readonly roleAccess = inject(RoleAccessService);
-  private readonly departmentsStore = inject(DepartmentsStore);
   private readonly orgRolesStore = inject(OrganizationRolesStore);
-  private readonly employeesStore = inject(EmployeesStore);
   private readonly cms = inject(CmsPermissionsStore);
 
   readonly tab = signal<RolesTab>('roles');
@@ -54,6 +51,7 @@ export class RolesComponent implements OnInit {
   readonly customSaving = this.orgRolesStore.saving;
 
   readonly roleKey = roleLabelKey;
+  readonly scopeKey = roleDataScopeLabelKey;
   readonly baseRoleOptions = computed(() => {
     const role = this.callerRole();
     return role ? assignableRolesFor(role).filter((r) => r !== 'SUPER_ADMIN') : [];
@@ -67,6 +65,11 @@ export class RolesComponent implements OnInit {
           (m.code !== 'ORGANIZATIONS' && m.code !== 'PLATFORM_CMS')),
     ),
   );
+
+  /** Internal module codes may keep legacy names; UI shows product terminology. */
+  displayModuleCode(code: SystemModuleCode): string {
+    return code === 'STAGES' ? 'FEATURES' : code;
+  }
 
   readonly matrixColumns = computed((): MatrixColumn[] => {
     const system = this.systemRoles().map(
@@ -84,16 +87,6 @@ export class RolesComponent implements OnInit {
     return [...system, ...custom];
   });
 
-  readonly departments = this.departmentsStore.departments;
-  readonly deptLoading = this.departmentsStore.loading;
-  readonly deptError = this.departmentsStore.error;
-  readonly deptSaving = this.departmentsStore.saving;
-
-  readonly showDeptModal = signal(false);
-  readonly editingDeptId = signal<number | null>(null);
-  readonly deptFormError = signal<string | null>(null);
-  deptForm = { name: '', description: '' };
-
   readonly showRoleModal = signal(false);
   readonly editingRoleId = signal<number | null>(null);
   readonly roleFormError = signal<string | null>(null);
@@ -101,7 +94,6 @@ export class RolesComponent implements OnInit {
 
   ngOnInit(): void {
     void this.cms.load();
-    void this.departmentsStore.load();
     void this.orgRolesStore.load();
   }
 
@@ -163,11 +155,6 @@ export class RolesComponent implements OnInit {
       this.roleFormError.set('roles.customNameRequired');
       return;
     }
-    if (!this.roleForm.baseRole) {
-      this.roleFormError.set('roles.customBaseInvalid');
-      return;
-    }
-
     const id = this.editingRoleId();
     const ok =
       id == null
@@ -189,45 +176,5 @@ export class RolesComponent implements OnInit {
 
   async deleteRole(id: number): Promise<void> {
     await this.orgRolesStore.remove(id);
-  }
-
-  openAddDepartment(): void {
-    this.editingDeptId.set(null);
-    this.deptForm = { name: '', description: '' };
-    this.deptFormError.set(null);
-    this.showDeptModal.set(true);
-  }
-
-  openEditDepartment(id: number, name: string, description: string | null): void {
-    this.editingDeptId.set(id);
-    this.deptForm = { name, description: description ?? '' };
-    this.deptFormError.set(null);
-    this.showDeptModal.set(true);
-  }
-
-  closeDeptModal(): void {
-    this.showDeptModal.set(false);
-    this.deptFormError.set(null);
-  }
-
-  async saveDepartment(): Promise<void> {
-    if (!this.deptForm.name.trim()) {
-      this.deptFormError.set('roles.deptNameRequired');
-      return;
-    }
-    const id = this.editingDeptId();
-    const ok =
-      id == null
-        ? await this.departmentsStore.create(this.deptForm.name, this.deptForm.description)
-        : await this.departmentsStore.update(id, this.deptForm.name, this.deptForm.description);
-    if (ok) {
-      this.closeDeptModal();
-      this.employeesStore.reloadDepartments();
-    }
-  }
-
-  async deleteDepartment(id: number): Promise<void> {
-    const ok = await this.departmentsStore.remove(id);
-    if (ok) this.employeesStore.reloadDepartments();
   }
 }

@@ -59,7 +59,7 @@ public class ProjectsController : ControllerBase
         await _projects.CompleteAsync(id, ct);
 
     /// <summary>
-    /// Recompute project/stage progress for all tenant projects.
+    /// Recompute project/feature progress for all tenant projects.
     /// Applies legacy effort policy: EstimatedHours ≤ 0 → weight 1.
     /// </summary>
     [HttpPost("recalculate-progress")]

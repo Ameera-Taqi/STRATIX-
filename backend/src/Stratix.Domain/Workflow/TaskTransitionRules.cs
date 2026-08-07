@@ -28,7 +28,7 @@ public static class TaskTransitionRules
         if (from == to) return;
 
         if (!CanTransition(from, to))
-            throw new InvalidOperationException($"Transition {from} → {to} is not allowed.");
+            throw new InvalidOperationException(DescribeIllegal(from, to));
 
         if (to == DomainTaskStatus.BLOCKED && string.IsNullOrWhiteSpace(blockedReason))
             throw new ArgumentException("Blocked reason is required when moving a task to BLOCKED.");
@@ -36,15 +36,32 @@ public static class TaskTransitionRules
         if (from == DomainTaskStatus.DONE && to != DomainTaskStatus.DONE && string.IsNullOrWhiteSpace(reopenReason))
             throw new ArgumentException("Reopen reason is required when reopening a completed task.");
 
-        if (to == DomainTaskStatus.REVIEW && string.IsNullOrWhiteSpace(reviewReason) && from != DomainTaskStatus.REVIEW)
-        {
-            // Review reason is recommended but optional for first entry from IN_PROGRESS;
-            // require it only when returning to review from DONE/BLOCKED paths — keep optional.
-        }
+        // Request Changes: reviewer must provide feedback when sending REVIEW → IN_PROGRESS.
+        if (from == DomainTaskStatus.REVIEW && to == DomainTaskStatus.IN_PROGRESS
+            && string.IsNullOrWhiteSpace(reviewReason))
+            throw new ArgumentException("Reason / feedback is required when requesting changes.");
     }
+
+    private static string DescribeIllegal(DomainTaskStatus from, DomainTaskStatus to) =>
+        (from, to) switch
+        {
+            (DomainTaskStatus.TODO, DomainTaskStatus.DONE) =>
+                "This task must be started before it can be completed.",
+            (DomainTaskStatus.TODO, DomainTaskStatus.REVIEW) =>
+                "This task must be started before it can be sent to review.",
+            (DomainTaskStatus.BLOCKED, DomainTaskStatus.DONE) or (DomainTaskStatus.BLOCKED, DomainTaskStatus.REVIEW) =>
+                "Unblock this task before moving it forward.",
+            (DomainTaskStatus.DONE, DomainTaskStatus.BLOCKED) =>
+                "Completed tasks cannot be marked blocked. Reopen the task first.",
+            (DomainTaskStatus.DONE, DomainTaskStatus.REVIEW) =>
+                "Completed tasks cannot move to review. Reopen the task first.",
+            (DomainTaskStatus.REVIEW, DomainTaskStatus.TODO) =>
+                "Send the task back to In Progress instead of To Do.",
+            _ => $"Transition {from} → {to} is not allowed."
+        };
 }
 
-/// <summary>Stage may close only when all linked tasks are DONE (or there are none).</summary>
+/// <summary>Feature may close only when all linked tasks are DONE (or there are none).</summary>
 public static class StageCloseRules
 {
     public static void EnsureCanComplete(IEnumerable<(DomainTaskStatus Status, string Title)> tasks)
@@ -56,12 +73,15 @@ public static class StageCloseRules
         var sample = string.Join(", ", open.Take(3).Select(t => t.Title));
         throw new InvalidOperationException(
             blocked > 0
-                ? $"Cannot complete stage: {blocked} blocked task(s) remain ({sample})."
-                : $"Cannot complete stage: {open.Count} unfinished task(s) remain ({sample}).");
+                ? $"Cannot complete feature: {blocked} blocked task(s) remain ({sample})."
+                : $"Cannot complete feature: {open.Count} unfinished task(s) remain ({sample}).");
     }
 }
 
-/// <summary>Project may complete only when every stage is DONE (or no stages and all tasks DONE).</summary>
+/// <summary>
+/// Project may complete when every feature is DONE (or no features and all tasks DONE).
+/// Feature order and dates are irrelevant — features may finish in any order / in parallel.
+/// </summary>
 public static class ProjectCloseRules
 {
     public static void EnsureCanComplete(
@@ -75,7 +95,7 @@ public static class ProjectCloseRules
         {
             var unfinished = stages.Count(s => s != StageStatus.DONE);
             if (unfinished > 0)
-                throw new InvalidOperationException($"Cannot complete project: {unfinished} stage(s) are not DONE.");
+                throw new InvalidOperationException($"Cannot complete project: {unfinished} feature(s) are not DONE.");
             return;
         }
 

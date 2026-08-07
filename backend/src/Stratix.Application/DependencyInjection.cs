@@ -38,6 +38,7 @@ public static class DependencyInjection
         services.AddScoped<IProjectHealthAnalysisService, ProjectHealthAnalysisService>();
         services.AddScoped<IPlatformCmsService, PlatformCmsService>();
         services.AddScoped<IOrganizationBrandingService, OrganizationBrandingService>();
+        services.AddScoped<IOrganizationOnboardingService, OrganizationOnboardingService>();
         services.AddScoped<IProgressRecalculationService, ProgressRecalculationService>();
         services.AddScoped<IProjectHealthSnapshotService, ProjectHealthSnapshotService>();
         services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();

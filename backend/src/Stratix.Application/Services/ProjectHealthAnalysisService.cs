@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Stratix.Application.Common;
 using Stratix.Application.DTOs.Ai;
 using Stratix.Application.Interfaces;
 using Stratix.Domain.Enums;
@@ -9,12 +10,19 @@ namespace Stratix.Application.Services;
 public class ProjectHealthAnalysisService : IProjectHealthAnalysisService
 {
     private readonly IApplicationDbContext _db;
+    private readonly IProjectHealthSnapshotService _snapshots;
 
-    public ProjectHealthAnalysisService(IApplicationDbContext db) => _db = db;
+    public ProjectHealthAnalysisService(IApplicationDbContext db, IProjectHealthSnapshotService snapshots)
+    {
+        _db = db;
+        _snapshots = snapshots;
+    }
 
     public async Task<ProjectHealthAnalysisResponse> AnalyzeAsync(ProjectHealthAnalysisRequest request, CancellationToken ct = default)
     {
         var metrics = await BuildMetricsFromDatabaseAsync(request.ProjectId, ct);
+        // Formal analysis request — always persist a health snapshot for the audit trail.
+        await _snapshots.CaptureAsync(request.ProjectId, forceFormalCapture: true, ct);
         return AnalyzeMetrics(metrics);
     }
 
@@ -24,7 +32,7 @@ public class ProjectHealthAnalysisService : IProjectHealthAnalysisService
             ?? throw new KeyNotFoundException("Project not found");
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var tasks = await _db.Tasks.Where(t => t.ProjectId == projectId).ToListAsync(ct);
+        var tasks = await _db.Tasks.ActiveOnly().Where(t => t.ProjectId == projectId).ToListAsync(ct);
         var risks = await _db.ProjectRisks.Where(r => r.ProjectId == projectId).ToListAsync(ct);
         var stages = await _db.ProjectStages.Where(s => s.ProjectId == projectId).ToListAsync(ct);
 

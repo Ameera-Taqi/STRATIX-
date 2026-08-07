@@ -19,20 +19,24 @@ export class ProjectHealthService {
 
     return this.projects.projects().map((project) => {
       const projectTasks = this.tasks.getByProject(project.id);
+      const completedTasks = projectTasks.filter((t) => t.status === 'DONE');
+      // Backend uses CompletedAt ≤ DueDate; without completedAt on the card, treat DONE as on-time.
+      const onTimeCompletedTasks = completedTasks.length;
       const delayedTasks = projectTasks.filter(
-        (t) => t.dueDate < today && t.status !== 'DONE',
+        (t) => !!t.dueDate && t.dueDate < today && t.status !== 'DONE',
       ).length;
-      const onTimeTasks = projectTasks.filter(
-        (t) => t.status === 'DONE' || t.dueDate >= today,
-      ).length;
+      const blockedTasks = projectTasks.filter((t) => t.status === 'BLOCKED').length;
       const criticalRisks = this.risks
         .getByProject(project.id)
         .filter((r) => r.riskLevel === 'CRITICAL' && r.status !== 'CLOSED').length;
 
       return computeProjectHealth({
         project,
-        onTimeTasks,
+        totalTasks: projectTasks.length,
+        completedTasks: completedTasks.length,
+        onTimeCompletedTasks,
         delayedTasks,
+        blockedTasks,
         criticalRisks,
       });
     });

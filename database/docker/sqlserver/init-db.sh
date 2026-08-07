@@ -48,6 +48,10 @@ SCHEMA_SCRIPTS=(
   035_schema_migrations.sql
   036_progress_health_execution.sql
   037_kpi_evaluation_framework.sql
+  038_backfill_estimated_hours_default.sql
+  039_evaluation_reopen_reason.sql
+  040_kpi_period_definition_snapshots.sql
+  041_kpi_weight_total_and_role_scope.sql
 )
 
 echo "[stratix-init] Waiting for SQL Server at ${HOST}..."

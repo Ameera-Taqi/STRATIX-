@@ -1,10 +1,11 @@
 using Microsoft.EntityFrameworkCore;
+using Stratix.Application.Common;
 using Stratix.Application.DTOs.Kpi;
 using Stratix.Application.Interfaces;
 using Stratix.Domain.Entities;
 using Stratix.Domain.Enums;
 using Stratix.Domain.Events;
-using DomainTaskStatus = Stratix.Domain.Enums.TaskStatus;
+using Stratix.Domain.Workflow;
 
 namespace Stratix.Application.Services;
 
@@ -24,6 +25,10 @@ public interface IKpiEvaluationService
     Task<EmployeeEvaluationResponse> StartReviewAsync(long evaluationId, CancellationToken ct = default);
     Task<EmployeeEvaluationResponse> ApproveAsync(long evaluationId, CancellationToken ct = default);
     Task<EmployeeEvaluationResponse> RejectAsync(long evaluationId, string reason, CancellationToken ct = default);
+    /// <summary>Formal unlock of an APPROVED evaluation (reason + audit). Required before any further edits.</summary>
+    Task<EmployeeEvaluationResponse> ReopenAsync(long evaluationId, string reason, CancellationToken ct = default);
+    /// <summary>Adjust result values/score while evaluation is unlocked (not APPROVED).</summary>
+    Task<EmployeeEvaluationResponse> AdjustResultAsync(long resultId, AdjustKpiResultRequest request, CancellationToken ct = default);
     Task<IReadOnlyList<EmployeeEvaluationResponse>> ListEvaluationsAsync(long? periodId, CancellationToken ct = default);
 
     Task<TaskQualityEvaluationResponse> RateTaskQualityAsync(CreateTaskQualityRequest request, CancellationToken ct = default);
@@ -35,17 +40,26 @@ public class KpiEvaluationService : IKpiEvaluationService
     private readonly IApplicationDbContext _db;
     private readonly ICurrentUserService _currentUser;
     private readonly IDomainEventDispatcher _events;
+    private readonly IAuditTrailService _audit;
 
-    public KpiEvaluationService(IApplicationDbContext db, ICurrentUserService currentUser, IDomainEventDispatcher events)
+    public KpiEvaluationService(
+        IApplicationDbContext db,
+        ICurrentUserService currentUser,
+        IDomainEventDispatcher events,
+        IAuditTrailService audit)
     {
         _db = db;
         _currentUser = currentUser;
         _events = events;
+        _audit = audit;
     }
 
-    public async Task<IReadOnlyList<EvaluationPeriodResponse>> GetPeriodsAsync(CancellationToken ct = default) =>
-        await _db.EvaluationPeriods.OrderByDescending(p => p.StartDate)
-            .Select(p => ToPeriod(p)).ToListAsync(ct);
+    public async Task<IReadOnlyList<EvaluationPeriodResponse>> GetPeriodsAsync(CancellationToken ct = default)
+    {
+        var periods = await _db.EvaluationPeriods.OrderByDescending(p => p.StartDate).ToListAsync(ct);
+        var snaps = await _db.PeriodKpiSnapshots.ToListAsync(ct);
+        return periods.Select(p => ToPeriod(p, snaps.Where(s => s.PeriodId == p.Id).ToList())).ToList();
+    }
 
     public async Task<EvaluationPeriodResponse> CreatePeriodAsync(CreateEvaluationPeriodRequest request, CancellationToken ct = default)
     {
@@ -61,15 +75,20 @@ public class KpiEvaluationService : IKpiEvaluationService
         };
         _db.Add(period);
         await _db.SaveChangesAsync(ct);
-        return ToPeriod(period);
+        return ToPeriod(period, []);
     }
 
     public async Task<EvaluationPeriodResponse> OpenPeriodAsync(long id, CancellationToken ct = default)
     {
         var period = await FindPeriodAsync(id, ct);
+        await EnsureActiveWeightsValidAsync(ct);
         period.Status = EvaluationPeriodStatus.OPEN;
+        // Freeze KPI defs once at period start — later definition edits must not rewrite this snapshot.
+        if (!await _db.PeriodKpiSnapshots.AnyAsync(s => s.PeriodId == period.Id, ct))
+            await CapturePeriodKpiSnapshotsAsync(period, ct);
         await _db.SaveChangesAsync(ct);
-        return ToPeriod(period);
+        var snaps = await _db.PeriodKpiSnapshots.Where(s => s.PeriodId == period.Id).ToListAsync(ct);
+        return ToPeriod(period, snaps);
     }
 
     public async Task<EvaluationPeriodResponse> ClosePeriodAsync(long id, CancellationToken ct = default)
@@ -77,7 +96,8 @@ public class KpiEvaluationService : IKpiEvaluationService
         var period = await FindPeriodAsync(id, ct);
         period.Status = EvaluationPeriodStatus.CLOSED;
         await _db.SaveChangesAsync(ct);
-        return ToPeriod(period);
+        var snaps = await _db.PeriodKpiSnapshots.Where(s => s.PeriodId == period.Id).ToListAsync(ct);
+        return ToPeriod(period, snaps);
     }
 
     public async Task<IReadOnlyList<KpiDefinitionResponse>> GetDefinitionsAsync(CancellationToken ct = default) =>
@@ -86,18 +106,42 @@ public class KpiEvaluationService : IKpiEvaluationService
 
     public async Task<KpiDefinitionResponse> UpsertDefinitionAsync(UpsertKpiDefinitionRequest request, CancellationToken ct = default)
     {
+        // Live definition edits never rewrite period snapshots or historical result snapshots.
+        KpiWeightPolicy.EnsureValidWeight(request.Weight);
+
         var code = request.Code.Trim().ToUpperInvariant();
-        var existing = await _db.KpiDefinitions.FirstOrDefaultAsync(d => d.Code == code, ct);
+        UserRole? role = null;
+        if (!string.IsNullOrWhiteSpace(request.AppliesToRole))
+        {
+            if (!Enum.TryParse<UserRole>(request.AppliesToRole.Trim(), true, out var parsed))
+                throw new ArgumentException($"Unknown role '{request.AppliesToRole}'.");
+            role = parsed;
+        }
+
+        var all = await _db.KpiDefinitions.Select(d => new { d.Id, d.Code, d.AppliesToRole, d.IsActive }).ToListAsync(ct);
+        var existing = await _db.KpiDefinitions.FirstOrDefaultAsync(
+            d => d.Code == code && d.AppliesToRole == role, ct);
+
+        KpiWeightPolicy.EnsureNoDuplicateCodeForRole(
+            all.Select(d => (d.Id, d.Code, d.AppliesToRole, d.IsActive)),
+            existing?.Id,
+            code,
+            role);
+
         if (existing is null)
         {
-            existing = new KpiDefinition { Code = code };
+            existing = new KpiDefinition { Code = code, AppliesToRole = role };
             _db.Add(existing);
         }
+
         existing.Name = request.Name.Trim();
         existing.Description = request.Description;
-        existing.Weight = request.Weight <= 0 ? 1 : request.Weight;
+        existing.Weight = request.Weight;
+        existing.TargetValue = request.TargetValue;
+        existing.Formula = string.IsNullOrWhiteSpace(request.Formula) ? null : request.Formula.Trim();
         existing.HigherIsBetter = request.HigherIsBetter;
         existing.IsActive = request.IsActive;
+        existing.AppliesToRole = role;
         await _db.SaveChangesAsync(ct);
         return ToDef(existing);
     }
@@ -135,44 +179,60 @@ public class KpiEvaluationService : IKpiEvaluationService
     {
         var eval = await LoadEvaluationAsync(evaluationId, ct)
             ?? throw new KeyNotFoundException("Evaluation not found");
-        EnsureEditable(eval);
+        EvaluationLockPolicy.EnsureCanRecalculate(eval);
 
         var period = eval.Period ?? await FindPeriodAsync(eval.PeriodId, ct);
-        var defs = await _db.KpiDefinitions.Where(d => d.IsActive).ToListAsync(ct);
-        if (defs.Count == 0)
+        await EnsureActiveWeightsValidAsync(ct);
+        // Prefer period-frozen KPI defs; capture once if the period was opened before snapshots existed.
+        var frozenAll = await EnsurePeriodSnapshotsAsync(period, ct);
+        var userRole = eval.User?.Role
+            ?? (await _db.Users.Where(u => u.Id == eval.UserId).Select(u => (UserRole?)u.Role).FirstOrDefaultAsync(ct));
+        var roleSpecific = frozenAll.Where(s => s.AppliesToRole == userRole).ToList();
+        var frozen = roleSpecific.Count > 0
+            ? roleSpecific
+            : frozenAll.Where(s => s.AppliesToRole is null).ToList();
+        KpiWeightPolicy.EnsureActiveWeightsTotalOneHundred(
+            frozen.Select(s => (s.Code, s.Weight, s.AppliesToRole, true)));
+        if (frozen.Count == 0)
             throw new InvalidOperationException("No active KPI definitions. Create definitions before calculating.");
 
-        var tasks = await _db.Tasks
+        var tasks = await _db.Tasks.ActiveOnly()
             .Where(t => t.AssigneeId == eval.UserId &&
                         t.CreatedAt >= period.StartDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc) &&
                         t.CreatedAt <= period.EndDate.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Utc))
             .ToListAsync(ct);
 
         var qualityScores = await _db.TaskQualityEvaluations
-            .Where(q => q.Task!.AssigneeId == eval.UserId)
+            .Where(q => q.Task != null && !q.Task.IsDeleted && q.Task.AssigneeId == eval.UserId)
             .Select(q => q.QualityScore)
             .ToListAsync(ct);
         var qualityAvg = qualityScores.Count == 0 ? 0m : (decimal)qualityScores.Average();
 
-        // Clear previous results
         foreach (var old in eval.Results.ToList())
             _db.Remove(old);
 
         decimal weighted = 0, weightSum = 0;
-        foreach (var def in defs)
+        foreach (var snap in frozen)
         {
-            var (value, score) = CalculateKpi(def, tasks, qualityAvg);
+            var (value, score) = CalculateKpi(snap.Formula, snap.HigherIsBetter, tasks, qualityAvg);
+            var weight = snap.Weight > 0 ? snap.Weight : 1m;
             var result = new EmployeeKpiResult
             {
                 OrganizationId = eval.OrganizationId,
                 EvaluationId = eval.Id,
-                KpiDefinitionId = def.Id,
+                KpiDefinitionId = snap.KpiDefinitionId,
+                SnapshotName = snap.Name,
+                SnapshotCode = snap.Code,
+                SnapshotWeight = weight,
+                SnapshotTarget = snap.TargetValue,
+                SnapshotFormula = snap.Formula,
+                SnapshotHigherIsBetter = snap.HigherIsBetter,
                 CalculatedValue = value,
                 Score = score,
             };
             _db.Add(result);
-            weighted += score * def.Weight;
-            weightSum += def.Weight;
+            weighted += score * weight;
+            weightSum += weight;
         }
 
         eval.OverallScore = weightSum <= 0 ? 0 : Math.Round(weighted / weightSum, 2);
@@ -185,6 +245,7 @@ public class KpiEvaluationService : IKpiEvaluationService
     {
         var eval = await LoadEvaluationAsync(evaluationId, ct)
             ?? throw new KeyNotFoundException("Evaluation not found");
+        EvaluationLockPolicy.EnsureNotLocked(eval);
         if (eval.Results.Count == 0)
             throw new InvalidOperationException("Calculate KPI results before submitting.");
 
@@ -203,6 +264,7 @@ public class KpiEvaluationService : IKpiEvaluationService
     {
         var eval = await LoadEvaluationAsync(evaluationId, ct)
             ?? throw new KeyNotFoundException("Evaluation not found");
+        EvaluationLockPolicy.EnsureNotLocked(eval);
         if (eval.Status is not (EmployeeEvaluationStatus.SUBMITTED or EmployeeEvaluationStatus.IN_REVIEW))
             throw new InvalidOperationException("Only submitted evaluations can enter review.");
 
@@ -220,11 +282,25 @@ public class KpiEvaluationService : IKpiEvaluationService
         if (eval.Status is not (EmployeeEvaluationStatus.SUBMITTED or EmployeeEvaluationStatus.IN_REVIEW))
             throw new InvalidOperationException("Evaluation is not ready for approval.");
 
+        var oldValues = Snapshot(eval);
         eval.Status = EmployeeEvaluationStatus.APPROVED;
         eval.ApprovedById = _currentUser.UserId;
         eval.ApprovedAt = DateTimeOffset.UtcNow;
         eval.RejectionReason = null;
+        eval.ReopenReason = null;
         await _db.SaveChangesAsync(ct);
+
+        await _audit.RecordUpdateAsync(
+            AuditEntityType.EVALUATION,
+            eval.Id,
+            EvalName(eval),
+            oldValues,
+            Snapshot(eval),
+            $"Evaluation approved (final score {eval.OverallScore})",
+            null,
+            null,
+            ct);
+
         return ToEval(await LoadEvaluationAsync(eval.Id, ct)!);
     }
 
@@ -232,6 +308,9 @@ public class KpiEvaluationService : IKpiEvaluationService
     {
         var eval = await LoadEvaluationAsync(evaluationId, ct)
             ?? throw new KeyNotFoundException("Evaluation not found");
+        EvaluationLockPolicy.EnsureNotLocked(eval);
+        if (eval.Status is not (EmployeeEvaluationStatus.SUBMITTED or EmployeeEvaluationStatus.IN_REVIEW or EmployeeEvaluationStatus.DRAFT))
+            throw new InvalidOperationException("Only draft/submitted/in-review evaluations can be rejected.");
         if (string.IsNullOrWhiteSpace(reason))
             throw new ArgumentException("Rejection reason is required.");
 
@@ -241,6 +320,79 @@ public class KpiEvaluationService : IKpiEvaluationService
         eval.ReviewedAt = DateTimeOffset.UtcNow;
         await _db.SaveChangesAsync(ct);
         return ToEval(await LoadEvaluationAsync(eval.Id, ct)!);
+    }
+
+    public async Task<EmployeeEvaluationResponse> ReopenAsync(long evaluationId, string reason, CancellationToken ct = default)
+    {
+        var eval = await LoadEvaluationAsync(evaluationId, ct)
+            ?? throw new KeyNotFoundException("Evaluation not found");
+        EvaluationLockPolicy.EnsureCanReopen(eval, reason);
+
+        var oldValues = Snapshot(eval);
+        var trimmed = reason.Trim();
+        eval.Status = EmployeeEvaluationStatus.DRAFT;
+        eval.ReopenReason = trimmed;
+        eval.ApprovedById = null;
+        eval.ApprovedAt = null;
+        // Keep OverallScore + Results intact until Calculate/Adjust; they remain editable after unlock.
+        await _db.SaveChangesAsync(ct);
+
+        await _audit.RecordUpdateAsync(
+            AuditEntityType.EVALUATION,
+            eval.Id,
+            EvalName(eval),
+            oldValues,
+            Snapshot(eval),
+            $"Evaluation reopened: {trimmed}",
+            null,
+            null,
+            ct);
+
+        return ToEval(await LoadEvaluationAsync(eval.Id, ct)!);
+    }
+
+    public async Task<EmployeeEvaluationResponse> AdjustResultAsync(long resultId, AdjustKpiResultRequest request, CancellationToken ct = default)
+    {
+        var result = await _db.EmployeeKpiResults.FirstOrDefaultAsync(r => r.Id == resultId, ct)
+            ?? throw new KeyNotFoundException("KPI result not found");
+
+        var eval = await LoadEvaluationAsync(result.EvaluationId, ct)
+            ?? throw new KeyNotFoundException("Evaluation not found");
+        EvaluationLockPolicy.EnsureCanAdjust(eval);
+
+        var oldValues = Snapshot(eval);
+        var tracked = eval.Results.First(r => r.Id == resultId);
+
+        if (request.AdjustedValue.HasValue)
+            tracked.AdjustedValue = request.AdjustedValue;
+        if (request.Score.HasValue)
+            tracked.Score = request.Score.Value;
+        if (request.Comment is not null)
+            tracked.Comment = string.IsNullOrWhiteSpace(request.Comment) ? null : request.Comment.Trim();
+
+        decimal weighted = 0, weightSum = 0;
+        foreach (var r in eval.Results)
+        {
+            var w = r.SnapshotWeight > 0 ? r.SnapshotWeight : 1m;
+            weighted += r.Score * w;
+            weightSum += w;
+        }
+        eval.OverallScore = weightSum <= 0 ? 0 : Math.Round(weighted / weightSum, 2);
+        await _db.SaveChangesAsync(ct);
+
+        var reloaded = (await LoadEvaluationAsync(eval.Id, ct))!;
+        await _audit.RecordUpdateAsync(
+            AuditEntityType.EVALUATION,
+            eval.Id,
+            EvalName(eval),
+            oldValues,
+            Snapshot(reloaded),
+            $"KPI result {resultId} adjusted",
+            null,
+            null,
+            ct);
+
+        return ToEval(reloaded);
     }
 
     public async Task<IReadOnlyList<EmployeeEvaluationResponse>> ListEvaluationsAsync(long? periodId, CancellationToken ct = default)
@@ -282,21 +434,70 @@ public class KpiEvaluationService : IKpiEvaluationService
             .Select(q => new TaskQualityEvaluationResponse(q.Id, q.TaskId, q.EvaluatorId, q.QualityScore, q.Notes, q.CreatedAt))
             .ToListAsync(ct);
 
-    private static (decimal value, decimal score) CalculateKpi(KpiDefinition def, List<TaskItem> tasks, decimal qualityAvg)
+    private async Task CapturePeriodKpiSnapshotsAsync(EvaluationPeriod period, CancellationToken ct)
     {
-        var code = def.Code.ToUpperInvariant();
+        var existing = await _db.PeriodKpiSnapshots.Where(s => s.PeriodId == period.Id).ToListAsync(ct);
+        foreach (var row in existing)
+            _db.Remove(row);
+
+        var defs = await _db.KpiDefinitions.Where(d => d.IsActive).ToListAsync(ct);
+        foreach (var def in defs)
+        {
+            _db.Add(new PeriodKpiSnapshot
+            {
+                OrganizationId = period.OrganizationId,
+                PeriodId = period.Id,
+                KpiDefinitionId = def.Id,
+                Code = def.Code,
+                Name = def.Name,
+                Weight = def.Weight > 0 ? def.Weight : 1m,
+                TargetValue = def.TargetValue,
+                Formula = string.IsNullOrWhiteSpace(def.Formula) ? def.Code : def.Formula.Trim(),
+                HigherIsBetter = def.HigherIsBetter,
+                AppliesToRole = def.AppliesToRole,
+            });
+        }
+    }
+
+    private async Task EnsureActiveWeightsValidAsync(CancellationToken ct)
+    {
+        var defs = await _db.KpiDefinitions
+            .Select(d => new { d.Code, d.Weight, d.AppliesToRole, d.IsActive })
+            .ToListAsync(ct);
+        KpiWeightPolicy.EnsureActiveWeightsTotalOneHundred(
+            defs.Select(d => (d.Code, d.Weight, d.AppliesToRole, d.IsActive)));
+    }
+
+    /// <summary>Returns frozen KPIs for the period, capturing from live defs if none exist yet.</summary>
+    private async Task<List<PeriodKpiSnapshot>> EnsurePeriodSnapshotsAsync(EvaluationPeriod period, CancellationToken ct)
+    {
+        var snaps = await _db.PeriodKpiSnapshots.Where(s => s.PeriodId == period.Id).ToListAsync(ct);
+        if (snaps.Count > 0) return snaps;
+
+        await CapturePeriodKpiSnapshotsAsync(period, ct);
+        await _db.SaveChangesAsync(ct);
+        return await _db.PeriodKpiSnapshots.Where(s => s.PeriodId == period.Id).ToListAsync(ct);
+    }
+
+    private static (decimal value, decimal score) CalculateKpi(
+        string formula,
+        bool higherIsBetter,
+        List<TaskItem> tasks,
+        decimal qualityAvg)
+    {
+        var code = formula.Trim().ToUpperInvariant();
+        var completed = tasks.Where(TaskCompletionPolicy.CountsAsCompleted).ToList();
         decimal value = code switch
         {
-            "TASKS_COMPLETED" => tasks.Count(t => t.Status == DomainTaskStatus.DONE),
-            "TASKS_ON_TIME" => tasks.Count(t =>
-                t.Status == DomainTaskStatus.DONE &&
-                (t.DueDate is null || (t.CompletedAt is { } c && DateOnly.FromDateTime(c.UtcDateTime) <= t.DueDate))),
+            "TASKS_COMPLETED" => completed.Count,
+            "TASKS_ON_TIME" => completed.Count(t =>
+                t.DueDate is null ||
+                (t.CompletedAt is { } c && DateOnly.FromDateTime(c.UtcDateTime) <= t.DueDate)),
             "TASK_QUALITY" => qualityAvg,
-            "EFFORT_HOURS" => tasks.Where(t => t.Status == DomainTaskStatus.DONE).Sum(t => t.EstimatedHours),
-            _ => tasks.Count(t => t.Status == DomainTaskStatus.DONE),
+            "EFFORT_HOURS" => completed.Sum(t => t.EstimatedHours),
+            _ => completed.Count,
         };
 
-        // Normalize into 0..100 score heuristically.
         decimal score = code switch
         {
             "TASK_QUALITY" => qualityAvg <= 0 ? 0 : Math.Round(qualityAvg / 5m * 100m, 2),
@@ -305,16 +506,10 @@ public class KpiEvaluationService : IKpiEvaluationService
             _ => Math.Min(100m, value * 10m),
         };
 
-        if (!def.HigherIsBetter)
+        if (!higherIsBetter)
             score = Math.Max(0, 100 - score);
 
         return (value, score);
-    }
-
-    private static void EnsureEditable(EmployeeEvaluation eval)
-    {
-        if (eval.Status is EmployeeEvaluationStatus.APPROVED or EmployeeEvaluationStatus.IN_REVIEW)
-            throw new InvalidOperationException("Approved/in-review evaluations cannot be recalculated. Reject first.");
     }
 
     private async Task<EvaluationPeriod> FindPeriodAsync(long id, CancellationToken ct) =>
@@ -328,11 +523,42 @@ public class KpiEvaluationService : IKpiEvaluationService
             .Include(e => e.Period)
             .FirstOrDefaultAsync(e => e.Id == id, ct);
 
-    private static EvaluationPeriodResponse ToPeriod(EvaluationPeriod p) =>
-        new(p.Id, p.Name, p.StartDate, p.EndDate, p.Status.ToString(), p.CreatedAt, p.UpdatedAt);
+    private static string EvalName(EmployeeEvaluation e) =>
+        $"{e.Period?.Name ?? $"Period {e.PeriodId}"} / {e.User?.Name ?? $"User {e.UserId}"}";
+
+    private static string Snapshot(EmployeeEvaluation e) =>
+        System.Text.Json.JsonSerializer.Serialize(new
+        {
+            Status = e.Status.ToString(),
+            e.OverallScore,
+            e.ApprovedAt,
+            e.RejectionReason,
+            e.ReopenReason,
+            Results = e.Results.Select(r => new
+            {
+                r.Id,
+                r.KpiDefinitionId,
+                r.SnapshotName,
+                r.SnapshotCode,
+                r.SnapshotWeight,
+                r.SnapshotTarget,
+                r.SnapshotFormula,
+                r.CalculatedValue,
+                r.AdjustedValue,
+                r.Score,
+            }),
+        });
+
+    private static EvaluationPeriodResponse ToPeriod(EvaluationPeriod p, IReadOnlyList<PeriodKpiSnapshot> snaps) =>
+        new(
+            p.Id, p.Name, p.StartDate, p.EndDate, p.Status.ToString(), p.CreatedAt, p.UpdatedAt,
+            snaps.Select(s => new PeriodKpiSnapshotResponse(
+                s.Id, s.KpiDefinitionId, s.Code, s.Name, s.Weight, s.TargetValue, s.Formula, s.HigherIsBetter,
+                s.AppliesToRole?.ToString())).ToList());
 
     private static KpiDefinitionResponse ToDef(KpiDefinition d) =>
-        new(d.Id, d.Code, d.Name, d.Description, d.Weight, d.HigherIsBetter, d.IsActive);
+        new(d.Id, d.Code, d.Name, d.Description, d.Weight, d.TargetValue, d.Formula, d.HigherIsBetter, d.IsActive,
+            d.AppliesToRole?.ToString());
 
     private static EmployeeEvaluationResponse ToEval(EmployeeEvaluation e) =>
         new(
@@ -348,7 +574,15 @@ public class KpiEvaluationService : IKpiEvaluationService
             e.ReviewedAt,
             e.ApprovedAt,
             e.RejectionReason,
+            e.ReopenReason,
             e.Results.Select(r => new EmployeeKpiResultResponse(
-                r.Id, r.KpiDefinitionId, r.KpiDefinition?.Code ?? "", r.KpiDefinition?.Name ?? "",
+                r.Id,
+                r.KpiDefinitionId,
+                string.IsNullOrEmpty(r.SnapshotCode) ? (r.KpiDefinition?.Code ?? "") : r.SnapshotCode,
+                string.IsNullOrEmpty(r.SnapshotName) ? (r.KpiDefinition?.Name ?? "") : r.SnapshotName,
+                r.SnapshotWeight > 0 ? r.SnapshotWeight : (r.KpiDefinition?.Weight ?? 1m),
+                r.SnapshotTarget,
+                string.IsNullOrEmpty(r.SnapshotFormula) ? (r.KpiDefinition?.Formula ?? r.KpiDefinition?.Code ?? "") : r.SnapshotFormula,
+                r.SnapshotHigherIsBetter,
                 r.CalculatedValue, r.AdjustedValue, r.Score, r.Comment)).ToList());
 }

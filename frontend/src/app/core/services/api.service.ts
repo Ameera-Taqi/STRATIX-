@@ -293,8 +293,17 @@ export class ApiService {
     return this.projectsApi.updateTask(id, body);
   }
 
-  updateTaskStatus(id: number, status: string): Observable<TaskCard> {
-    return this.http.patch<TaskCard>(`${this.base}/tasks/${id}/status`, { status });
+  updateTaskStatus(
+    id: number,
+    status: string,
+    reasons?: { blockedReason?: string; reopenReason?: string; reviewReason?: string },
+  ): Observable<TaskCard> {
+    return this.http.patch<TaskCard>(`${this.base}/tasks/${id}/status`, {
+      status,
+      blockedReason: reasons?.blockedReason ?? null,
+      reopenReason: reasons?.reopenReason ?? null,
+      reviewReason: reasons?.reviewReason ?? null,
+    });
   }
 
   deleteTask(id: number): Observable<void> {

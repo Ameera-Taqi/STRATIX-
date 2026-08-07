@@ -60,6 +60,7 @@ public class StratixDbContext : DbContext, IApplicationDbContext
     public DbSet<ProjectHealthSnapshot> ProjectHealthSnapshotSet => Set<ProjectHealthSnapshot>();
     public DbSet<EvaluationPeriod> EvaluationPeriodSet => Set<EvaluationPeriod>();
     public DbSet<KpiDefinition> KpiDefinitionSet => Set<KpiDefinition>();
+    public DbSet<PeriodKpiSnapshot> PeriodKpiSnapshotSet => Set<PeriodKpiSnapshot>();
     public DbSet<EmployeeEvaluation> EmployeeEvaluationSet => Set<EmployeeEvaluation>();
     public DbSet<EmployeeKpiResult> EmployeeKpiResultSet => Set<EmployeeKpiResult>();
     public DbSet<TaskQualityEvaluation> TaskQualityEvaluationSet => Set<TaskQualityEvaluation>();
@@ -86,6 +87,7 @@ public class StratixDbContext : DbContext, IApplicationDbContext
     IQueryable<ProjectHealthSnapshot> IApplicationDbContext.ProjectHealthSnapshots => ProjectHealthSnapshotSet;
     IQueryable<EvaluationPeriod> IApplicationDbContext.EvaluationPeriods => EvaluationPeriodSet;
     IQueryable<KpiDefinition> IApplicationDbContext.KpiDefinitions => KpiDefinitionSet;
+    IQueryable<PeriodKpiSnapshot> IApplicationDbContext.PeriodKpiSnapshots => PeriodKpiSnapshotSet;
     IQueryable<EmployeeEvaluation> IApplicationDbContext.EmployeeEvaluations => EmployeeEvaluationSet;
     IQueryable<EmployeeKpiResult> IApplicationDbContext.EmployeeKpiResults => EmployeeKpiResultSet;
     IQueryable<TaskQualityEvaluation> IApplicationDbContext.TaskQualityEvaluations => TaskQualityEvaluationSet;
@@ -238,6 +240,7 @@ public class StratixDbContext : DbContext, IApplicationDbContext
         modelBuilder.Entity<ProjectHealthSnapshot>().HasQueryFilter(x => !_filterByTenant || x.OrganizationId == _tenantId);
         modelBuilder.Entity<EvaluationPeriod>().HasQueryFilter(x => (!_filterByTenant || x.OrganizationId == _tenantId) && !x.IsDeleted);
         modelBuilder.Entity<KpiDefinition>().HasQueryFilter(x => (!_filterByTenant || x.OrganizationId == _tenantId) && !x.IsDeleted);
+        modelBuilder.Entity<PeriodKpiSnapshot>().HasQueryFilter(x => !_filterByTenant || x.OrganizationId == _tenantId);
         modelBuilder.Entity<EmployeeEvaluation>().HasQueryFilter(x => (!_filterByTenant || x.OrganizationId == _tenantId) && !x.IsDeleted);
         modelBuilder.Entity<EmployeeKpiResult>().HasQueryFilter(x => (!_filterByTenant || x.OrganizationId == _tenantId) && !x.IsDeleted);
         modelBuilder.Entity<TaskQualityEvaluation>().HasQueryFilter(x => (!_filterByTenant || x.OrganizationId == _tenantId) && !x.IsDeleted);

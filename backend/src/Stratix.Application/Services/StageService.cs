@@ -56,7 +56,8 @@ public class StageService : IStageService
             StartDate = request.StartDate,
             EndDate = request.EndDate,
             Status = request.Status ?? StageStatus.PLANNED,
-            Progress = request.Progress ?? 0,
+            // Empty stage policy: progress is task-derived; new stage starts at 0.
+            Progress = 0,
             OrderNumber = order,
             CreatedAt = now,
             UpdatedAt = now
@@ -75,10 +76,7 @@ public class StageService : IStageService
         stage.StartDate = request.StartDate;
         stage.EndDate = request.EndDate;
         stage.Status = request.Status;
-        // Progress is derived from tasks — ignore client writes unless no tasks exist yet.
-        var hasTasks = await _db.Tasks.AnyAsync(t => t.StageId == id, ct);
-        if (!hasTasks && request.Progress.HasValue)
-            stage.Progress = request.Progress.Value;
+        // Progress is always derived from tasks (empty stage → 0). Ignore client Progress writes.
         stage.OrderNumber = request.OrderNumber;
         stage.UpdatedAt = DateTimeOffset.UtcNow;
         await _db.SaveChangesAsync(ct);
@@ -95,7 +93,7 @@ public class StageService : IStageService
         StageCloseRules.EnsureCanComplete(tasks.Select(t => ((DomainTaskStatus)t.Status, t.Title)));
 
         stage.Status = StageStatus.DONE;
-        stage.Progress = 100;
+        // Do not set Progress here — recalc applies empty→0 / all-done→100.
         stage.UpdatedAt = DateTimeOffset.UtcNow;
         await _db.SaveChangesAsync(ct);
         await _progress.RecalculateProjectAsync(stage.ProjectId, ct);

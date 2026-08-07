@@ -514,12 +514,40 @@ public class KpiDefinitionConfiguration : IEntityTypeConfiguration<KpiDefinition
         e.Property(x => x.Name).HasColumnName("name").HasMaxLength(150).IsRequired();
         e.Property(x => x.Description).HasColumnName("description").HasMaxLength(500);
         e.Property(x => x.Weight).HasColumnName("weight").HasPrecision(8, 2);
+        e.Property(x => x.TargetValue).HasColumnName("target_value").HasPrecision(12, 4);
+        e.Property(x => x.Formula).HasColumnName("formula").HasMaxLength(200);
         e.Property(x => x.HigherIsBetter).HasColumnName("higher_is_better");
         e.Property(x => x.IsActive).HasColumnName("is_active");
+        e.Property(x => x.AppliesToRole).HasColumnName("applies_to_role").HasConversion<string>().HasMaxLength(50);
         e.Property(x => x.CreatedAt).HasColumnName("created_at");
         e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
         e.Property(x => x.IsDeleted).HasColumnName("is_deleted");
         e.Property(x => x.DeletedAt).HasColumnName("deleted_at");
+        // applies_to_role_key is a SQL Server persisted computed column (migration 041) for uniqueness.
+    }
+}
+
+public class PeriodKpiSnapshotConfiguration : IEntityTypeConfiguration<PeriodKpiSnapshot>
+{
+    public void Configure(EntityTypeBuilder<PeriodKpiSnapshot> e)
+    {
+        e.ToTable("period_kpi_snapshots");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Id).HasColumnName("id");
+        e.Property(x => x.OrganizationId).HasColumnName("organization_id");
+        e.Property(x => x.PeriodId).HasColumnName("period_id");
+        e.Property(x => x.KpiDefinitionId).HasColumnName("kpi_definition_id");
+        e.Property(x => x.Code).HasColumnName("code").HasMaxLength(80).IsRequired();
+        e.Property(x => x.Name).HasColumnName("name").HasMaxLength(150).IsRequired();
+        e.Property(x => x.Weight).HasColumnName("weight").HasPrecision(8, 2);
+        e.Property(x => x.TargetValue).HasColumnName("target_value").HasPrecision(12, 4);
+        e.Property(x => x.Formula).HasColumnName("formula").HasMaxLength(200).IsRequired();
+        e.Property(x => x.HigherIsBetter).HasColumnName("higher_is_better");
+        e.Property(x => x.AppliesToRole).HasColumnName("applies_to_role").HasConversion<string>().HasMaxLength(50);
+        e.Property(x => x.CreatedAt).HasColumnName("created_at");
+        e.HasOne(x => x.Period).WithMany(p => p.KpiSnapshots).HasForeignKey(x => x.PeriodId);
+        e.HasOne(x => x.KpiDefinition).WithMany().HasForeignKey(x => x.KpiDefinitionId).OnDelete(DeleteBehavior.NoAction);
+        e.HasIndex(x => new { x.PeriodId, x.KpiDefinitionId }).IsUnique();
     }
 }
 
@@ -542,6 +570,7 @@ public class EmployeeEvaluationConfiguration : IEntityTypeConfiguration<Employee
         e.Property(x => x.ApprovedById).HasColumnName("approved_by_id");
         e.Property(x => x.ApprovedAt).HasColumnName("approved_at");
         e.Property(x => x.RejectionReason).HasColumnName("rejection_reason").HasMaxLength(1000);
+        e.Property(x => x.ReopenReason).HasColumnName("reopen_reason").HasMaxLength(1000);
         e.Property(x => x.CreatedAt).HasColumnName("created_at");
         e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
         e.Property(x => x.IsDeleted).HasColumnName("is_deleted");
@@ -563,6 +592,12 @@ public class EmployeeKpiResultConfiguration : IEntityTypeConfiguration<EmployeeK
         e.Property(x => x.OrganizationId).HasColumnName("organization_id");
         e.Property(x => x.EvaluationId).HasColumnName("evaluation_id");
         e.Property(x => x.KpiDefinitionId).HasColumnName("kpi_definition_id");
+        e.Property(x => x.SnapshotName).HasColumnName("snapshot_name").HasMaxLength(150).IsRequired();
+        e.Property(x => x.SnapshotCode).HasColumnName("snapshot_code").HasMaxLength(80).IsRequired();
+        e.Property(x => x.SnapshotWeight).HasColumnName("snapshot_weight").HasPrecision(8, 2);
+        e.Property(x => x.SnapshotTarget).HasColumnName("snapshot_target").HasPrecision(12, 4);
+        e.Property(x => x.SnapshotFormula).HasColumnName("snapshot_formula").HasMaxLength(200).IsRequired();
+        e.Property(x => x.SnapshotHigherIsBetter).HasColumnName("snapshot_higher_is_better");
         e.Property(x => x.CalculatedValue).HasColumnName("calculated_value").HasPrecision(12, 4);
         e.Property(x => x.AdjustedValue).HasColumnName("adjusted_value").HasPrecision(12, 4);
         e.Property(x => x.Score).HasColumnName("score").HasPrecision(8, 2);

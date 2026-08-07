@@ -26,6 +26,7 @@ public interface IApplicationDbContext
     IQueryable<ProjectHealthSnapshot> ProjectHealthSnapshots { get; }
     IQueryable<EvaluationPeriod> EvaluationPeriods { get; }
     IQueryable<KpiDefinition> KpiDefinitions { get; }
+    IQueryable<PeriodKpiSnapshot> PeriodKpiSnapshots { get; }
     IQueryable<EmployeeEvaluation> EmployeeEvaluations { get; }
     IQueryable<EmployeeKpiResult> EmployeeKpiResults { get; }
     IQueryable<TaskQualityEvaluation> TaskQualityEvaluations { get; }

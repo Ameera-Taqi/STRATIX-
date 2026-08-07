@@ -2,11 +2,27 @@ import { ProjectRow } from '../../core/data/mock-data';
 
 export type HealthStatus = 'HEALTHY' | 'WARNING' | 'CRITICAL';
 
+/** Weights / caps — keep in sync with ProjectHealthCalculator.cs */
+export const HEALTH_PROGRESS_WEIGHT = 0.35;
+export const HEALTH_ON_TIME_WEIGHT = 0.35;
+export const HEALTH_DELAYED_WEIGHT = 0.15;
+export const HEALTH_BLOCKED_WEIGHT = 0.15;
+export const HEALTH_CRITICAL_POINTS_EACH = 15;
+export const HEALTH_CRITICAL_PENALTY_CAP = 45;
+
 export interface ProjectHealthFactors {
   progress: number;
+  onTimeRate: number;
+  delayedRate: number;
+  blockedRate: number;
+  criticalRiskPenalty: number;
+  /** Diagnostics (raw counts — not used directly in the score). */
   onTimeTasks: number;
   delayedTasks: number;
+  blockedTasks: number;
   criticalRisks: number;
+  totalTasks: number;
+  completedTasks: number;
 }
 
 export interface ProjectHealthResult {
@@ -22,8 +38,11 @@ export interface ProjectHealthResult {
 
 export interface HealthComputeInput {
   project: ProjectRow;
-  onTimeTasks: number;
+  totalTasks: number;
+  completedTasks: number;
+  onTimeCompletedTasks: number;
   delayedTasks: number;
+  blockedTasks: number;
   criticalRisks: number;
 }
 
@@ -31,43 +50,81 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+function roundPct(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
 function statusFromScore(score: number, factors: ProjectHealthFactors): HealthStatus {
   if (score >= 70) return 'HEALTHY';
   if (score >= 45) return 'WARNING';
-  // A low score alone doesn't mean trouble — a brand-new, not-yet-started project
-  // scores low simply because there's nothing to measure. Reserve CRITICAL (red) for
-  // projects with real warning signals: overdue tasks or open critical risks.
-  const hasRealTrouble = factors.delayedTasks > 0 || factors.criticalRisks > 0;
+  const hasRealTrouble =
+    factors.delayedTasks > 0 || factors.criticalRisks > 0 || factors.blockedTasks > 0;
   return hasRealTrouble ? 'CRITICAL' : 'WARNING';
 }
 
 function noteKeyFromFactors(factors: ProjectHealthFactors): string {
   if (factors.criticalRisks > 0) return 'health.noteRisks';
   if (factors.delayedTasks > 0) return 'health.noteOverdueTasks';
-  if (factors.onTimeTasks === 0 && factors.delayedTasks === 0) return 'health.noteNoTasks';
+  if (factors.blockedTasks > 0) return 'health.noteBlocked';
+  if (factors.totalTasks === 0) return 'health.noteNoTasks';
   return 'health.noteStable';
 }
 
 function trendFromScore(score: number, factors: ProjectHealthFactors): 'up' | 'down' | 'stable' {
-  if (score >= 70 && factors.delayedTasks === 0) return 'up';
+  if (score >= 70 && factors.delayedTasks === 0 && factors.blockedTasks === 0) return 'up';
   if (score < 45 || factors.criticalRisks > 1) return 'down';
   return 'stable';
 }
 
-/** Health Score = progress + on-time tasks − delayed tasks − open critical risks */
+/**
+ * Size-normalized health (0–100):
+ * 0.35·Progress + 0.35·OnTimeRate + 0.15·(100−DelayedRate) + 0.15·(100−BlockedRate) − CriticalPenalty
+ */
 export function computeProjectHealth(input: HealthComputeInput): ProjectHealthResult {
+  const progress = clamp(input.project.progress, 0, 100);
+  const total = Math.max(0, input.totalTasks);
+  const completed = Math.max(0, input.completedTasks);
+
+  const onTimeRate =
+    completed <= 0 ? 100 : clamp(roundPct((input.onTimeCompletedTasks * 100) / completed), 0, 100);
+  const delayedRate =
+    total <= 0 ? 0 : clamp(roundPct((input.delayedTasks * 100) / total), 0, 100);
+  const blockedRate =
+    total <= 0 ? 0 : clamp(roundPct((input.blockedTasks * 100) / total), 0, 100);
+  const criticalRiskPenalty = clamp(
+    input.criticalRisks * HEALTH_CRITICAL_POINTS_EACH,
+    0,
+    HEALTH_CRITICAL_PENALTY_CAP,
+  );
+
   const factors: ProjectHealthFactors = {
-    progress: input.project.progress,
-    onTimeTasks: input.onTimeTasks,
+    progress,
+    onTimeRate,
+    delayedRate,
+    blockedRate,
+    criticalRiskPenalty,
+    onTimeTasks: input.onTimeCompletedTasks,
     delayedTasks: input.delayedTasks,
+    blockedTasks: input.blockedTasks,
     criticalRisks: input.criticalRisks,
+    totalTasks: total,
+    completedTasks: completed,
   };
 
-  const score = clamp(
-    factors.progress + factors.onTimeTasks - factors.delayedTasks - factors.criticalRisks,
-    0,
-    100,
-  );
+  const score =
+    total <= 0
+      ? roundPct(progress)
+      : clamp(
+          roundPct(
+            progress * HEALTH_PROGRESS_WEIGHT +
+              onTimeRate * HEALTH_ON_TIME_WEIGHT +
+              (100 - delayedRate) * HEALTH_DELAYED_WEIGHT +
+              (100 - blockedRate) * HEALTH_BLOCKED_WEIGHT -
+              criticalRiskPenalty,
+          ),
+          0,
+          100,
+        );
 
   return {
     projectId: input.project.id,

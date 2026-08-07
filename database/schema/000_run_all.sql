@@ -40,3 +40,7 @@
 :r 035_schema_migrations.sql
 :r 036_progress_health_execution.sql
 :r 037_kpi_evaluation_framework.sql
+:r 038_backfill_estimated_hours_default.sql
+:r 039_evaluation_reopen_reason.sql
+:r 040_kpi_period_definition_snapshots.sql
+:r 041_kpi_weight_total_and_role_scope.sql

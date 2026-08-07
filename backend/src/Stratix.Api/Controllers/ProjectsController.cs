@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Stratix.Application.Common;
 using Stratix.Application.DTOs.Projects;
 using Stratix.Application.Interfaces;
+using Stratix.Application.Services;
 using Stratix.Api.Auth;
 
 namespace Stratix.Api.Controllers;
@@ -13,8 +14,13 @@ namespace Stratix.Api.Controllers;
 public class ProjectsController : ControllerBase
 {
     private readonly IProjectService _projects;
+    private readonly IProgressRecalculationService _progress;
 
-    public ProjectsController(IProjectService projects) => _projects = projects;
+    public ProjectsController(IProjectService projects, IProgressRecalculationService progress)
+    {
+        _projects = projects;
+        _progress = progress;
+    }
 
     [HttpGet]
     [ProducesResponseType(typeof(PagedResponse<ProjectResponse>), StatusCodes.Status200OK)]
@@ -51,6 +57,18 @@ public class ProjectsController : ControllerBase
     [Authorize(Policy = AuthPolicies.ProjectManagers)]
     public async Task<ProjectResponse> Complete(long id, CancellationToken ct) =>
         await _projects.CompleteAsync(id, ct);
+
+    /// <summary>
+    /// Recompute project/stage progress for all tenant projects.
+    /// Applies legacy effort policy: EstimatedHours ≤ 0 → weight 1.
+    /// </summary>
+    [HttpPost("recalculate-progress")]
+    [Authorize(Policy = AuthPolicies.OrgAdmins)]
+    public async Task<ActionResult<object>> RecalculateProgress(CancellationToken ct)
+    {
+        var count = await _progress.RecalculateAllAsync(ct);
+        return Ok(new { projectsRecalculated = count });
+    }
 
     [HttpDelete("{id:long}")]
     [Authorize(Policy = AuthPolicies.ProjectManagers)]

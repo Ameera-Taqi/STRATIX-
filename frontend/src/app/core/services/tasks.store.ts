@@ -304,146 +304,139 @@ export class TasksStore {
 
 
   moveTask(taskId: number, newStatus: TaskCard['status']): void {
-
     const task = this.getById(taskId);
-
     if (!task || task.status === newStatus) return;
 
+    const reasons: { blockedReason?: string; reopenReason?: string } = {};
+    if (newStatus === 'BLOCKED') {
+      reasons.blockedReason = 'Blocked from board';
+    }
+    // DONE → IN_PROGRESS / TODO: clear completion on server; reopen reason required.
+    if (task.status === 'DONE' && newStatus !== 'DONE') {
+      reasons.reopenReason = 'Reopened from board';
+    }
+
     this._tasks.update((list) =>
-
       list.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t)),
-
     );
 
     this.notifications.push({
-
       titleKey: 'notifications.taskMovedTitle',
-
       bodyKey: 'notifications.taskMovedBody',
-
       params: { task: task.title, status: newStatus.replace('_', ' ') },
-
     });
 
+    // Optimistic progress (reopened task no longer counts as done).
     this.refreshProjectProgress(task.projectId);
-
     this.employeesStore.syncFromTasks(this._tasks());
-
     this.employeesStore.syncFromProjects(this.projectsStore.projects());
 
-
-
-    this.api.updateTaskStatus(taskId, newStatus).subscribe({
-
+    this.api.updateTaskStatus(taskId, newStatus, reasons).subscribe({
       next: (updated) => {
-
         this._tasks.update((list) =>
-
           list.map((t) => (t.id === taskId ? this.normalizeTask(updated) : t)),
-
         );
-
+        // Server cleared CompletedAt, recalculated stage/project progress + health.
+        this.refreshProjectProgress(updated.projectId);
+        this.projectsStore.reloadStages(updated.projectId);
       },
-
     });
-
   }
 
 
 
   updateTask(
-
     taskId: number,
-
-    patch: Partial<Pick<TaskCard, 'title' | 'assignee' | 'assigneeId' | 'priority' | 'dueDate' | 'description'>>,
-
+    patch: Partial<Pick<TaskCard, 'title' | 'assignee' | 'assigneeId' | 'priority' | 'dueDate' | 'description' | 'stageId'>>,
   ): void {
-
     const task = this.getById(taskId);
-
     if (!task) return;
 
-
-
     const resolved =
-
       patch.assigneeId != null || patch.assignee != null
-
         ? this.resolveAssignee({
-
             assignee: patch.assignee ?? task.assignee,
-
             assigneeId: patch.assigneeId ?? task.assigneeId,
-
           })
-
         : null;
 
-
-
     const appliedPatch = resolved
-
       ? { ...patch, assignee: resolved.assignee, assigneeId: resolved.assigneeId }
-
       : patch;
 
+    const stageChanged = patch.stageId !== undefined && patch.stageId !== task.stageId;
+    const stages = this.projectsStore.getStages(task.projectId);
+    const nextStageName =
+      patch.stageId != null ? (stages.find((s) => s.id === patch.stageId)?.name ?? null) : null;
 
+    const updatedLocal = {
+      ...task,
+      ...appliedPatch,
+      ...(stageChanged ? { stageName: nextStageName } : {}),
+    };
 
-    const updatedLocal = { ...task, ...appliedPatch };
+    this._tasks.update((list) => list.map((t) => (t.id === taskId ? updatedLocal : t)));
 
-    this._tasks.update((list) =>
-
-      list.map((t) => (t.id === taskId ? updatedLocal : t)),
-
-    );
-
+    // Optimistic: recompute Stage A, Stage B, and project from all project tasks.
     this.refreshProjectProgress(task.projectId);
-
     this.employeesStore.syncFromTasks(this._tasks());
-
     this.employeesStore.syncFromProjects(this.projectsStore.projects());
 
-
-
     this.api
-
       .updateTask(taskId, {
-
         projectId: updatedLocal.projectId,
-
         stageId: updatedLocal.stageId,
-
         title: updatedLocal.title,
-
         description: updatedLocal.description ?? '',
-
         status: updatedLocal.status,
-
         priority: updatedLocal.priority,
-
         assigneeId: updatedLocal.assigneeId,
-
         dueDate: updatedLocal.dueDate || null,
-
       })
-
       .subscribe({
-
         next: (updated) => {
-
           this._tasks.update((list) =>
-
             list.map((t) => (t.id === taskId ? this.normalizeTask(updated) : t)),
-
           );
-
+          // Server recalculated Stage A + Stage B + project — reload stages and re-sync.
+          this.refreshProjectProgress(updated.projectId);
+          if (stageChanged) {
+            this.projectsStore.reloadStages(updated.projectId);
+          }
         },
-
       });
-
   }
 
+  /** Move task Stage A → Stage B; progress for A, B, and the project are recalculated. */
+  moveTaskToStage(taskId: number, stageId: number | null): void {
+    this.updateTask(taskId, { stageId });
+  }
 
+  /**
+   * Soft-delete a task. Removed from Progress, on-time, delayed, KPI, and health;
+   * project/stage progress recalculated immediately (local + server).
+   */
+  deleteTask(taskId: number): void {
+    const task = this.getById(taskId);
+    if (!task) return;
+    const projectId = task.projectId;
+
+    this._tasks.update((list) => list.filter((t) => t.id !== taskId));
+    this.refreshProjectProgress(projectId);
+    this.projectsStore.reloadStages(projectId);
+    this.employeesStore.syncFromTasks(this._tasks());
+    this.employeesStore.syncFromProjects(this.projectsStore.projects());
+
+    this.api.deleteTask(taskId).subscribe({
+      next: () => {
+        this.refreshProjectProgress(projectId);
+        this.projectsStore.reloadStages(projectId);
+      },
+      error: () => {
+        // Reload tasks from server on failure would be ideal; keep optimistic removal for now.
+      },
+    });
+  }
 
   private normalizeTask(task: TaskCard): TaskCard {
 

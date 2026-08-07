@@ -12,7 +12,7 @@ public enum RiskProbability { LOW, MEDIUM, HIGH }
 public enum RiskLevel { LOW, MEDIUM, HIGH, CRITICAL }
 public enum RiskStatus { OPEN, MITIGATING, CLOSED }
 public enum AuditAction { CREATE, UPDATE, DELETE, STATUS_CHANGE, ASSIGNMENT_CHANGE, PRIORITY_CHANGE }
-public enum AuditEntityType { PROJECT, STAGE, TASK, RISK, USER, MILESTONE, REPORT }
+public enum AuditEntityType { PROJECT, STAGE, TASK, RISK, USER, MILESTONE, REPORT, EVALUATION }
 public enum HealthClassification { HEALTHY, WARNING, CRITICAL }
 public enum DeliveryRisk { LOW, MEDIUM, HIGH }
 public enum NotificationType { INFO, SUCCESS, WARNING, ERROR }

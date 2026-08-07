@@ -110,6 +110,8 @@ public class TaskService : ITaskService
     {
         var task = await FindAsync(id, ct);
         var oldStatus = task.Status;
+        var oldProjectId = task.ProjectId;
+        var oldStageId = task.StageId;
         var oldValues = AuditSnapshot.Serialize(Snapshot(task));
 
         TaskTransitionRules.EnsureTransition(
@@ -131,18 +133,25 @@ public class TaskService : ITaskService
         ApplyCompletion(task, request.Status);
         await ValidateRelationsAsync(task, ct);
         await _db.SaveChangesAsync(ct);
+
+        // Stage A → Stage B (or any task change): recompute ALL stages + project, not destination only.
         await _progress.RecalculateProjectAsync(task.ProjectId, ct);
+        if (oldProjectId != task.ProjectId)
+            await _progress.RecalculateProjectAsync(oldProjectId, ct);
 
         if (oldStatus != request.Status)
             await DispatchStatusEventAsync(task, oldStatus, request.Status, ct);
 
+        var stageMoved = oldStageId != task.StageId;
         await _audit.RecordUpdateAsync(
             AuditEntityType.TASK,
             task.Id,
             task.Title,
             oldValues,
             AuditSnapshot.Serialize(Snapshot(task)),
-            $"Task updated: {task.Title}",
+            stageMoved
+                ? $"Task updated (stage {oldStageId?.ToString() ?? "none"} → {task.StageId?.ToString() ?? "none"}): {task.Title}"
+                : $"Task updated: {task.Title}",
             task.ProjectId,
             task.Project.Name,
             ct);
@@ -191,8 +200,16 @@ public class TaskService : ITaskService
         var projectId = task.ProjectId;
         var projectName = task.Project.Name;
         var snapshot = AuditSnapshot.Serialize(Snapshot(task));
-        _db.Remove(task);
+
+        // Soft-delete quality rows so KPI cannot retain scores for a deleted task.
+        var quality = await _db.TaskQualityEvaluations.Where(q => q.TaskId == id).ToListAsync(ct);
+        foreach (var row in quality)
+            _db.Remove(row);
+
+        _db.Remove(task); // soft-delete via DbContext policy
         await _db.SaveChangesAsync(ct);
+
+        // Immediate recalc: Progress, stages, on-time/delayed, health score (soft-deleted excluded).
         await _progress.RecalculateProjectAsync(projectId, ct);
         await _audit.RecordDeleteAsync(AuditEntityType.TASK, id, title, snapshot, $"Task deleted: {title}", projectId, projectName, ct);
     }
@@ -251,19 +268,8 @@ public class TaskService : ITaskService
         t.ReviewReason
     };
 
-    private static void ApplyCompletion(TaskItem task, DomainTaskStatus status)
-    {
-        if (status == DomainTaskStatus.DONE)
-        {
-            task.CompletedAt ??= DateTimeOffset.UtcNow;
-            task.Progress = 100;
-        }
-        else
-        {
-            task.CompletedAt = null;
-            if (task.Progress >= 100) task.Progress = 0;
-        }
-    }
+    private static void ApplyCompletion(TaskItem task, DomainTaskStatus status) =>
+        TaskCompletionPolicy.ApplyStatus(task, status);
 
     private IQueryable<Project> ScopedProjects() =>
         RoleDataScope.Apply(_db.Projects, _currentUser.UserId, _currentUser.Role);

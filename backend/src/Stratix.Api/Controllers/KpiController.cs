@@ -85,6 +85,20 @@ public class KpiController : ControllerBase
         long id, [FromBody] RejectEvaluationRequest request, CancellationToken ct) =>
         await _kpi.RejectAsync(id, request.Reason, ct);
 
+    /// <summary>Formal unlock after APPROVED — reason required; writes audit log.</summary>
+    [HttpPost("evaluations/{id:long}/reopen")]
+    [Authorize(Policy = AuthPolicies.OrgAdmins)]
+    public async Task<EmployeeEvaluationResponse> Reopen(
+        long id, [FromBody] ReopenEvaluationRequest request, CancellationToken ct) =>
+        await _kpi.ReopenAsync(id, request.Reason, ct);
+
+    /// <summary>Adjust result actual/score while unlocked (blocked when APPROVED).</summary>
+    [HttpPatch("results/{resultId:long}")]
+    [Authorize(Policy = AuthPolicies.OrgAdmins)]
+    public async Task<EmployeeEvaluationResponse> AdjustResult(
+        long resultId, [FromBody] AdjustKpiResultRequest request, CancellationToken ct) =>
+        await _kpi.AdjustResultAsync(resultId, request, ct);
+
     [HttpPost("task-quality")]
     [Authorize(Policy = AuthPolicies.TeamLeaders)]
     public async Task<TaskQualityEvaluationResponse> RateTask(

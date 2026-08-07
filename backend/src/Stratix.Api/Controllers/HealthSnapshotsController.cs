@@ -31,8 +31,9 @@ public class HealthSnapshotsController : ControllerBase
         long projectId, [FromQuery] int take = 30, CancellationToken ct = default) =>
         await _snapshots.GetHistoryAsync(projectId, take, ct);
 
+    /// <summary>Formal health capture — always inserts a snapshot row.</summary>
     [HttpPost("projects/{projectId:long}/capture")]
     [Authorize(Policy = AuthPolicies.ProjectManagers)]
     public async Task<ProjectHealthSnapshotResponse> Capture(long projectId, CancellationToken ct) =>
-        await _snapshots.CaptureAsync(projectId, ct);
+        await _snapshots.CaptureAsync(projectId, forceFormalCapture: true, ct);
 }

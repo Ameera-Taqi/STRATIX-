@@ -155,13 +155,14 @@ export class ReportsComponent implements OnInit {
   readonly taskStatusDonut = computed(() => {
     this.lang.lang();
     const list = this.filteredTasks();
-    const counts = { TODO: 0, IN_PROGRESS: 0, REVIEW: 0, DONE: 0 };
+    const counts = { TODO: 0, IN_PROGRESS: 0, REVIEW: 0, DONE: 0, BLOCKED: 0 };
     for (const t of list) counts[t.status]++;
     return [
       { label: this.lang.t('task.todo'), value: counts.TODO, color: CHART_TASK_STATUS.TODO },
       { label: this.lang.t('task.inProgress'), value: counts.IN_PROGRESS, color: CHART_TASK_STATUS.IN_PROGRESS },
       { label: this.lang.t('task.review'), value: counts.REVIEW, color: CHART_TASK_STATUS.REVIEW },
       { label: this.lang.t('task.done'), value: counts.DONE, color: CHART_TASK_STATUS.DONE },
+      { label: this.lang.t('task.blocked'), value: counts.BLOCKED, color: CHART_TASK_STATUS.BLOCKED },
     ].filter((s) => s.value > 0);
   });
 

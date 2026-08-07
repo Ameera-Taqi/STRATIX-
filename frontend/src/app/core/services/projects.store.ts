@@ -247,7 +247,7 @@ export class ProjectsStore {
           ...map,
           [projectId]: stages.map((s) => this.normalizeStage(s)),
         }));
-        this.syncProjectProgress(projectId);
+        // Do not average stage % into project — project progress is task-effort derived.
       },
     });
   }
@@ -340,13 +340,9 @@ export class ProjectsStore {
 
 
   private syncProjectProgress(projectId: number): void {
-
     const stages = this.getStages(projectId);
-
-    const progress = progressFromStages(stages) ?? this.getById(projectId)?.progress ?? 0;
-
-    this.setProjectProgress(projectId, progress);
-
+    // No stages → 0 (defined). Prefer task-driven sync when tasks are available.
+    this.setProjectProgress(projectId, progressFromStages(stages));
   }
 
 
@@ -373,48 +369,22 @@ export class ProjectsStore {
 
 
 
-    if (tasksByStage.size > 0) {
+    // Always derive every stage from its tasks (empty stage → 0; never keep stale %).
+    const updatedStages = stages.map((stage) => {
+      const stageTasks = tasksByStage.get(stage.id) ?? [];
+      const progress = stageProgressFromTasks(stageTasks);
+      // Empty stage stays at its status (0% is normal). Only reopen Done when tasks exist and are incomplete.
+      let status = stage.status;
+      if (progress >= 100) status = 'Done';
+      else if (stage.status === 'Done' && stageTasks.length > 0) status = 'Active';
+      return { ...stage, progress, status };
+    });
 
-      const updatedStages = stages.map((stage) => {
+    this._stagesByProject.update((map) => ({ ...map, [projectId]: updatedStages }));
 
-        const stageTasks = tasksByStage.get(stage.id);
-
-        if (!stageTasks?.length) return stage;
-
-        const progress = stageProgressFromTasks(stageTasks);
-
-        return {
-
-          ...stage,
-
-          progress,
-
-          status: progress >= 100 ? 'Done' : stage.status === 'Done' && progress < 100 ? 'Active' : stage.status,
-
-        };
-
-      });
-
-      this._stagesByProject.update((map) => ({ ...map, [projectId]: updatedStages }));
-
-    }
-
-
-
-    const taskProgress = progressFromTasks(tasks);
-    const stageProgress = progressFromStages(this.getStages(projectId));
-    const existing = this.getById(projectId)?.progress ?? 0;
-
-    // Prefer stages when present. For tasks, never replace a stored/API progress
-    // with 0% just because work is still in progress (incomplete ≠ zero progress).
-    let progress = existing;
-    if (stageProgress != null) {
-      progress = stageProgress;
-    } else if (taskProgress != null) {
-      progress = taskProgress === 0 && existing > 0 ? existing : taskProgress;
-    }
-
-    this.setProjectProgress(projectId, progress);
+    // Effort-weighted tasks are the source of truth (matches backend).
+    // No tasks → 0 (normal for PLANNED; never null / divide-by-zero).
+    this.setProjectProgress(projectId, progressFromTasks(tasks));
   }
 
 

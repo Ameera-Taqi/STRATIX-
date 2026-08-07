@@ -42,6 +42,7 @@ export const CHART_TASK_STATUS = {
   IN_PROGRESS: CHART_COLORS.blue,
   REVIEW: CHART_COLORS.purple,
   DONE: CHART_COLORS.teal,
+  BLOCKED: CHART_COLORS.coral,
 } as const;
 
 export const CHART_HEALTH = {

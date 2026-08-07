@@ -7,7 +7,7 @@ COPY src/Stratix.Domain/Stratix.Domain.csproj src/Stratix.Domain/
 COPY src/Stratix.Application/Stratix.Application.csproj src/Stratix.Application/
 COPY src/Stratix.Infrastructure/Stratix.Infrastructure.csproj src/Stratix.Infrastructure/
 COPY src/Stratix.Api/Stratix.Api.csproj src/Stratix.Api/
-RUN dotnet restore
+RUN dotnet restore src/Stratix.Api/Stratix.Api.csproj
 
 COPY src/ ./src/
 RUN dotnet publish src/Stratix.Api/Stratix.Api.csproj -c Release -o /app/publish

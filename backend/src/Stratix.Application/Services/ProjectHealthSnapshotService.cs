@@ -5,12 +5,17 @@ using Stratix.Application.Interfaces;
 using Stratix.Domain.Entities;
 using Stratix.Domain.Enums;
 using Stratix.Domain.Progress;
+using Stratix.Domain.Workflow;
 
 namespace Stratix.Application.Services;
 
 public interface IProjectHealthSnapshotService
 {
-    Task<ProjectHealthSnapshotResponse> CaptureAsync(long projectId, CancellationToken ct = default);
+    /// <param name="forceFormalCapture">
+    /// When true (explicit POST capture / formal analysis), always insert a row.
+    /// When false, insert only if factors changed or no snapshot exists yet today (UTC).
+    /// </param>
+    Task<ProjectHealthSnapshotResponse> CaptureAsync(long projectId, bool forceFormalCapture = false, CancellationToken ct = default);
     Task<ProjectHealthSnapshotResponse?> GetLatestAsync(long projectId, CancellationToken ct = default);
     Task<IReadOnlyList<ProjectHealthSnapshotResponse>> GetHistoryAsync(long projectId, int take = 30, CancellationToken ct = default);
     Task<IReadOnlyList<ProjectHealthSnapshotResponse>> GetDashboardAsync(CancellationToken ct = default);
@@ -27,13 +32,17 @@ public class ProjectHealthSnapshotService : IProjectHealthSnapshotService
         _currentUser = currentUser;
     }
 
-    public async Task<ProjectHealthSnapshotResponse> CaptureAsync(long projectId, CancellationToken ct = default)
+    public async Task<ProjectHealthSnapshotResponse> CaptureAsync(
+        long projectId,
+        bool forceFormalCapture = false,
+        CancellationToken ct = default)
     {
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId, ct)
             ?? throw new KeyNotFoundException("Project not found");
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var tasks = await _db.Tasks.Where(t => t.ProjectId == projectId).ToListAsync(ct);
+        // Soft-deleted tasks excluded from on-time / delayed / health score.
+        var tasks = await _db.Tasks.ActiveOnly().Where(t => t.ProjectId == projectId).ToListAsync(ct);
         var criticalRisks = await _db.ProjectRisks.CountAsync(
             r => r.ProjectId == projectId && r.Status != RiskStatus.CLOSED && r.RiskLevel == RiskLevel.CRITICAL, ct);
 
@@ -42,6 +51,24 @@ public class ProjectHealthSnapshotService : IProjectHealthSnapshotService
 
         var factors = ProjectHealthCalculator.BuildFactors(project.Progress, slices, criticalRisks, today);
         var result = ProjectHealthCalculator.Compute(factors);
+        var current = new HealthSnapshotPolicy.Fingerprint(
+            result.Score, result.Status, factors.Progress,
+            factors.OnTimeTasks, factors.DelayedTasks, factors.CriticalRisks, result.NoteKey);
+
+        var latest = await _db.ProjectHealthSnapshots
+            .Where(s => s.ProjectId == projectId)
+            .OrderByDescending(s => s.CapturedAt)
+            .FirstOrDefaultAsync(ct);
+
+        HealthSnapshotPolicy.Fingerprint? latestFp = latest is null
+            ? null
+            : new HealthSnapshotPolicy.Fingerprint(
+                latest.Score, latest.Status, latest.Progress,
+                latest.OnTimeTasks, latest.DelayedTasks, latest.CriticalRisks, latest.NoteKey);
+
+        var now = DateTimeOffset.UtcNow;
+        if (!HealthSnapshotPolicy.ShouldCreate(latestFp, latest?.CapturedAt, current, now, forceFormalCapture))
+            return ToResponse(latest!, project.Name);
 
         var snap = new ProjectHealthSnapshot
         {
@@ -54,7 +81,7 @@ public class ProjectHealthSnapshotService : IProjectHealthSnapshotService
             DelayedTasks = factors.DelayedTasks,
             CriticalRisks = factors.CriticalRisks,
             NoteKey = result.NoteKey,
-            CapturedAt = DateTimeOffset.UtcNow,
+            CapturedAt = now,
         };
         _db.Add(snap);
         await _db.SaveChangesAsync(ct);

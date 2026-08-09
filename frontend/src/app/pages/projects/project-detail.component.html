@@ -80,32 +80,6 @@
         </div>
       </div>
 
-      <!-- Meta row -->
-      <dl class="mt-5 grid gap-3 border-t border-slate-100 py-4 text-sm dark:border-slate-800 sm:grid-cols-2 lg:grid-cols-5">
-        <div>
-          <dt class="text-[11px] font-medium uppercase tracking-wide stratix-muted">{{ 'projects.manager' | t }}</dt>
-          <dd class="mt-0.5 font-medium text-dark dark:text-slate-100">{{ project()!.manager || '—' }}</dd>
-        </div>
-        <div>
-          <dt class="text-[11px] font-medium uppercase tracking-wide stratix-muted">{{ 'common.department' | t }}</dt>
-          <dd class="mt-0.5 font-medium text-dark dark:text-slate-100">{{ project()!.department || '—' }}</dd>
-        </div>
-        <div>
-          <dt class="text-[11px] font-medium uppercase tracking-wide stratix-muted">{{ 'common.start' | t }}</dt>
-          <dd class="mt-0.5 tabular-nums font-medium text-dark dark:text-slate-100">{{ project()!.startDate || '—' }}</dd>
-        </div>
-        <div>
-          <dt class="text-[11px] font-medium uppercase tracking-wide stratix-muted">{{ 'projects.targetEnd' | t }}</dt>
-          <dd class="mt-0.5 tabular-nums font-medium text-dark dark:text-slate-100">{{ project()!.endDate || '—' }}</dd>
-        </div>
-        <div>
-          <dt class="text-[11px] font-medium uppercase tracking-wide stratix-muted">{{ 'common.priority' | t }}</dt>
-          <dd class="mt-0.5 font-medium text-dark dark:text-slate-100">
-            {{ project()!.priority ? (priorityLabelKeyFn(project()!.priority!) | t) : '—' }}
-          </dd>
-        </div>
-      </dl>
-
       <!-- Workspace tabs -->
       <nav class="-mb-px flex gap-1 overflow-x-auto" aria-label="Project workspace">
         @for (key of tabKeys; track key) {
@@ -127,78 +101,34 @@
     <div class="min-h-0 flex-1 overflow-y-auto p-6">
       <!-- Overview -->
       @if (activeTabKey === 'project.tabs.overview') {
-        <div class="space-y-6">
-          <app-project-health-overview [projectId]="projectId()" [health]="health()" />
+        <div class="flex flex-col gap-6">
+          <div class="flex flex-col gap-3">
+            <dl class="grid gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm dark:border-slate-700 dark:bg-slate-900/40 sm:grid-cols-2 lg:grid-cols-5">
+              <div>
+                <dt class="text-[11px] font-medium uppercase tracking-wide stratix-muted">{{ 'projects.manager' | t }}</dt>
+                <dd class="mt-0.5 font-medium text-dark dark:text-slate-100">{{ project()!.manager || '—' }}</dd>
+              </div>
+              <div>
+                <dt class="text-[11px] font-medium uppercase tracking-wide stratix-muted">{{ 'common.department' | t }}</dt>
+                <dd class="mt-0.5 font-medium text-dark dark:text-slate-100">{{ project()!.department || '—' }}</dd>
+              </div>
+              <div>
+                <dt class="text-[11px] font-medium uppercase tracking-wide stratix-muted">{{ 'common.start' | t }}</dt>
+                <dd class="mt-0.5 tabular-nums font-medium text-dark dark:text-slate-100">{{ project()!.startDate || '—' }}</dd>
+              </div>
+              <div>
+                <dt class="text-[11px] font-medium uppercase tracking-wide stratix-muted">{{ 'projects.targetEnd' | t }}</dt>
+                <dd class="mt-0.5 tabular-nums font-medium text-dark dark:text-slate-100">{{ project()!.endDate || '—' }}</dd>
+              </div>
+              <div>
+                <dt class="text-[11px] font-medium uppercase tracking-wide stratix-muted">{{ 'common.priority' | t }}</dt>
+                <dd class="mt-0.5 font-medium text-dark dark:text-slate-100">
+                  {{ project()!.priority ? (priorityLabelKeyFn(project()!.priority!) | t) : '—' }}
+                </dd>
+              </div>
+            </dl>
 
-          <div class="grid gap-6 lg:grid-cols-3">
-            <div class="space-y-6 lg:col-span-2">
-              <section class="stratix-card p-6">
-                <h2 class="text-sm font-semibold text-dark dark:text-slate-100">{{ 'project.overviewHint' | t }}</h2>
-                <div class="mt-5 rounded-xl border border-slate-100 bg-slate-50/80 p-4 dark:border-slate-700 dark:bg-slate-800/40">
-                  <div class="flex items-start justify-between gap-3">
-                    <div>
-                      <p class="text-xs font-semibold uppercase tracking-wide stratix-muted">{{ 'progress.project' | t }}</p>
-                      <p class="mt-1 text-3xl font-bold tabular-nums text-dark dark:text-slate-100">{{ projectProgress().progress }}%</p>
-                    </div>
-                    <button
-                      type="button"
-                      class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-slate-300 text-xs font-bold text-slate-500 hover:border-primary hover:text-primary dark:border-slate-600"
-                      [attr.aria-label]="'progress.infoAria' | t"
-                      (click)="toggleProgressInfo($event)"
-                    >
-                      i
-                    </button>
-                  </div>
-                  <p class="mt-2 text-xs stratix-muted">
-                    {{ 'progress.calculatedFromPrefix' | t }}
-                    <span class="font-medium text-slate-700 dark:text-slate-200">{{ formatHours(projectProgress().effortTotal) }}</span>
-                    {{ 'progress.estimatedHoursUnit' | t }}
-                  </p>
-                  <p class="mt-0.5 text-xs stratix-muted">
-                    <span class="font-medium text-slate-700 dark:text-slate-200">{{ formatHours(projectProgress().effortDone) }}</span>
-                    {{ 'progress.hoursCompleted' | t }}
-                  </p>
-                  @if (showProgressInfo()) {
-                    <p class="mt-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs leading-relaxed text-sky-900 dark:border-sky-900/50 dark:bg-sky-950/40 dark:text-sky-100">
-                      {{ 'progress.infoBody' | t }}
-                    </p>
-                  }
-                </div>
-                <div class="mt-5 grid gap-3 sm:grid-cols-3">
-                  <div class="rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-800/50">
-                    <p class="text-2xl font-bold tabular-nums text-dark dark:text-slate-100">{{ stages().length }}</p>
-                    <p class="text-xs stratix-muted">{{ 'project.tabs.features' | t }}</p>
-                  </div>
-                  <div class="rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-800/50">
-                    <p class="text-2xl font-bold tabular-nums text-dark dark:text-slate-100">{{ tasks().length }}</p>
-                    <p class="text-xs stratix-muted">{{ 'project.tabs.tasks' | t }}</p>
-                  </div>
-                  <div class="rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-800/50">
-                    <p class="text-2xl font-bold tabular-nums text-dark dark:text-slate-100">{{ openRiskCount() }}</p>
-                    <p class="text-xs stratix-muted">{{ 'risks.statOpen' | t }}</p>
-                  </div>
-                </div>
-                <div class="mt-5 flex flex-wrap gap-2">
-                  <button type="button" class="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white" (click)="setTab('project.tabs.features')">
-                    {{ 'project.tabs.features' | t }}
-                  </button>
-                  <button type="button" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-dark dark:border-slate-600 dark:text-slate-100" (click)="setTab('project.tabs.tasks')">
-                    {{ 'project.tabs.tasks' | t }}
-                  </button>
-                  <button type="button" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-dark dark:border-slate-600 dark:text-slate-100" (click)="setTab('project.tabs.risks')">
-                    {{ 'project.tabs.risks' | t }}
-                  </button>
-                </div>
-              </section>
-            </div>
-            <section class="stratix-card p-6">
-              <h3 class="mb-4 text-sm font-semibold text-dark dark:text-slate-100">{{ 'health.formulaTitle' | t }}</h3>
-              @if (health()) {
-                <app-health-breakdown [factors]="health()!.factors" />
-              } @else {
-                <p class="text-sm stratix-muted">{{ 'dashboard.noProjects' | t }}</p>
-              }
-            </section>
+            <app-project-health-overview [projectId]="projectId()" [health]="health()" />
           </div>
         </div>
       }
@@ -226,7 +156,7 @@
             @if (stageError()) {
               <p class="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-danger dark:bg-red-900/30">{{ stageError()! | t }}</p>
             }
-            <form class="mt-4 space-y-4" (ngSubmit)="saveStage()">
+            <form class="mt-4 space-y-4" (ngSubmit)="saveStage($event)">
               <div>
                 <label class="stratix-muted mb-1 block text-sm">{{ 'project.featureName' | t }} *</label>
                 <input type="text" class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="stageForm.name" name="featureName" required />
@@ -251,8 +181,10 @@
                 </div>
               </div>
               <div class="flex justify-end gap-2">
-                <button type="button" class="stratix-input px-4 py-2 text-sm" (click)="cancelStageForm()">{{ 'projects.cancel' | t }}</button>
-                <button type="submit" class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white">{{ 'project.saveFeature' | t }}</button>
+                <button type="button" class="stratix-input px-4 py-2 text-sm" (click)="cancelStageForm()" [disabled]="savingFeature()">{{ 'projects.cancel' | t }}</button>
+                <button type="submit" class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-60" [disabled]="savingFeature()">
+                  {{ savingFeature() ? ('common.saving' | t) : ('project.saveFeature' | t) }}
+                </button>
               </div>
             </form>
           </div>
@@ -334,7 +266,7 @@
                     </p>
                   </div>
                   <div class="flex justify-between gap-2">
-                    <dt class="stratix-muted">{{ 'project.tabs.tasks' | t }}</dt>
+                    <dt class="stratix-muted">{{ 'nav.tasks' | t }}</dt>
                     <dd class="tabular-nums font-semibold text-dark dark:text-slate-100">{{ card.tasksDone }} / {{ card.tasksTotal }}</dd>
                   </div>
                   <div class="flex justify-between gap-2">
@@ -412,6 +344,61 @@
             }
           </section>
         }
+      }
+
+      <!-- Timeline — Jira-style roadmap -->
+      @if (activeTabKey === 'project.tabs.timeline') {
+        <div class="stratix-card overflow-hidden">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3 dark:border-slate-700">
+            <div>
+              <h3 class="text-sm font-semibold text-dark dark:text-slate-100">{{ 'project.tabs.timeline' | t }}</h3>
+              <p class="text-xs stratix-muted">{{ 'work.timelineHint' | t }}</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3 text-xs">
+              <span class="inline-flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                <span class="h-2 w-2 rounded-sm bg-violet-500"></span>
+                {{ 'work.type.feature' | t }}
+              </span>
+              <span class="inline-flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                <span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>
+                {{ 'work.type.task' | t }}
+              </span>
+              <span class="inline-flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                <span class="h-3 w-px bg-rose-500"></span>
+                {{ 'timeline.today' | t }}
+              </span>
+            </div>
+          </div>
+          <app-project-timeline
+            [features]="timelineFeatures()"
+            [tasks]="timelineTasks()"
+            [locale]="timelineLocale()"
+            [emptyLabel]="'timeline.noFeatures' | t"
+          />
+        </div>
+      }
+
+      <!-- Gantt chart -->
+      @if (activeTabKey === 'project.tabs.gantt') {
+        <div class="stratix-card overflow-hidden">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3 dark:border-slate-700">
+            <div>
+              <h3 class="text-sm font-semibold text-dark dark:text-slate-100">{{ 'project.tabs.gantt' | t }}</h3>
+              <p class="text-xs stratix-muted">{{ 'work.ganttHint' | t }}</p>
+            </div>
+            <div class="flex flex-wrap gap-2 text-xs">
+              <span class="inline-flex items-center gap-1.5 rounded-full bg-violet-100 px-2.5 py-1 font-medium text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
+                {{ 'work.type.feature' | t }}
+              </span>
+              <span class="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-2.5 py-1 font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
+                {{ 'work.type.task' | t }}
+              </span>
+            </div>
+          </div>
+          <div class="p-5">
+            <app-gantt-chart [rows]="ganttRows()" [markers]="ganttMarkers()" [emptyLabel]="'timeline.noFeatures' | t" />
+          </div>
+        </div>
       }
 
       <!-- Tasks -->
@@ -747,11 +734,6 @@
         </div>
       }
 
-      <!-- AI Insights -->
-      @if (activeTabKey === 'project.tabs.ai') {
-        <app-project-ai-insights [projectId]="projectId()" [embedded]="false" />
-      }
-
       <!-- Activity -->
       @if (activeTabKey === 'project.tabs.activity') {
         <div class="stratix-card p-6">
@@ -769,3 +751,7 @@
     </div>
   }
 </main>
+
+@if (project()) {
+  <app-project-ai-bot [projectId]="projectId()" />
+}

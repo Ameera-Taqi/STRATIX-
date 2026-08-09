@@ -299,16 +299,15 @@
         <span class="rounded-full bg-white/80 px-2 py-0.5 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">
           {{ tasksInColumn(col).length }}
         </span>
-        @if (!col.builtIn) {
-          <button
-            type="button"
-            class="rounded p-1 text-slate-400 transition hover:bg-white hover:text-danger dark:hover:bg-slate-800"
-            [attr.aria-label]="'board.removeColumn' | t"
-            (click)="removeColumn(col)"
-          >
-            <app-ui-icon name="close" size="xs" />
-          </button>
-        }
+        <button
+          type="button"
+          class="shrink-0 rounded p-1 text-slate-400 transition hover:bg-white hover:text-danger dark:hover:bg-slate-800"
+          [attr.title]="'board.removeColumn' | t"
+          [attr.aria-label]="'board.removeColumn' | t"
+          (click)="removeColumn(col, $event)"
+        >
+          <app-ui-icon name="close" size="xs" />
+        </button>
       </div>
       <div class="flex-1 space-y-2 overflow-y-auto px-2 pb-3">
         @for (task of tasksInColumn(col); track task.id) {

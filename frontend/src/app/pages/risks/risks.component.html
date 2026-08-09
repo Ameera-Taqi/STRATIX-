@@ -38,47 +38,79 @@
 
   <div class="mb-6 grid gap-4 lg:grid-cols-3">
     <div class="stratix-card p-5 lg:col-span-2">
-      <h3 class="mb-4 stratix-heading text-sm">{{ 'risks.heatMap' | t }}</h3>
-      <div class="overflow-x-auto">
-        <table class="w-full min-w-[360px] text-center text-xs">
-          <thead>
-            <tr>
-              <th class="p-2"></th>
-              @for (p of probabilityOptions; track p) {
-                <th class="p-2 font-medium stratix-muted">{{ riskProbabilityKey(p) | t }}</th>
-              }
-            </tr>
-          </thead>
-          <tbody>
-            @for (impact of impactOptions; track impact) {
+      <button
+        type="button"
+        class="flex w-full items-center justify-between gap-3 text-start"
+        [attr.aria-expanded]="heatMapOpen()"
+        (click)="toggleHeatMap()"
+      >
+        <h3 class="stratix-heading text-sm">{{ 'risks.heatMap' | t }}</h3>
+        <span
+          class="inline-flex text-slate-500 transition-transform dark:text-slate-400"
+          [class.rotate-180]="heatMapOpen()"
+          aria-hidden="true"
+        >
+          <app-ui-icon name="chevron-down" size="sm" />
+        </span>
+      </button>
+      @if (heatMapOpen()) {
+        <div class="mt-4 overflow-x-auto">
+          <table class="w-full min-w-[360px] text-center text-xs">
+            <thead>
               <tr>
-                <td class="p-2 text-start font-medium stratix-muted">{{ riskImpactKey(impact) | t }}</td>
-                @for (probability of probabilityOptions; track probability) {
-                  <td class="p-2">
-                    <div
-                      class="mx-auto flex h-14 w-14 flex-col items-center justify-center rounded-lg border"
-                      [class]="riskLevelClass(getHeatMapCell(impact, probability)?.riskLevel ?? 'LOW')"
-                    >
-                      <span class="text-base font-bold">{{ getHeatMapCell(impact, probability)?.count ?? 0 }}</span>
-                      <span class="text-[9px] uppercase">{{ riskLevelKey(getHeatMapCell(impact, probability)?.riskLevel ?? 'LOW') | t }}</span>
-                    </div>
-                  </td>
+                <th class="p-2"></th>
+                @for (p of probabilityOptions; track p) {
+                  <th class="p-2 font-medium stratix-muted">{{ riskProbabilityKey(p) | t }}</th>
                 }
               </tr>
-            }
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              @for (impact of impactOptions; track impact) {
+                <tr>
+                  <td class="p-2 text-start font-medium stratix-muted">{{ riskImpactKey(impact) | t }}</td>
+                  @for (probability of probabilityOptions; track probability) {
+                    <td class="p-2">
+                      <div
+                        class="mx-auto flex h-14 w-14 flex-col items-center justify-center rounded-lg border"
+                        [class]="riskLevelClass(getHeatMapCell(impact, probability)?.riskLevel ?? 'LOW')"
+                      >
+                        <span class="text-base font-bold">{{ getHeatMapCell(impact, probability)?.count ?? 0 }}</span>
+                        <span class="text-[9px] uppercase">{{ riskLevelKey(getHeatMapCell(impact, probability)?.riskLevel ?? 'LOW') | t }}</span>
+                      </div>
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
     </div>
 
     <div class="stratix-card p-5">
-      <h3 class="mb-3 stratix-heading text-sm">{{ 'risks.legend' | t }}</h3>
-      <ul class="space-y-2 text-xs stratix-muted">
-        <li>{{ 'risks.legendCritical' | t }}</li>
-        <li>{{ 'risks.legendHigh' | t }}</li>
-        <li>{{ 'risks.legendMedium' | t }}</li>
-        <li>{{ 'risks.legendLow' | t }}</li>
-      </ul>
+      <button
+        type="button"
+        class="flex w-full items-center justify-between gap-3 text-start"
+        [attr.aria-expanded]="legendOpen()"
+        (click)="toggleLegend()"
+      >
+        <h3 class="stratix-heading text-sm">{{ 'risks.legend' | t }}</h3>
+        <span
+          class="inline-flex text-slate-500 transition-transform dark:text-slate-400"
+          [class.rotate-180]="legendOpen()"
+          aria-hidden="true"
+        >
+          <app-ui-icon name="chevron-down" size="sm" />
+        </span>
+      </button>
+      @if (legendOpen()) {
+        <ul class="mt-3 space-y-2 text-xs stratix-muted">
+          <li>{{ 'risks.legendCritical' | t }}</li>
+          <li>{{ 'risks.legendHigh' | t }}</li>
+          <li>{{ 'risks.legendMedium' | t }}</li>
+          <li>{{ 'risks.legendLow' | t }}</li>
+        </ul>
+      }
     </div>
   </div>
 

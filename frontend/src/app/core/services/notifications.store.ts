@@ -136,9 +136,12 @@ export class NotificationsStore {
     };
     this._items.update((list) => [optimistic, ...list]);
 
+    const userId = profile?.id;
+    if (!userId) return;
+
     this.api
       .createNotification({
-        userId: profile?.id ?? 0,
+        userId,
         title,
         message: body,
         type: input.type ?? 'INFO',

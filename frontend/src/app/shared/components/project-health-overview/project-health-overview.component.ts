@@ -7,12 +7,11 @@ import {
 import { ProjectHealthSnapshot } from '../../../core/models/health-snapshot.model';
 import { ApiService } from '../../../core/services/api.service';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
-import { ProjectAiInsightsComponent } from '../project-ai-insights/project-ai-insights.component';
 
 @Component({
   selector: 'app-project-health-overview',
   standalone: true,
-  imports: [TranslatePipe, ProjectAiInsightsComponent],
+  imports: [TranslatePipe],
   template: `
     <section class="stratix-card overflow-hidden border border-emerald-200/70 dark:border-emerald-900/40">
       <div class="bg-gradient-to-br from-emerald-50 via-white to-sky-50 px-6 py-6 dark:from-emerald-950/40 dark:via-slate-950 dark:to-sky-950/30">
@@ -135,10 +134,6 @@ import { ProjectAiInsightsComponent } from '../project-ai-insights/project-ai-in
           </div>
         }
       </div>
-
-      <div class="border-t border-slate-100 px-6 py-5 dark:border-slate-800">
-        <app-project-ai-insights [projectId]="projectId()" [embedded]="true" (analyzed)="reloadSnapshots()" />
-      </div>
     </section>
   `,
 })
@@ -208,11 +203,6 @@ export class ProjectHealthOverviewComponent {
       const sub = this.loadSnapshots(id);
       onCleanup(() => sub.unsubscribe());
     });
-  }
-
-  reloadSnapshots(): void {
-    const id = this.projectId();
-    if (id) this.loadSnapshots(id);
   }
 
   private loadSnapshots(id: number) {

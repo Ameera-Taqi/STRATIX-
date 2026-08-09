@@ -213,8 +213,8 @@ export class ProjectsStore {
     }));
 
     return this.api.createStage(projectId, body).pipe(
-      map((stage) => {
-        const row = this.normalizeStage(stage);
+      map((stage) => this.normalizeStage(stage)),
+      tap((row) => {
         this._stagesByProject.update((m) => ({
           ...m,
           [projectId]: (m[projectId] ?? []).map((s) => (s.id === tempId ? row : s)),
@@ -225,7 +225,6 @@ export class ProjectsStore {
           bodyKey: 'notifications.featureAddedBody',
           params: { feature: row.name, project: project?.name ?? '' },
         });
-        return row;
       }),
       catchError((err) => {
         this._stagesByProject.update((m) => ({

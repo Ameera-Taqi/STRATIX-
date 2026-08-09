@@ -62,6 +62,16 @@ export class RisksComponent implements OnInit {
   readonly showModal = signal(false);
   readonly editingId = signal<number | null>(null);
   readonly formError = signal<string | null>(null);
+  readonly heatMapOpen = signal(false);
+  readonly legendOpen = signal(false);
+
+  toggleHeatMap(): void {
+    this.heatMapOpen.update((v) => !v);
+  }
+
+  toggleLegend(): void {
+    this.legendOpen.update((v) => !v);
+  }
 
   readonly riskLevelClass = riskLevelClass;
   readonly riskStatusClass = riskStatusClass;

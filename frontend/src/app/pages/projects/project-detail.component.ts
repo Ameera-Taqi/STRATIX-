@@ -9,11 +9,13 @@ import { RisksStore } from '../../core/services/risks.store';
 import { TaskCard } from '../../core/data/mock-data';
 import { StatusBadgeComponent } from '../../shared/components/status-badge.component';
 import { TaskBoardComponent } from '../../shared/components/task-board/task-board.component';
+import { GanttChartComponent } from '../../shared/components/gantt/gantt-chart.component';
+import { GanttRow, GanttTaskMarker } from '../../shared/components/gantt/gantt.types';
+import { ProjectTimelineComponent } from '../../shared/components/project-timeline/project-timeline.component';
 import { ActivityTimelineComponent } from '../../shared/components/activity-timeline/activity-timeline.component';
 import { AttachmentsPanelComponent } from '../../shared/components/attachments-panel/attachments-panel.component';
-import { HealthBreakdownComponent } from '../../shared/components/health-breakdown/health-breakdown.component';
 import { ProjectHealthService } from '../../core/services/project-health.service';
-import { ProjectAiInsightsComponent } from '../../shared/components/project-ai-insights/project-ai-insights.component';
+import { ProjectAiBotComponent } from '../../shared/components/project-ai-bot/project-ai-bot.component';
 import { ProjectHealthOverviewComponent } from '../../shared/components/project-health-overview/project-health-overview.component';
 import {
   BreadcrumbItem,
@@ -21,6 +23,7 @@ import {
 } from '../../shared/components/breadcrumbs/breadcrumbs.component';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { UiIconComponent } from '../../shared/components/ui-icon/ui-icon.component';
+import { CHART_COLORS, CHART_SERIES } from '../../shared/components/charts/chart-palette';
 import { healthStatusClass } from '../../shared/utils/project-health.util';
 import {
   calculateRiskLevel,
@@ -59,10 +62,11 @@ import {
     TopbarComponent,
     StatusBadgeComponent,
     TaskBoardComponent,
+    GanttChartComponent,
+    ProjectTimelineComponent,
     ActivityTimelineComponent,
     AttachmentsPanelComponent,
-    HealthBreakdownComponent,
-    ProjectAiInsightsComponent,
+    ProjectAiBotComponent,
     ProjectHealthOverviewComponent,
     BreadcrumbsComponent,
     RouterLink,
@@ -226,6 +230,7 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
 
   readonly stageError = signal<string | null>(null);
   readonly showStageForm = signal(false);
+  readonly savingFeature = signal(false);
   readonly createdFeature = signal<{ id: number; name: string } | null>(null);
   readonly taskError = signal<string | null>(null);
   readonly showTaskForm = signal(false);
@@ -249,14 +254,77 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
     stageId: null as number | null,
   };
 
+  readonly ganttRows = computed((): GanttRow[] => {
+    const p = this.project();
+    const fallbackStart = p?.startDate || new Date().toISOString().slice(0, 10);
+    const fallbackEnd = p?.endDate || fallbackStart;
+    return this.stages().map((s, i) => {
+      const start = s.startDate || fallbackStart;
+      const end = s.endDate || s.startDate || fallbackEnd;
+      return {
+        id: s.id,
+        label: s.name,
+        start,
+        end: end < start ? start : end,
+        progress: Number(s.progress) || 0,
+        color: CHART_SERIES[i % CHART_SERIES.length],
+        sublabel: s.status || '',
+      };
+    });
+  });
+
+  readonly ganttMarkers = computed((): GanttTaskMarker[] =>
+    this.tasks()
+      .filter((t) => t.stageId != null && !!t.dueDate)
+      .map((t, i) => ({
+        id: i + 1,
+        rowId: t.stageId!,
+        label: t.title,
+        date: t.dueDate,
+        color: t.status === 'DONE' ? CHART_COLORS.teal : CHART_COLORS.coral,
+      })),
+  );
+
+  readonly timelineFeatures = computed(() => {
+    const p = this.project();
+    const fallbackStart = p?.startDate || new Date().toISOString().slice(0, 10);
+    const fallbackEnd = p?.endDate || fallbackStart;
+    return this.stages().map((s) => {
+      const startDate = s.startDate || fallbackStart;
+      const endDate = s.endDate || s.startDate || fallbackEnd;
+      return {
+        id: s.id,
+        name: s.name,
+        startDate,
+        endDate: endDate < startDate ? startDate : endDate,
+        progress: s.progress,
+        status: s.status,
+      };
+    });
+  });
+
+  readonly timelineTasks = computed(() =>
+    this.tasks().map((t) => ({
+      id: t.id,
+      title: t.title,
+      stageId: t.stageId,
+      startDate: t.startDate,
+      dueDate: t.dueDate,
+      status: t.status,
+    })),
+  );
+
+  readonly timelineLocale = computed(() => (this.lang.lang() === 'ar' ? 'ar' : 'en'));
+
   /** Unified workspace tabs — everything for one project lives here. */
   readonly tabKeys = [
     'project.tabs.overview',
     'project.tabs.features',
     'project.tabs.tasks',
+    'project.tabs.timeline',
+    'project.tabs.gantt',
     'project.tabs.risks',
     'project.tabs.files',
-    'project.tabs.ai',
     'project.tabs.activity',
   ] as const;
 
@@ -294,9 +362,10 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
         overview: 'project.tabs.overview',
         features: 'project.tabs.features',
         tasks: 'project.tabs.tasks',
+        timeline: 'project.tabs.timeline',
+        gantt: 'project.tabs.gantt',
         risks: 'project.tabs.risks',
         files: 'project.tabs.files',
-        ai: 'project.tabs.ai',
         activity: 'project.tabs.activity',
       };
       if (tab && map[tab]) this.activeTabKey = map[tab];
@@ -407,9 +476,11 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
     this.createdFeature.set(null);
   }
 
-  saveStage(): void {
+  saveStage(event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
     const p = this.project();
-    if (!p) return;
+    if (!p || this.savingFeature()) return;
     if (!this.stageForm.name.trim()) {
       this.stageError.set('project.errorFeatureName');
       return;
@@ -422,6 +493,8 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
       this.stageError.set('projects.errorDates');
       return;
     }
+    this.savingFeature.set(true);
+    this.stageError.set(null);
     this.store
       .addStage(this.projectId(), {
         name: this.stageForm.name,
@@ -435,9 +508,13 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
           this.showStageForm.set(false);
           this.stageError.set(null);
           this.stageFormBaseline = null;
+          this.savingFeature.set(false);
           this.createdFeature.set({ id: stage.id, name: stage.name });
         },
-        error: () => this.stageError.set('project.errorFeatureSave'),
+        error: () => {
+          this.savingFeature.set(false);
+          this.stageError.set('project.errorFeatureSave');
+        },
       });
   }
 
@@ -657,8 +734,8 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   }
 
-  stageStatusClass(status: string): string {
-    const s = status.toUpperCase().replace(/\s+/g, '_');
+  stageStatusClass(status: string | null | undefined): string {
+    const s = (status ?? '').toUpperCase().replace(/\s+/g, '_');
     if (s === 'DONE') return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300';
     if (s === 'ACTIVE') return 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300';
     return 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200';

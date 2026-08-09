@@ -50,6 +50,10 @@ function storageKey(projectId: number): string {
   return `stratix.board.columns.${projectId}`;
 }
 
+function hiddenStorageKey(projectId: number): string {
+  return `stratix.board.hidden.${projectId}`;
+}
+
 function loadCustomColumns(projectId: number): BoardColumn[] {
   try {
     const raw = localStorage.getItem(storageKey(projectId));
@@ -63,6 +67,21 @@ function loadCustomColumns(projectId: number): BoardColumn[] {
 
 function saveCustomColumns(projectId: number, columns: BoardColumn[]): void {
   localStorage.setItem(storageKey(projectId), JSON.stringify(columns.filter((c) => !c.builtIn)));
+}
+
+function loadHiddenColumnIds(projectId: number): string[] {
+  try {
+    const raw = localStorage.getItem(hiddenStorageKey(projectId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as string[];
+    return Array.isArray(parsed) ? parsed.filter((id) => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveHiddenColumnIds(projectId: number, ids: string[]): void {
+  localStorage.setItem(hiddenStorageKey(projectId), JSON.stringify(ids));
 }
 
 @Component({
@@ -84,17 +103,22 @@ export class TaskBoardComponent {
   readonly employees = this.employeesStore.employees;
 
   readonly customColumns = signal<BoardColumn[]>([]);
+  readonly hiddenColumnIds = signal<string[]>([]);
   readonly showAddColumn = signal(false);
   readonly columnError = signal<string | null>(null);
 
   readonly boardColumns = computed(() => {
-    const builtIn = new Set(DEFAULT_COLUMNS.map((c) => c.status));
-    const custom = this.customColumns().filter((c) => !builtIn.has(c.status));
-    return [...DEFAULT_COLUMNS, ...custom];
+    const hidden = new Set(this.hiddenColumnIds());
+    const builtInStatuses = new Set(DEFAULT_COLUMNS.map((c) => c.status));
+    const visibleBuiltIn = DEFAULT_COLUMNS.filter((c) => !hidden.has(c.id));
+    const custom = this.customColumns().filter(
+      (c) => !builtInStatuses.has(c.status) && !hidden.has(c.id),
+    );
+    return [...visibleBuiltIn, ...custom];
   });
 
   readonly showEmptyState = computed(
-    () => this.tasks().length === 0 && this.customColumns().length === 0 && !this.showAddColumn(),
+    () => this.tasks().length === 0 && this.boardColumns().length === 0 && !this.showAddColumn(),
   );
 
   readonly statusOptions: { value: BoardColumnStatus; labelKey: string }[] = [
@@ -193,6 +217,7 @@ export class TaskBoardComponent {
     effect(() => {
       const pid = this.projectId();
       this.customColumns.set(pid != null ? loadCustomColumns(pid) : []);
+      this.hiddenColumnIds.set(pid != null ? loadHiddenColumnIds(pid) : []);
       this.showAddColumn.set(false);
       this.columnError.set(null);
     });
@@ -281,6 +306,17 @@ export class TaskBoardComponent {
     }
 
     const pid = this.projectId();
+    // Re-show a hidden built-in column mapped to the same workflow status.
+    const matchingBuiltIn = DEFAULT_COLUMNS.find((c) => c.status === this.columnForm.status);
+    if (matchingBuiltIn && this.hiddenColumnIds().includes(matchingBuiltIn.id)) {
+      const hidden = this.hiddenColumnIds().filter((id) => id !== matchingBuiltIn.id);
+      this.hiddenColumnIds.set(hidden);
+      if (pid != null) saveHiddenColumnIds(pid, hidden);
+      this.showAddColumn.set(false);
+      this.columnError.set(null);
+      return;
+    }
+
     const next: BoardColumn = {
       id: `custom-${Date.now()}`,
       label: name,
@@ -295,9 +331,33 @@ export class TaskBoardComponent {
     this.columnError.set(null);
   }
 
-  removeColumn(column: BoardColumn): void {
-    if (column.builtIn) return;
+  removeColumn(column: BoardColumn, event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+    if (this.boardColumns().length <= 1) {
+      window.alert(this.lang.t('board.columnErrorLast'));
+      return;
+    }
+
+    const taskCount = this.tasksInColumn(column).length;
+    const label = column.labelKey ? this.lang.t(column.labelKey) : (column.label ?? column.id);
+    const message =
+      taskCount > 0
+        ? this.lang
+            .t('board.removeColumnConfirmWithTasks')
+            .replace('{{column}}', label)
+            .replace('{{count}}', String(taskCount))
+        : this.lang.t('board.removeColumnConfirm').replace('{{column}}', label);
+    if (!window.confirm(message)) return;
+
     const pid = this.projectId();
+    if (column.builtIn) {
+      const hidden = [...new Set([...this.hiddenColumnIds(), column.id])];
+      this.hiddenColumnIds.set(hidden);
+      if (pid != null) saveHiddenColumnIds(pid, hidden);
+      return;
+    }
+
     const updated = this.customColumns().filter((c) => c.id !== column.id);
     this.customColumns.set(updated);
     if (pid != null) saveCustomColumns(pid, updated);

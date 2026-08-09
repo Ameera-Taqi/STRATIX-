@@ -602,7 +602,7 @@ export const TRANSLATIONS = {
     'board.columnErrorReviewExists': 'A Review column is already on the board.',
     'board.columnErrorLast': 'Keep at least one column on the board.',
 
-    'project.tabs.features': 'Features',
+    'project.tabs.features': 'Backlog',
     'project.tabs.tasks': 'Board',
     'project.tabs.files': 'Files',
     'project.tabs.activity': 'Activity',
@@ -1713,7 +1713,7 @@ export const TRANSLATIONS = {
     'board.columnErrorDuplicate': 'يوجد عمود بهذا الاسم بالفعل.',
     'board.columnErrorReviewExists': 'عمود المراجعة موجود بالفعل على اللوحة.',
     'board.columnErrorLast': 'يجب الإبقاء على عمود واحد على الأقل في اللوحة.',
-    'project.tabs.features': 'الميزات',
+    'project.tabs.features': 'سجل الأعمال',
     'project.tabs.tasks': 'اللوحة',
     'project.tabs.files': 'الملفات',
     'project.tabs.activity': 'النشاط',

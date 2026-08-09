@@ -319,10 +319,10 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
   /** Unified workspace tabs — everything for one project lives here. */
   readonly tabKeys = [
     'project.tabs.overview',
+    'project.tabs.gantt',
     'project.tabs.features',
     'project.tabs.tasks',
     'project.tabs.timeline',
-    'project.tabs.gantt',
     'project.tabs.risks',
     'project.tabs.files',
     'project.tabs.activity',

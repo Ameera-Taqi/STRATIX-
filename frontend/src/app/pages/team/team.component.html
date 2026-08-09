@@ -5,24 +5,6 @@
       <h2 class="text-lg font-semibold text-dark dark:text-slate-100">{{ 'page.team' | t }}</h2>
       <p class="mt-1 text-sm stratix-muted">{{ 'team.hint' | t }}</p>
     </div>
-    <div class="flex flex-wrap gap-2">
-      @if (canManageDepartments()) {
-        <a
-          routerLink="/departments"
-          class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-dark hover:bg-slate-50 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
-        >
-          {{ 'nav.departments' | t }}
-        </a>
-      }
-      @if (canManageRoles()) {
-        <a
-          routerLink="/roles"
-          class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-dark hover:bg-slate-50 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
-        >
-          {{ 'nav.roles' | t }}
-        </a>
-      }
-    </div>
   </div>
 
   <div class="mb-6 grid gap-4 sm:grid-cols-3">

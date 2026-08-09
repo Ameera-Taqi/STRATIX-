@@ -364,17 +364,25 @@ export class TasksStore {
   updateTask(
     taskId: number,
     patch: Partial<Pick<TaskCard, 'title' | 'assignee' | 'assigneeId' | 'priority' | 'dueDate' | 'description' | 'stageId'>>,
+    onDone?: (ok: boolean) => void,
   ): void {
     const task = this.getById(taskId);
-    if (!task) return;
+    if (!task) {
+      onDone?.(false);
+      return;
+    }
 
-    const resolved =
-      patch.assigneeId != null || patch.assignee != null
-        ? this.resolveAssignee({
+    const assigneeTouched = Object.prototype.hasOwnProperty.call(patch, 'assigneeId')
+      || Object.prototype.hasOwnProperty.call(patch, 'assignee');
+
+    const resolved = assigneeTouched
+      ? patch.assigneeId == null && (patch.assignee == null || patch.assignee === '')
+        ? { assignee: '', assigneeId: null as number | null }
+        : this.resolveAssignee({
             assignee: patch.assignee ?? task.assignee,
-            assigneeId: patch.assigneeId ?? task.assigneeId,
+            assigneeId: patch.assigneeId !== undefined ? patch.assigneeId : task.assigneeId,
           })
-        : null;
+      : null;
 
     const appliedPatch = resolved
       ? { ...patch, assignee: resolved.assignee, assigneeId: resolved.assigneeId }
@@ -407,7 +415,9 @@ export class TasksStore {
         status: updatedLocal.status,
         priority: updatedLocal.priority,
         assigneeId: updatedLocal.assigneeId,
+        startDate: updatedLocal.startDate || null,
         dueDate: updatedLocal.dueDate || null,
+        estimatedHours: updatedLocal.estimatedHours ?? 1,
       })
       .subscribe({
         next: (updated) => {
@@ -419,6 +429,14 @@ export class TasksStore {
           if (stageChanged) {
             this.projectsStore.reloadStages(updated.projectId);
           }
+          onDone?.(true);
+        },
+        error: () => {
+          // Roll back optimistic local change.
+          this._tasks.update((list) => list.map((t) => (t.id === taskId ? task : t)));
+          this.refreshProjectProgress(task.projectId);
+          this.employeesStore.syncFromTasks(this._tasks());
+          onDone?.(false);
         },
       });
   }

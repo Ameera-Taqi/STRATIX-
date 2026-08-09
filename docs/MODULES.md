@@ -4,14 +4,23 @@
 
 **STRATIX** — منصة مؤسسية متعددة المستأجرين (ASP.NET Core 8 + Angular 19 + SQL Server).
 
+## Naming: Stage vs Feature
+
+| Layer | Term | Example |
+|-------|------|---------|
+| **Internal domain** (API, DB, entities, module ACL code) | Stage | `STAGES`, `ProjectStage`, `/api/stages` |
+| **Product / UI** (i18n, copy, nav labels) | Feature | `module.features` → “Features” / “الميزات” |
+
+Do **not** rename the module code to `FEATURES`. Keep `STAGES` stable for permissions, CMS, and backend; always show the product name via translations.
+
 ## Core modules (product)
 
-| # | Module | Code | Notes |
-|---|--------|------|--------|
+| # | Module (UI) | Code (internal) | Notes |
+|---|-------------|-----------------|--------|
 | 1 | Authentication | `AUTH` | JWT + refresh tokens |
 | 2 | Dashboard | `DASHBOARD` | |
 | 3 | Projects | `PROJECTS` | Overview / Timeline / Backlog / Board / List / Files / Activity |
-| 4 | Features | `STAGES` | Project features (formerly “stages”) |
+| 4 | Features | `STAGES` | Domain: Stage · Product: Feature |
 | 5 | Tasks | `TASKS` | |
 | 6 | Employees | `EMPLOYEES` | |
 | 7 | Performance & KPI | `PERFORMANCE` | |

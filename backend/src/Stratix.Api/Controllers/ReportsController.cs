@@ -23,7 +23,23 @@ public class ReportsController : ControllerBase
     public async Task<ActionResult<ReportResponse>> Get(long id, CancellationToken ct) =>
         Ok(await _service.GetByIdAsync(id, ct));
 
-    /// <summary>Upload a generated report file (PDF / Excel / CSV) with metadata.</summary>
+    /// <summary>
+    /// Generate a report on the server from authoritative data, store it, and return metadata + download URL.
+    /// </summary>
+    [HttpPost("generate")]
+    [Authorize(Policy = AuthPolicies.LeadersAndExecutives)]
+    public async Task<ActionResult<ReportResponse>> Generate(
+        [FromBody] GenerateReportRequest request,
+        CancellationToken ct)
+    {
+        var created = await _service.GenerateAsync(request, ct);
+        return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
+    }
+
+    /// <summary>
+    /// Legacy: upload a pre-generated report file (PDF / Excel) with metadata.
+    /// Prefer <see cref="Generate"/> for new clients.
+    /// </summary>
     [HttpPost]
     [RequestSizeLimit(26 * 1024 * 1024)]
     [Authorize(Policy = AuthPolicies.LeadersAndExecutives)]

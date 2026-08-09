@@ -66,6 +66,18 @@ public class CreateReportRequestValidator : AbstractValidator<CreateReportReques
     }
 }
 
+public class GenerateReportRequestValidator : AbstractValidator<GenerateReportRequest>
+{
+    public GenerateReportRequestValidator()
+    {
+        RuleFor(x => x.Title).MaximumLength(300).When(x => x.Title != null);
+        RuleFor(x => x.ReportType).NotEmpty().MaximumLength(50);
+        RuleFor(x => x.Format).NotEmpty().MaximumLength(20);
+        RuleFor(x => x).Must(x => !x.DateFrom.HasValue || !x.DateTo.HasValue || x.DateFrom <= x.DateTo)
+            .WithMessage("DateFrom must be on or before DateTo.");
+    }
+}
+
 public class ProjectHealthAnalysisRequestValidator : AbstractValidator<ProjectHealthAnalysisRequest>
 {
     public ProjectHealthAnalysisRequestValidator()

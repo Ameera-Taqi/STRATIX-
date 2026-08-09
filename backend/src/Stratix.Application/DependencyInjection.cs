@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Stratix.Application.Common;
 using Stratix.Application.Interfaces;
 using Stratix.Application.Services;
+using Stratix.Application.Services.Reports;
 using Stratix.Application.Validators;
 
 namespace Stratix.Application;
@@ -29,6 +30,8 @@ public static class DependencyInjection
         services.AddScoped<IProjectFileService, ProjectFileService>();
         services.AddSingleton<ITenantFileStorage, TenantFileStorage>();
         services.AddScoped<IReportFileStorage, ReportFileStorage>();
+        services.AddScoped<ReportDataAssembler>();
+        services.AddScoped<IReportDocumentBuilder, ReportDocumentBuilder>();
         services.AddScoped<IReportService, ReportService>();
         services.AddScoped<IAuditTrailService, AuditTrailService>();
         services.AddScoped<IDepartmentService, DepartmentService>();

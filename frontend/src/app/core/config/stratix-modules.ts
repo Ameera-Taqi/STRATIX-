@@ -76,8 +76,9 @@ export const STRATIX_MODULES: readonly StratixModule[] = [
   },
   {
     id: 4,
+    // Domain/API code stays STAGES (Stage). Product UI label is Features.
     code: 'STAGES',
-    labelKey: 'module.stages',
+    labelKey: 'module.features',
     path: '/timeline',
     sidebar: false,
     rolesRead: ALL_ROLES,

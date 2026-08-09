@@ -46,6 +46,11 @@ public interface IReportService
 {
     Task<IReadOnlyList<Stratix.Application.DTOs.Reports.ReportResponse>> GetAllAsync(CancellationToken ct = default);
     Task<Stratix.Application.DTOs.Reports.ReportResponse> GetByIdAsync(long id, CancellationToken ct = default);
+    /// <summary>Server-side generation from authoritative data (preferred).</summary>
+    Task<Stratix.Application.DTOs.Reports.ReportResponse> GenerateAsync(
+        Stratix.Application.DTOs.Reports.GenerateReportRequest request,
+        CancellationToken ct = default);
+    /// <summary>Legacy: persist a client-uploaded report file.</summary>
     Task<Stratix.Application.DTOs.Reports.ReportResponse> CreateAsync(
         Stratix.Application.DTOs.Reports.CreateReportRequest request,
         Stream content,

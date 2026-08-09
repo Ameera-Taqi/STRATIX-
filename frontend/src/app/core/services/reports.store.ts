@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { ApiService } from './api.service';
-import { CreateReportPayload, ReportResponse } from '../models/report.model';
+import { CreateReportPayload, GenerateReportPayload, ReportResponse } from '../models/report.model';
 import { firstValueFrom } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
@@ -22,6 +22,20 @@ export class ReportsStore {
     }
   }
 
+  async generate(payload: GenerateReportPayload): Promise<ReportResponse | null> {
+    this.saving.set(true);
+    try {
+      const created = await firstValueFrom(this.api.generateReport(payload));
+      this.reports.update((list) => [created, ...list]);
+      return created;
+    } catch {
+      return null;
+    } finally {
+      this.saving.set(false);
+    }
+  }
+
+  /** @deprecated Prefer generate() — client file upload is legacy. */
   async saveExport(meta: CreateReportPayload, file: File): Promise<ReportResponse | null> {
     this.saving.set(true);
     try {

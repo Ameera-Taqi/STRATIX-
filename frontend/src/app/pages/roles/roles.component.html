@@ -131,7 +131,10 @@
               <tr class="stratix-table-row">
                 <td class="px-4 py-3">
                   <p class="font-medium text-dark dark:text-slate-100">{{ mod.labelKey | t }}</p>
-                  <p class="font-mono text-[11px] text-slate-400">{{ displayModuleCode(mod.code) }}</p>
+                  <p class="font-mono text-[11px] text-slate-400">
+                    <span class="font-sans not-italic">{{ 'cms.internalCode' | t }}:</span>
+                    {{ displayModuleCode(mod.code) }}
+                  </p>
                 </td>
                 @for (col of matrixColumns(); track col.kind === 'system' ? col.code : col.id) {
                   <td class="px-3 py-3 text-center">

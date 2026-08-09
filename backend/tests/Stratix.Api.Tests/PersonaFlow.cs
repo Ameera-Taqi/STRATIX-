@@ -242,6 +242,31 @@ internal static class PersonaFlow
         });
     }
 
+    internal static async Task<ReportDto> GenerateReportAsync(
+        HttpClient client,
+        string token,
+        string reportType,
+        string format,
+        long? projectId,
+        string? dateFrom = null,
+        string? dateTo = null,
+        string? title = null)
+    {
+        var body = new
+        {
+            title,
+            reportType,
+            format,
+            projectId,
+            dateFrom,
+            dateTo
+        };
+        using var req = TestAuth.Authed(HttpMethod.Post, "/api/reports/generate", token, body);
+        var res = await client.SendAsync(req);
+        await EnsureSuccess(res, "Generate report");
+        return (await TestAuth.ReadJsonAsync<ReportDto>(res))!;
+    }
+
     internal static async Task<ReportDto> UploadReportAsync(
         HttpClient client,
         string token,

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Stratix.Application.Common;
 using Stratix.Application.DTOs.Reports;
 using Stratix.Application.Interfaces;
+using Stratix.Application.Services.Reports;
 using Stratix.Domain.Entities;
 using Stratix.Domain.Enums;
 
@@ -15,6 +16,8 @@ public class ReportService : IReportService
     private readonly IReportFileStorage _storage;
     private readonly IAuditTrailService _audit;
     private readonly TenantRelationGuard _tenantGuard;
+    private readonly ReportDataAssembler _assembler;
+    private readonly IReportDocumentBuilder _documentBuilder;
 
     public ReportService(
         IApplicationDbContext db,
@@ -22,7 +25,9 @@ public class ReportService : IReportService
         IPlanLimitService planLimits,
         IReportFileStorage storage,
         IAuditTrailService audit,
-        TenantRelationGuard tenantGuard)
+        TenantRelationGuard tenantGuard,
+        ReportDataAssembler assembler,
+        IReportDocumentBuilder documentBuilder)
     {
         _db = db;
         _currentUser = currentUser;
@@ -30,6 +35,8 @@ public class ReportService : IReportService
         _storage = storage;
         _audit = audit;
         _tenantGuard = tenantGuard;
+        _assembler = assembler;
+        _documentBuilder = documentBuilder;
     }
 
     public async Task<IReadOnlyList<ReportResponse>> GetAllAsync(CancellationToken ct = default) =>
@@ -40,6 +47,51 @@ public class ReportService : IReportService
 
     public async Task<ReportResponse> GetByIdAsync(long id, CancellationToken ct = default) =>
         ToResponse(await FindAsync(id, ct));
+
+    public async Task<ReportResponse> GenerateAsync(GenerateReportRequest request, CancellationToken ct = default)
+    {
+        if (_currentUser.UserId is not long userId)
+            throw new UnauthorizedAccessException("Not authenticated");
+        if (_currentUser.OrganizationId is not long orgId || orgId <= 0)
+            throw new UnauthorizedAccessException("Organization context is required.");
+
+        if (!Enum.TryParse<ReportType>(request.ReportType?.Trim(), ignoreCase: true, out var reportType))
+            throw new ArgumentException($"Invalid report type: {request.ReportType}");
+        if (!Enum.TryParse<ReportFormat>(request.Format?.Trim(), ignoreCase: true, out var format))
+            throw new ArgumentException($"Invalid report format: {request.Format}");
+        if (request.DateFrom.HasValue && request.DateTo.HasValue && request.DateFrom > request.DateTo)
+            throw new ArgumentException("DateFrom must be on or before DateTo.");
+
+        await ValidateFiltersAsync(
+            request.ProjectId, request.DepartmentId, request.EmployeeId, orgId, ct);
+
+        var (model, title, _) = await _assembler.AssembleAsync(request, reportType, orgId, ct);
+        var file = _documentBuilder.Build(model, format);
+
+        var createRequest = new CreateReportRequest
+        {
+            Title = title,
+            ReportType = reportType.ToString(),
+            Format = format.ToString(),
+            ProjectId = request.ProjectId,
+            DepartmentId = request.DepartmentId,
+            EmployeeId = request.EmployeeId,
+            DateFrom = request.DateFrom,
+            DateTo = request.DateTo
+        };
+
+        await using var stream = new MemoryStream(file.Content, writable: false);
+        return await PersistAsync(
+            createRequest,
+            stream,
+            file.ContentType,
+            file.FileName,
+            file.Content.LongLength,
+            userId,
+            orgId,
+            skipFilterValidation: true,
+            ct);
+    }
 
     public async Task<ReportResponse> CreateAsync(
         CreateReportRequest request,
@@ -57,12 +109,39 @@ public class ReportService : IReportService
         if (string.IsNullOrWhiteSpace(request.Title))
             throw new ArgumentException("Title is required.");
 
-        if (!Enum.TryParse<ReportType>(request.ReportType?.Trim(), ignoreCase: true, out var reportType))
+        if (!Enum.TryParse<ReportType>(request.ReportType?.Trim(), ignoreCase: true, out _))
             throw new ArgumentException($"Invalid report type: {request.ReportType}");
-        if (!Enum.TryParse<ReportFormat>(request.Format?.Trim(), ignoreCase: true, out var format))
+        if (!Enum.TryParse<ReportFormat>(request.Format?.Trim(), ignoreCase: true, out _))
             throw new ArgumentException($"Invalid report format: {request.Format}");
 
-        // Buffer non-seekable uploads so magic-byte checks can rewind safely.
+        return await PersistAsync(
+            request,
+            content,
+            contentType,
+            originalFileName,
+            length,
+            userId,
+            orgId,
+            skipFilterValidation: false,
+            ct);
+    }
+
+    private async Task<ReportResponse> PersistAsync(
+        CreateReportRequest request,
+        Stream content,
+        string contentType,
+        string originalFileName,
+        long length,
+        long userId,
+        long orgId,
+        bool skipFilterValidation,
+        CancellationToken ct)
+    {
+        if (!Enum.TryParse<ReportFormat>(request.Format?.Trim(), ignoreCase: true, out var format))
+            throw new ArgumentException($"Invalid report format: {request.Format}");
+        if (!Enum.TryParse<ReportType>(request.ReportType?.Trim(), ignoreCase: true, out var reportType))
+            throw new ArgumentException($"Invalid report type: {request.ReportType}");
+
         Stream payload = content;
         MemoryStream? owned = null;
         if (!content.CanSeek)
@@ -78,13 +157,14 @@ public class ReportService : IReportService
         {
             _storage.Validate(payload, contentType, length, format.ToString());
             await _planLimits.EnsureStorageAvailableAsync(length, ct);
-            await ValidateFiltersAsync(request, orgId, ct);
+            if (!skipFilterValidation)
+                await ValidateFiltersAsync(request.ProjectId, request.DepartmentId, request.EmployeeId, orgId, ct);
 
             if (payload.CanSeek)
                 payload.Position = 0;
 
             var displayName = string.IsNullOrWhiteSpace(originalFileName)
-                ? $"report-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}.{(format == ReportFormat.PDF ? "pdf" : "csv")}"
+                ? $"report-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}.{(format == ReportFormat.PDF ? "pdf" : "xlsx")}"
                 : Path.GetFileName(originalFileName.Trim());
 
             var storageFileName = $"{Guid.NewGuid():N}-{Sanitize(displayName)}";
@@ -138,7 +218,6 @@ public class ReportService : IReportService
             }
             catch
             {
-                // Create wrote the file before the DB row — remove orphan on failure.
                 if (storageKey != null)
                     _storage.Delete(orgId, storageKey);
                 throw;
@@ -157,7 +236,6 @@ public class ReportService : IReportService
             throw new UnauthorizedAccessException("Organization context is required.");
 
         var report = await FindAsync(id, ct);
-        // Defense in depth: never stream a file outside the caller's tenant even if a key leaked.
         if (report.OrganizationId != orgId)
             throw new KeyNotFoundException("Report not found");
 
@@ -211,13 +289,18 @@ public class ReportService : IReportService
         await Query().FirstOrDefaultAsync(r => r.Id == id, ct)
         ?? throw new KeyNotFoundException("Report not found");
 
-    private async Task ValidateFiltersAsync(CreateReportRequest request, long organizationId, CancellationToken ct)
+    private async Task ValidateFiltersAsync(
+        long? projectId,
+        long? departmentId,
+        long? employeeId,
+        long organizationId,
+        CancellationToken ct)
     {
-        if (request.ProjectId is long projectId)
-            await _tenantGuard.EnsureProjectAsync(projectId, organizationId, ct);
+        if (projectId is long pid)
+            await _tenantGuard.EnsureProjectAsync(pid, organizationId, ct);
 
-        await _tenantGuard.EnsureDepartmentAsync(request.DepartmentId, organizationId, ct);
-        await _tenantGuard.EnsureUserAsync(request.EmployeeId, organizationId, ct);
+        await _tenantGuard.EnsureDepartmentAsync(departmentId, organizationId, ct);
+        await _tenantGuard.EnsureUserAsync(employeeId, organizationId, ct);
     }
 
     private static ReportResponse ToResponse(Report r) => new(

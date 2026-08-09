@@ -12,7 +12,7 @@ public class PlatformCmsService : IPlatformCmsService
     [
         ("DASHBOARD", 1, true, true),
         ("PROJECTS", 2, true, true),
-        ("STAGES", 3, true, true),
+        ("STAGES", 3, true, true), // Domain: Stage · Product UI: Features
         ("TASKS", 4, true, true),
         ("EMPLOYEES", 5, true, true),
         ("PERFORMANCE", 6, true, true),

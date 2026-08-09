@@ -148,7 +148,13 @@ export class TeamComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.store.loadAdministrationFromApi();
+    // Org admins get full admin user list; others use directory (Team Leaders / PMs).
+    const role = this.roleAccess.role();
+    if (role === 'SUPER_ADMIN' || role === 'ORG_ADMIN' || role === 'ADMIN') {
+      this.store.loadAdministrationFromApi();
+    } else {
+      this.store.loadFromApi();
+    }
     if (this.route.snapshot.queryParamMap.get('create') === '1' && this.canWrite()) {
       this.openAddModal();
       void this.router.navigate([], {

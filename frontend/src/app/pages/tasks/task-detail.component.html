@@ -1,5 +1,15 @@
 <app-topbar titleKey="page.tasks" />
 <main class="stratix-page p-6">
+  <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+    <a
+      [routerLink]="backLink()"
+      [queryParams]="backQuery()"
+      class="inline-flex items-center gap-1.5 text-sm font-medium text-primary transition hover:underline"
+    >
+      <app-ui-icon name="chevron-left" size="sm" className="rtl:rotate-180" />
+      {{ 'tasks.back' | t }}
+    </a>
+  </div>
   <app-breadcrumbs [items]="breadcrumbs()" />
 
   @if (!task()) {
@@ -24,13 +34,55 @@
             </div>
             @if (task()!.stageName) {
               <div>
-                <dt class="stratix-muted">{{ 'module.stages' | t }}</dt>
+                <dt class="stratix-muted">{{ 'module.features' | t }}</dt>
                 <dd class="font-medium">{{ task()!.stageName }}</dd>
               </div>
             }
-            <div>
-              <dt class="stratix-muted">{{ 'common.assigned' | t }}</dt>
-              <dd class="font-medium">{{ task()!.assignee }}</dd>
+            <div class="sm:col-span-2 rounded-lg border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-700 dark:bg-slate-900/40">
+              <dt class="text-sm font-medium text-dark dark:text-slate-100">{{ 'tasks.assignedTo' | t }}</dt>
+              <dd class="mt-2">
+                @if (canAssign()) {
+                  <div class="flex flex-wrap items-center gap-2">
+                    <select
+                      class="stratix-input w-full max-w-xs px-3 py-2 text-sm"
+                      [ngModel]="draftAssigneeId()"
+                      (ngModelChange)="onAssigneeDraftChange($event)"
+                      [disabled]="savingAssignee()"
+                      name="taskAssignee"
+                    >
+                      <option [ngValue]="null">{{ 'tasks.unassigned' | t }}</option>
+                      @for (e of employees(); track e.id) {
+                        <option [ngValue]="e.id">{{ e.name }}</option>
+                      }
+                    </select>
+                    <button
+                      type="button"
+                      class="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm disabled:opacity-50"
+                      [disabled]="savingAssignee() || !assigneeDirty()"
+                      (click)="saveAssignee()"
+                    >
+                      {{ savingAssignee() ? ('common.saving' | t) : ('tasks.saveAssignee' | t) }}
+                    </button>
+                    <button
+                      type="button"
+                      class="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-white disabled:opacity-50 dark:border-slate-600 dark:text-slate-200"
+                      [disabled]="savingAssignee() || !assigneeDirty()"
+                      (click)="cancelAssignee()"
+                    >
+                      {{ 'projects.cancel' | t }}
+                    </button>
+                  </div>
+                  @if (assigneeMessage() === 'saved') {
+                    <p class="mt-2 text-xs text-emerald-700 dark:text-emerald-300">{{ 'tasks.assigneeSaved' | t }}</p>
+                  }
+                  @if (assigneeMessage() === 'failed') {
+                    <p class="mt-2 text-xs text-danger">{{ 'tasks.assigneeSaveFailed' | t }}</p>
+                  }
+                } @else {
+                  <span class="font-medium">{{ task()!.assignee || ('tasks.unassigned' | t) }}</span>
+                  <p class="mt-1 text-xs stratix-muted">{{ 'tasks.assigneeReadOnly' | t }}</p>
+                }
+              </dd>
             </div>
             <div>
               <dt class="stratix-muted">{{ 'common.priority' | t }}</dt>

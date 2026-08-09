@@ -21,10 +21,27 @@ public record ReportResponse(
     string GeneratedByName,
     DateTimeOffset CreatedAt);
 
+/// <summary>Legacy multipart upload metadata (client-supplied file).</summary>
 public class CreateReportRequest
 {
     public string Title { get; set; } = string.Empty;
     public string ReportType { get; set; } = "CUSTOM";
+    public string Format { get; set; } = "PDF";
+    public long? ProjectId { get; set; }
+    public long? DepartmentId { get; set; }
+    public long? EmployeeId { get; set; }
+    public DateOnly? DateFrom { get; set; }
+    public DateOnly? DateTo { get; set; }
+}
+
+/// <summary>
+/// Server-side generation: parameters only — backend loads authoritative data and builds the file.
+/// </summary>
+public class GenerateReportRequest
+{
+    /// <summary>Optional; when empty the server derives a title from report type + period.</summary>
+    public string? Title { get; set; }
+    public string ReportType { get; set; } = "PROJECTS_PROGRESS";
     public string Format { get; set; } = "PDF";
     public long? ProjectId { get; set; }
     public long? DepartmentId { get; set; }

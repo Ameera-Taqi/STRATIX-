@@ -103,6 +103,20 @@ export class TopbarComponent {
     await this.quickCreate.run(action);
   }
 
+  onPickerProjectChange(value: string): void {
+    const id = Number(value);
+    this.quickCreate.pickerProjectId.set(Number.isFinite(id) && id > 0 ? id : null);
+    this.quickCreate.pickerError.set(null);
+  }
+
+  closeProjectPicker(): void {
+    this.quickCreate.closePicker();
+  }
+
+  async confirmProjectPicker(): Promise<void> {
+    await this.quickCreate.confirmPicker();
+  }
+
   onBellClick(event: MouseEvent): void {
     event.preventDefault();
     event.stopPropagation();

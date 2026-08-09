@@ -66,9 +66,12 @@ export class RolesComponent implements OnInit {
     ),
   );
 
-  /** Internal module codes may keep legacy names; UI shows product terminology. */
+  /**
+   * Technical module code for ACL/CMS (never invent product aliases).
+   * Stage domain code is STAGES; product label comes from labelKey → Features.
+   */
   displayModuleCode(code: SystemModuleCode): string {
-    return code === 'STAGES' ? 'FEATURES' : code;
+    return code;
   }
 
   readonly matrixColumns = computed((): MatrixColumn[] => {

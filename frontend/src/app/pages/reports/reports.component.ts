@@ -8,7 +8,6 @@ import { LanguageService } from '../../core/i18n/language.service';
 import { ReportExportService } from '../../core/services/report-export.service';
 import { ProjectsStore } from '../../core/services/projects.store';
 import { TasksStore } from '../../core/services/tasks.store';
-import { EmployeesStore } from '../../core/services/employees.store';
 import { ReportsStore } from '../../core/services/reports.store';
 import { ApiService } from '../../core/services/api.service';
 import { ReportFormatCode, ReportResponse, ReportTypeCode } from '../../core/models/report.model';
@@ -32,7 +31,6 @@ export class ReportsComponent implements OnInit {
   private readonly lang = inject(LanguageService);
   private readonly projectsStore = inject(ProjectsStore);
   private readonly tasksStore = inject(TasksStore);
-  private readonly employeesStore = inject(EmployeesStore);
   readonly reportsStore = inject(ReportsStore);
   private readonly api = inject(ApiService);
 
@@ -66,9 +64,6 @@ export class ReportsComponent implements OnInit {
   ngOnInit(): void {
     if (!this.projectsStore.loaded()) {
       this.projectsStore.loadFromApi(() => this.tasksStore.loadFromApi());
-    }
-    if (!this.employeesStore.loaded()) {
-      this.employeesStore.loadFromApi();
     }
     void this.reportsStore.loadFromApi();
   }

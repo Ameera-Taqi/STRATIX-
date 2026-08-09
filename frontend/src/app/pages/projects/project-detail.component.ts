@@ -1,6 +1,13 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { FormsModule } from '@angular/forms';
+import {
+  AbstractControl,
+  FormBuilder,
+  FormsModule,
+  ReactiveFormsModule,
+  ValidationErrors,
+  Validators,
+} from '@angular/forms';
 import { TopbarComponent } from '../../layout/topbar/topbar.component';
 import { ProjectsStore } from '../../core/services/projects.store';
 import { TasksStore } from '../../core/services/tasks.store';
@@ -38,9 +45,9 @@ import {
   riskProbabilityLabelKey,
   riskStatusLabelKey,
 } from '../../shared/utils/enum-labels';
+import { priorityClass } from '../../shared/utils/status.util';
 import { effortBreakdownFromTasks } from '../../shared/utils/project-progress.util';
 import {
-  CreateRiskForm,
   RiskImpact,
   RiskProbability,
   RiskStatus,
@@ -55,6 +62,14 @@ import {
   isFormDirty,
 } from '../../core/unsaved/unsaved-changes';
 
+function dateRangeValidator(startKey: string, endKey: string) {
+  return (group: AbstractControl): ValidationErrors | null => {
+    const start = group.get(startKey)?.value as string | null | undefined;
+    const end = group.get(endKey)?.value as string | null | undefined;
+    if (start && end && end < start) return { dateOrder: true };
+    return null;
+  };
+}
 @Component({
   selector: 'app-project-detail',
   standalone: true,
@@ -72,6 +87,7 @@ import {
     RouterLink,
     TranslatePipe,
     FormsModule,
+    ReactiveFormsModule,
     UiIconComponent,
     WarnUnsavedDirective,
   ],
@@ -89,6 +105,7 @@ import {
 export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly fb = inject(FormBuilder);
   private readonly tasksStore = inject(TasksStore);
   private readonly employeesStore = inject(EmployeesStore);
   private readonly lang = inject(LanguageService);
@@ -153,16 +170,16 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
 
   readonly showRiskForm = signal(false);
   readonly riskFormError = signal<string | null>(null);
-  riskForm: CreateRiskForm = {
-    title: '',
-    description: '',
-    impact: 'MEDIUM',
-    probability: 'MEDIUM',
-    mitigationPlan: '',
-    status: 'OPEN',
-    projectId: 0,
-    ownerId: 0,
-  };
+  readonly riskForm = this.fb.group({
+    title: this.fb.nonNullable.control('', Validators.required),
+    description: this.fb.nonNullable.control(''),
+    impact: this.fb.nonNullable.control<RiskImpact>('MEDIUM'),
+    probability: this.fb.nonNullable.control<RiskProbability>('MEDIUM'),
+    mitigationPlan: this.fb.nonNullable.control(''),
+    status: this.fb.nonNullable.control<RiskStatus>('OPEN'),
+    projectId: this.fb.nonNullable.control(0),
+    ownerId: this.fb.nonNullable.control(0, [Validators.required, Validators.min(1)]),
+  });
 
   readonly health = computed(() => {
     this.healthService.all();
@@ -178,7 +195,7 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
   readonly featureCards = computed(() => {
     const today = new Date().toISOString().slice(0, 10);
     const tasks = this.tasks();
-    return this.stages().map((stage, index, all) => {
+    return this.stages().map((stage) => {
       const stageTasks = tasks.filter((t) => Number(t.stageId) === Number(stage.id));
       const breakdown = effortBreakdownFromTasks(stageTasks);
       const overdue = stageTasks.filter(
@@ -195,8 +212,6 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
         overdue,
         blocked,
         dueLabel: this.formatDue(stage.endDate),
-        canMoveUp: index > 0,
-        canMoveDown: index < all.length - 1,
         tasks: stageTasks,
       };
     });
@@ -209,6 +224,13 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
     if (id == null) return null;
     return this.featureCards().find((c) => c.stage.id === id) ?? null;
   });
+
+  /** Features + nested tasks — Jira backlog-style count. */
+  readonly backlogItemCount = computed(() =>
+    this.featureCards().reduce((n, card) => n + 1 + card.tasksTotal, 0),
+  );
+
+  readonly priorityClassFn = priorityClass;
 
   readonly breadcrumbs = computed((): BreadcrumbItem[] => {
     const p = this.project();
@@ -235,24 +257,30 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
   readonly taskError = signal<string | null>(null);
   readonly showTaskForm = signal(false);
 
-  stageForm = {
-    name: '',
-    description: '',
-    startDate: '',
-    endDate: '',
-  };
+  readonly stageForm = this.fb.group(
+    {
+      name: this.fb.nonNullable.control('', Validators.required),
+      description: this.fb.nonNullable.control(''),
+      startDate: this.fb.nonNullable.control(''),
+      endDate: this.fb.nonNullable.control(''),
+    },
+    { validators: dateRangeValidator('startDate', 'endDate') },
+  );
 
-  taskForm = {
-    title: '',
-    description: '',
-    assigneeId: null as number | null,
-    priority: 'MEDIUM' as TaskCard['priority'],
-    estimatedHours: 1,
-    startDate: '',
-    dueDate: '',
-    status: 'TODO' as TaskCard['status'],
-    stageId: null as number | null,
-  };
+  readonly taskForm = this.fb.group(
+    {
+      title: this.fb.nonNullable.control('', Validators.required),
+      description: this.fb.nonNullable.control(''),
+      assigneeId: this.fb.control<number | null>(null),
+      priority: this.fb.nonNullable.control<TaskCard['priority']>('MEDIUM'),
+      estimatedHours: this.fb.nonNullable.control(1, [Validators.required, Validators.min(0.5)]),
+      startDate: this.fb.nonNullable.control(''),
+      dueDate: this.fb.nonNullable.control(''),
+      status: this.fb.nonNullable.control<TaskCard['status']>('TODO'),
+      stageId: this.fb.control<number | null>(null, Validators.required),
+    },
+    { validators: dateRangeValidator('startDate', 'dueDate') },
+  );
 
   readonly ganttRows = computed((): GanttRow[] => {
     const p = this.project();
@@ -429,9 +457,9 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
   }
 
   hasUnsavedChanges(): boolean {
-    if (this.showStageForm() && isFormDirty(this.stageForm, this.stageFormBaseline)) return true;
-    if (this.showTaskForm() && isFormDirty(this.taskForm, this.taskFormBaseline)) return true;
-    if (this.showRiskForm() && isFormDirty(this.riskForm, this.riskFormBaseline)) return true;
+    if (this.showStageForm() && isFormDirty(this.stageForm.getRawValue(), this.stageFormBaseline)) return true;
+    if (this.showTaskForm() && isFormDirty(this.taskForm.getRawValue(), this.taskFormBaseline)) return true;
+    if (this.showRiskForm() && isFormDirty(this.riskForm.getRawValue(), this.riskFormBaseline)) return true;
     return false;
   }
 
@@ -440,7 +468,7 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
     if (!p) return;
     if (
       !allowLeaveIfClean(
-        this.showTaskForm() && isFormDirty(this.taskForm, this.taskFormBaseline),
+        this.showTaskForm() && isFormDirty(this.taskForm.getRawValue(), this.taskFormBaseline),
         this.lang,
       )
     ) {
@@ -450,19 +478,19 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
     this.taskFormBaseline = null;
     this.createdFeature.set(null);
     this.stageError.set(null);
-    this.stageForm = {
+    this.stageForm.reset({
       name: '',
       description: '',
       startDate: p.startDate || new Date().toISOString().slice(0, 10),
       endDate: '',
-    };
-    this.stageFormBaseline = formSnapshot(this.stageForm);
+    });
+    this.stageFormBaseline = formSnapshot(this.stageForm.getRawValue());
     this.showStageForm.set(true);
   }
 
   cancelStageForm(): void {
     if (!allowLeaveIfClean(
-      this.showStageForm() && isFormDirty(this.stageForm, this.stageFormBaseline),
+      this.showStageForm() && isFormDirty(this.stageForm.getRawValue(), this.stageFormBaseline),
       this.lang,
     )) {
       return;
@@ -481,26 +509,32 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
     event?.stopPropagation();
     const p = this.project();
     if (!p || this.savingFeature()) return;
-    if (!this.stageForm.name.trim()) {
-      this.stageError.set('project.errorFeatureName');
+
+    this.stageForm.markAllAsTouched();
+    if (this.stageForm.invalid) {
+      if (this.stageForm.controls.name.invalid) {
+        this.stageError.set('project.errorFeatureName');
+      } else if (this.stageForm.hasError('dateOrder')) {
+        this.stageError.set('projects.errorDates');
+      } else {
+        this.stageError.set('project.errorFeatureSave');
+      }
       return;
     }
-    if (
-      this.stageForm.startDate &&
-      this.stageForm.endDate &&
-      this.stageForm.endDate < this.stageForm.startDate
-    ) {
-      this.stageError.set('projects.errorDates');
+
+    const value = this.stageForm.getRawValue();
+    if (!value.name.trim()) {
+      this.stageError.set('project.errorFeatureName');
       return;
     }
     this.savingFeature.set(true);
     this.stageError.set(null);
     this.store
       .addStage(this.projectId(), {
-        name: this.stageForm.name,
-        description: this.stageForm.description,
-        startDate: this.stageForm.startDate,
-        endDate: this.stageForm.endDate,
+        name: value.name.trim(),
+        description: value.description,
+        startDate: value.startDate,
+        endDate: value.endDate,
         status: 'Planned',
       })
       .subscribe({
@@ -530,7 +564,7 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
     if (!p) return;
     if (
       !allowLeaveIfClean(
-        this.showStageForm() && isFormDirty(this.stageForm, this.stageFormBaseline),
+        this.showStageForm() && isFormDirty(this.stageForm.getRawValue(), this.stageFormBaseline),
         this.lang,
       )
     ) {
@@ -544,7 +578,7 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
     const featureId =
       preselectFeatureId ??
       (this.stages().length === 1 ? this.stages()[0].id : null);
-    this.taskForm = {
+    this.taskForm.reset({
       title: '',
       description: '',
       assigneeId: defaultAssignee?.id ?? null,
@@ -554,15 +588,15 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
       dueDate: p.endDate || '',
       status: 'TODO',
       stageId: featureId,
-    };
-    this.taskFormBaseline = formSnapshot(this.taskForm);
+    });
+    this.taskFormBaseline = formSnapshot(this.taskForm.getRawValue());
     this.setTab('project.tabs.tasks');
     this.showTaskForm.set(true);
   }
 
   cancelTaskForm(): void {
     if (!allowLeaveIfClean(
-      this.showTaskForm() && isFormDirty(this.taskForm, this.taskFormBaseline),
+      this.showTaskForm() && isFormDirty(this.taskForm.getRawValue(), this.taskFormBaseline),
       this.lang,
     )) {
       return;
@@ -573,35 +607,44 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
   }
 
   saveTask(): void {
-    if (!this.taskForm.title.trim()) {
-      this.taskError.set('tasks.errorTitle');
-      return;
-    }
+    this.taskForm.markAllAsTouched();
     if (this.stages().length === 0) {
       this.taskError.set('tasks.errorFeatureRequired');
       return;
     }
-    if (this.taskForm.stageId == null) {
-      this.taskError.set('tasks.errorFeature');
+    if (this.taskForm.invalid) {
+      if (this.taskForm.controls.title.invalid) {
+        this.taskError.set('tasks.errorTitle');
+      } else if (this.taskForm.controls.stageId.invalid) {
+        this.taskError.set('tasks.errorFeature');
+      } else if (this.taskForm.controls.estimatedHours.invalid) {
+        this.taskError.set('tasks.errorHours');
+      } else if (this.taskForm.hasError('dateOrder')) {
+        this.taskError.set('projects.errorDates');
+      } else {
+        this.taskError.set('tasks.errorTitle');
+      }
       return;
     }
-    if (!(Number(this.taskForm.estimatedHours) > 0)) {
-      this.taskError.set('tasks.errorHours');
+
+    const value = this.taskForm.getRawValue();
+    if (!value.title.trim() || value.stageId == null) {
+      this.taskError.set(!value.title.trim() ? 'tasks.errorTitle' : 'tasks.errorFeature');
       return;
     }
-    const assignee = this.employees().find((e) => e.id === this.taskForm.assigneeId);
+    const assignee = this.employees().find((e) => e.id === value.assigneeId);
     this.tasksStore.addTask({
       projectId: this.projectId(),
-      title: this.taskForm.title,
-      description: this.taskForm.description,
+      title: value.title.trim(),
+      description: value.description,
       assignee: assignee?.name ?? '',
-      assigneeId: this.taskForm.assigneeId,
-      priority: this.taskForm.priority,
-      estimatedHours: Number(this.taskForm.estimatedHours),
-      startDate: this.taskForm.startDate,
-      dueDate: this.taskForm.dueDate,
-      status: this.taskForm.status,
-      stageId: this.taskForm.stageId,
+      assigneeId: value.assigneeId,
+      priority: value.priority,
+      estimatedHours: Number(value.estimatedHours),
+      startDate: value.startDate,
+      dueDate: value.dueDate,
+      status: value.status,
+      stageId: value.stageId,
     });
     this.showTaskForm.set(false);
     this.taskError.set(null);
@@ -610,7 +653,10 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
 
   /** Preview only — backend RiskLevelCalculator is the source of truth. */
   calculatedRiskLevel(): ReturnType<typeof calculateRiskLevel> {
-    return calculateRiskLevel(this.riskForm.impact, this.riskForm.probability);
+    return calculateRiskLevel(
+      this.riskForm.controls.impact.value,
+      this.riskForm.controls.probability.value,
+    );
   }
 
   openRiskForm(): void {
@@ -622,7 +668,7 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
       this.employees().find((e) => e.id === profile?.employeeId) ??
       this.employees()[0];
     this.riskFormError.set(null);
-    this.riskForm = {
+    this.riskForm.reset({
       title: '',
       description: '',
       impact: 'MEDIUM',
@@ -631,14 +677,14 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
       status: 'OPEN',
       projectId: this.projectId(),
       ownerId: defaultOwner?.id ?? 0,
-    };
-    this.riskFormBaseline = formSnapshot(this.riskForm);
+    });
+    this.riskFormBaseline = formSnapshot(this.riskForm.getRawValue());
     this.showRiskForm.set(true);
   }
 
   cancelRiskForm(): void {
     if (!allowLeaveIfClean(
-      this.showRiskForm() && isFormDirty(this.riskForm, this.riskFormBaseline),
+      this.showRiskForm() && isFormDirty(this.riskForm.getRawValue(), this.riskFormBaseline),
       this.lang,
     )) {
       return;
@@ -649,18 +695,38 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
   }
 
   saveRisk(): void {
-    if (!this.riskForm.title.trim()) {
+    this.riskForm.markAllAsTouched();
+    if (this.riskForm.invalid) {
+      if (this.riskForm.controls.title.invalid) {
+        this.riskFormError.set('risks.errorTitle');
+      } else {
+        this.riskFormError.set('risks.errorRelations');
+      }
+      return;
+    }
+
+    const value = this.riskForm.getRawValue();
+    if (!value.title.trim()) {
       this.riskFormError.set('risks.errorTitle');
       return;
     }
-    const owner = this.employees().find((e) => e.id === this.riskForm.ownerId);
+    const owner = this.employees().find((e) => e.id === value.ownerId);
     const project = this.project();
     if (!project || !owner) {
       this.riskFormError.set('risks.errorRelations');
       return;
     }
     this.risksStore.addRisk(
-      { ...this.riskForm, projectId: this.projectId() },
+      {
+        title: value.title.trim(),
+        description: value.description,
+        impact: value.impact,
+        probability: value.probability,
+        mitigationPlan: value.mitigationPlan,
+        status: value.status,
+        projectId: this.projectId(),
+        ownerId: value.ownerId,
+      },
       project.name,
       owner.name,
     );
@@ -703,10 +769,6 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
   deleteStage(id: number): void {
     if (this.openedFeatureId() === id) this.openedFeatureId.set(null);
     this.store.removeStage(this.projectId(), id);
-  }
-
-  moveFeature(id: number, direction: 'up' | 'down'): void {
-    this.store.moveStage(this.projectId(), id, direction);
   }
 
   openFeature(id: number): void {

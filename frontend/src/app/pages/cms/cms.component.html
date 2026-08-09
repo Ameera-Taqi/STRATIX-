@@ -57,7 +57,10 @@
             <li class="grid grid-cols-[1fr_auto_auto] items-center gap-4 px-4 py-3.5">
               <div>
                 <p class="text-sm font-medium text-dark dark:text-slate-100">{{ moduleLabelKey(row.moduleCode) | t }}</p>
-                <p class="text-xs stratix-muted font-mono">{{ row.moduleCode }}</p>
+                <p class="text-xs stratix-muted font-mono">
+                  <span class="not-italic font-sans">{{ 'cms.internalCode' | t }}:</span>
+                  {{ row.moduleCode }}
+                </p>
               </div>
               <label class="flex w-24 justify-center">
                 <input

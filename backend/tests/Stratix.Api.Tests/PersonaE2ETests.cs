@@ -311,8 +311,16 @@ public class PersonaE2ETests : IClassFixture<StratixApiFactory>
         var outsider = await TestAuth.RegisterOrgAsync(
             _client, "Other Tenant", $"out-{Guid.NewGuid():N}@persona.test");
 
-        var report = await PersonaFlow.UploadReportAsync(
-            _client, world.Pm.Token, $"Report {world.Tag}", world.ProjectId, PersonaFlow.TinyPdfBytes());
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var report = await PersonaFlow.GenerateReportAsync(
+            _client,
+            world.Pm.Token,
+            reportType: "PROJECTS_PROGRESS",
+            format: "PDF",
+            projectId: world.ProjectId,
+            dateFrom: today.AddMonths(-1).ToString("yyyy-MM-dd"),
+            dateTo: today.ToString("yyyy-MM-dd"),
+            title: $"Report {world.Tag}");
         Assert.True(report.Id > 0);
         Assert.Equal(world.ProjectId, report.ProjectId);
 

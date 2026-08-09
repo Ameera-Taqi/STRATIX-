@@ -100,7 +100,7 @@ import {
   OrganizationOnboardingStatus,
   UpdateOrganizationProfileRequest,
 } from '../models/onboarding.model';
-import { CreateReportPayload, ReportResponse } from '../models/report.model';
+import { CreateReportPayload, GenerateReportPayload, ReportResponse } from '../models/report.model';
 
 
 
@@ -620,6 +620,20 @@ export class ApiService {
     return this.http.get<ReportResponse[]>(`${this.base}/reports`);
   }
 
+  generateReport(payload: GenerateReportPayload): Observable<ReportResponse> {
+    return this.http.post<ReportResponse>(`${this.base}/reports/generate`, {
+      title: payload.title ?? null,
+      reportType: payload.reportType,
+      format: payload.format,
+      projectId: payload.projectId ?? null,
+      departmentId: payload.departmentId ?? null,
+      employeeId: payload.employeeId ?? null,
+      dateFrom: payload.dateFrom ?? null,
+      dateTo: payload.dateTo ?? null,
+    });
+  }
+
+  /** @deprecated Prefer generateReport — client upload is legacy. */
   createReport(meta: CreateReportPayload, file: File): Observable<ReportResponse> {
     const form = new FormData();
     form.append('Title', meta.title);

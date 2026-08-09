@@ -264,3 +264,66 @@
     </div>
   </div>
 </header>
+
+@if (quickCreate.pickerOpen()) {
+  <div
+    class="fixed inset-0 z-[60] flex items-center justify-center bg-dark/50 p-4 backdrop-blur-sm"
+    role="dialog"
+    aria-modal="true"
+    [attr.aria-labelledby]="'quick-create-project-title'"
+    (click)="closeProjectPicker()"
+  >
+    <div
+      class="stratix-card w-full max-w-md overflow-hidden shadow-2xl"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="h-1 bg-gradient-to-r from-primary to-primary/50"></div>
+      <div class="p-6">
+        <div class="mb-1 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <app-ui-icon name="folder" size="lg" />
+        </div>
+        <h2 id="quick-create-project-title" class="mt-3 stratix-heading text-lg">
+          {{ quickCreate.pickerTitleKey() | t }}
+        </h2>
+        <p class="mt-1 text-sm stratix-muted">{{ 'quickCreate.pickProjectHint' | t }}</p>
+
+        @if (quickCreate.pickerLoading()) {
+          <p class="mt-5 text-sm stratix-muted">{{ 'quickCreate.loadingProjects' | t }}</p>
+        } @else {
+          @if (quickCreate.pickerError(); as err) {
+            <p class="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-danger dark:bg-red-900/30 dark:text-red-300">
+              {{ err | t }}
+            </p>
+          }
+
+          <div class="mt-5">
+            <label class="stratix-muted mb-1.5 block text-sm font-medium" for="quick-create-project">
+              {{ 'quickCreate.selectProject' | t }} *
+            </label>
+            <select
+              id="quick-create-project"
+              class="stratix-input w-full px-3 py-2.5 text-sm"
+              [ngModel]="quickCreate.pickerProjectId() ?? ''"
+              (ngModelChange)="onPickerProjectChange($event)"
+              name="quickCreateProject"
+            >
+              <option value="" disabled>{{ 'quickCreate.selectProjectPlaceholder' | t }}</option>
+              @for (p of quickCreate.pickerProjects(); track p.id) {
+                <option [value]="p.id">{{ p.name }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="mt-6 flex flex-wrap justify-end gap-3">
+            <button type="button" class="stratix-btn-ghost px-4 py-2" (click)="closeProjectPicker()">
+              {{ 'projects.cancel' | t }}
+            </button>
+            <button type="button" class="stratix-btn-primary" (click)="confirmProjectPicker()">
+              {{ 'quickCreate.continue' | t }}
+            </button>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}

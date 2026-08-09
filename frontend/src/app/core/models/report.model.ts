@@ -40,3 +40,15 @@ export interface CreateReportPayload {
   dateFrom?: string | null;
   dateTo?: string | null;
 }
+
+/** Server-side generation parameters (no client file). */
+export interface GenerateReportPayload {
+  title?: string | null;
+  reportType: ReportTypeCode | string;
+  format: ReportFormatCode | string;
+  projectId?: number | null;
+  departmentId?: number | null;
+  employeeId?: number | null;
+  dateFrom?: string | null;
+  dateTo?: string | null;
+}

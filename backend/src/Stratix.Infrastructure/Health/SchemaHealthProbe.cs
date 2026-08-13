@@ -109,5 +109,7 @@ public sealed class SchemaHealthProbe : ISchemaHealthProbe
             "SELECT CASE WHEN COL_LENGTH(N'dbo.refresh_tokens', N'token_family_id') IS NOT NULL THEN 1 ELSE 0 END",
         ["035_schema_migrations.sql"] =
             "SELECT CASE WHEN OBJECT_ID(N'dbo.schema_migrations', N'U') IS NOT NULL THEN 1 ELSE 0 END",
+        ["046_audit_logs.sql"] =
+            "SELECT CASE WHEN OBJECT_ID(N'dbo.audit_logs', N'U') IS NOT NULL THEN 1 ELSE 0 END",
     };
 }

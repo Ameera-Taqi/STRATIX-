@@ -48,3 +48,4 @@
 :r 043_task_review_submission.sql
 :r 044_risk_closure.sql
 :r 045_notification_context.sql
+:r 046_audit_logs.sql

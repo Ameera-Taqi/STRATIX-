@@ -207,9 +207,9 @@
                 {{ 'dashboard.setupDept' | t }}
               </a>
             } @else {
-              <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="form.department" name="department" required>
+              <select class="stratix-input w-full px-3 py-2 text-sm" [(ngModel)]="form.departmentId" name="departmentId" required>
                 @for (d of departmentOptions(); track d.id) {
-                  <option [value]="d.name">{{ d.name }}</option>
+                  <option [ngValue]="d.id">{{ d.name }}</option>
                 }
               </select>
             }

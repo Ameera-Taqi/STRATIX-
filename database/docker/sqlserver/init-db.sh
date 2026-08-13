@@ -56,6 +56,7 @@ SCHEMA_SCRIPTS=(
   043_task_review_submission.sql
   044_risk_closure.sql
   045_notification_context.sql
+  046_audit_logs.sql
 )
 
 echo "[stratix-init] Waiting for SQL Server at ${HOST}..."

@@ -49,5 +49,6 @@ public static class RequiredSchemaMigrations
         "043_task_review_submission.sql",
         "044_risk_closure.sql",
         "045_notification_context.sql",
+        "046_audit_logs.sql",
     ];
 }

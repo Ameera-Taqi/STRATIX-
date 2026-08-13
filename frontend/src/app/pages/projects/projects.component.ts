@@ -89,7 +89,7 @@ export class ProjectsComponent implements OnInit, HasUnsavedChanges {
   form = {
     name: '',
     description: '',
-    department: '',
+    departmentId: null as number | null,
     managerId: null as number | null,
     startDate: '',
     endDate: '',
@@ -129,7 +129,7 @@ export class ProjectsComponent implements OnInit, HasUnsavedChanges {
     this.form = {
       name: '',
       description: '',
-      department: depts[0]?.name ?? '',
+      departmentId: depts[0]?.id ?? null,
       managerId: managers[0]?.id ?? null,
       startDate: new Date().toISOString().slice(0, 10),
       endDate: '',
@@ -151,7 +151,7 @@ export class ProjectsComponent implements OnInit, HasUnsavedChanges {
       this.formError.set('projects.errorName');
       return;
     }
-    if (!this.form.department.trim()) {
+    if (this.form.departmentId == null) {
       this.formError.set('projects.errorDepartment');
       return;
     }
@@ -170,6 +170,12 @@ export class ProjectsComponent implements OnInit, HasUnsavedChanges {
       return;
     }
 
+    const department = this.departmentOptions().find((d) => d.id === this.form.departmentId);
+    if (!department) {
+      this.formError.set('projects.errorDepartment');
+      return;
+    }
+
     this.submitting.set(true);
     this.formError.set(null);
 
@@ -177,7 +183,8 @@ export class ProjectsComponent implements OnInit, HasUnsavedChanges {
       .addProject({
         name: this.form.name,
         description: this.form.description,
-        department: this.form.department,
+        department: department.name,
+        departmentId: department.id,
         manager: manager.name,
         managerId: this.form.managerId,
         startDate: this.form.startDate,

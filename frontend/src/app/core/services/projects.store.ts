@@ -6,6 +6,7 @@ import { ProjectRow, StageRow } from '../data/mock-data';
 import { User } from '../models/user.model';
 
 import { ApiService } from './api.service';
+import { DepartmentsStore } from './departments.store';
 import { EmployeesStore } from './employees.store';
 import { NotificationsStore } from './notifications.store';
 import { asDateString, normalizeProjectRow, normalizeStageRow } from './project-normalize';
@@ -28,6 +29,7 @@ export interface NewProjectForm {
   name: string;
   description?: string | null;
   department: string;
+  departmentId?: number | null;
   manager: string;
   managerId?: number | null;
   startDate: string;
@@ -53,6 +55,8 @@ export interface NewStageForm {
 export class ProjectsStore {
 
   private readonly api = inject(ApiService);
+
+  private readonly departmentsStore = inject(DepartmentsStore);
 
   private readonly employeesStore = inject(EmployeesStore);
 
@@ -417,7 +421,7 @@ export class ProjectsStore {
     const body = {
       name: form.name.trim(),
       description: form.description?.trim() || null,
-      departmentId: this.resolveDepartmentId(form.department),
+      departmentId: form.departmentId ?? this.resolveDepartmentId(form.department),
       projectManagerId: managerId,
       startDate: form.startDate || null,
       endDate: form.endDate || null,
@@ -594,12 +598,12 @@ export class ProjectsStore {
     return asDateString(value);
   }
 
-  private resolveDepartmentId(name: string): number {
-
-    const match = this._users().find((u) => u.departmentName === name);
-
-    return match?.departmentId ?? this._users()[0]?.departmentId ?? 1;
-
+  private resolveDepartmentId(name: string): number | null {
+    const depts = this.departmentsStore.departments();
+    const byName = depts.find((d) => d.name === name);
+    if (byName) return byName.id;
+    const byUser = this._users().find((u) => u.departmentName === name);
+    return byUser?.departmentId ?? depts[0]?.id ?? this._users()[0]?.departmentId ?? null;
   }
 
 
@@ -634,6 +638,16 @@ export class ProjectsStore {
       Done: 'COMPLETED',
 
       Cancelled: 'CANCELLED',
+
+      PLANNED: 'PLANNED',
+
+      ACTIVE: 'ACTIVE',
+
+      ON_HOLD: 'ON_HOLD',
+
+      COMPLETED: 'COMPLETED',
+
+      CANCELLED: 'CANCELLED',
 
     };
 

@@ -1,21 +1,22 @@
 <app-topbar titleKey="page.projects" />
 <main class="stratix-page p-6" [appWarnUnsaved]="hasUnsavedChanges()">
-  <div class="mb-6 max-w-3xl">
-    <h2 class="text-lg font-semibold text-dark dark:text-slate-100">{{ 'page.projects' | t }}</h2>
-    <p class="mt-1 text-sm stratix-muted">{{ 'projects.hint' | t }}</p>
-  </div>
+  <p class="mb-6 max-w-3xl text-sm stratix-muted">{{ 'projects.hint' | t }}</p>
 
   <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-    <div class="flex flex-wrap gap-2">
-      <input
-        type="search"
-        [placeholder]="'projects.search' | t"
-        class="stratix-input px-3 py-2 text-sm"
-        [value]="search()"
-        (input)="search.set($any($event.target).value)"
-      />
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="stratix-search-wrap">
+        <span class="stratix-search-icon"><app-ui-icon name="search" size="sm" /></span>
+        <input
+          type="search"
+          [placeholder]="'projects.search' | t"
+          class="stratix-input w-56 py-2 pe-3 text-sm"
+          [value]="search()"
+          (input)="search.set($any($event.target).value)"
+        />
+      </div>
       <select
         class="stratix-input px-3 py-2 text-sm"
+        [attr.aria-label]="'common.status' | t"
         (change)="statusFilter.set($any($event.target).value)"
       >
         <option value="All">{{ 'common.all' | t }}</option>
@@ -24,14 +25,12 @@
         <option value="Delayed">{{ 'status.delayed' | t }}</option>
         <option value="Planned">{{ 'status.planned' | t }}</option>
       </select>
+      <span class="text-xs stratix-muted">{{ filtered().length }} / {{ projects().length }}</span>
     </div>
     @if (canCreate()) {
-      <button
-        type="button"
-        class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary/90 active:scale-[0.98]"
-        (click)="openCreateModal()"
-      >
-        + {{ 'projects.new' | t }}
+      <button type="button" class="stratix-btn-primary gap-1.5" (click)="openCreateModal()">
+        <app-ui-icon name="plus" size="sm" />
+        {{ 'projects.new' | t }}
       </button>
     }
   </div>
@@ -54,15 +53,15 @@
     <table class="w-full min-w-[920px] text-start text-sm">
       <thead class="stratix-table-head">
         <tr>
-          <th class="px-5 py-3 font-medium">{{ 'dashboard.projectName' | t }}</th>
-          <th class="px-5 py-3 font-medium">{{ 'common.department' | t }}</th>
-          <th class="px-5 py-3 font-medium">{{ 'projects.manager' | t }}</th>
-          <th class="px-5 py-3 font-medium">{{ 'common.start' | t }}</th>
-          <th class="px-5 py-3 font-medium">{{ 'common.end' | t }}</th>
-          <th class="px-5 py-3 font-medium">{{ 'health.score' | t }}</th>
-          <th class="px-5 py-3 font-medium">{{ 'common.progress' | t }}</th>
-          <th class="px-5 py-3 font-medium">{{ 'common.status' | t }}</th>
-          <th class="px-5 py-3 font-medium">{{ 'common.actions' | t }}</th>
+          <th class="px-4 py-3 font-medium">{{ 'dashboard.projectName' | t }}</th>
+          <th class="px-4 py-3 font-medium">{{ 'common.department' | t }}</th>
+          <th class="px-4 py-3 font-medium">{{ 'projects.manager' | t }}</th>
+          <th class="px-4 py-3 font-medium">{{ 'common.start' | t }}</th>
+          <th class="px-4 py-3 font-medium">{{ 'common.end' | t }}</th>
+          <th class="px-4 py-3 font-medium">{{ 'health.score' | t }}</th>
+          <th class="px-4 py-3 font-medium">{{ 'common.progress' | t }}</th>
+          <th class="px-4 py-3 font-medium">{{ 'common.status' | t }}</th>
+          <th class="px-4 py-3 font-medium">{{ 'common.actions' | t }}</th>
         </tr>
       </thead>
       <tbody>
@@ -77,34 +76,47 @@
         } @else {
           @for (p of filtered(); track p.id) {
             <tr class="stratix-table-row">
-              <td class="px-5 py-4 font-semibold text-dark dark:text-slate-100">{{ p.name }}</td>
-              <td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ p.department }}</td>
-              <td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ p.manager }}</td>
-              <td class="px-5 py-4 text-slate-500 dark:text-slate-400 tabular-nums">{{ p.startDate }}</td>
-              <td class="px-5 py-4 text-slate-500 dark:text-slate-400 tabular-nums">{{ p.endDate }}</td>
-              <td class="px-5 py-4">
+              <td class="px-4 py-4 font-semibold text-dark dark:text-slate-100">{{ p.name }}</td>
+              <td class="whitespace-nowrap px-4 py-4 text-slate-600 dark:text-slate-300">{{ p.department }}</td>
+              <td class="whitespace-nowrap px-4 py-4 text-slate-600 dark:text-slate-300">{{ p.manager }}</td>
+              <td class="whitespace-nowrap px-4 py-4 tabular-nums text-slate-500 dark:text-slate-400">
+                {{ p.startDate | date: 'mediumDate' }}
+              </td>
+              <td class="whitespace-nowrap px-4 py-4 tabular-nums text-slate-500 dark:text-slate-400">
+                {{ p.endDate | date: 'mediumDate' }}
+              </td>
+              <td class="px-4 py-4">
                 <app-project-health-score [health]="healthFor(p.id)" [compact]="true" />
               </td>
-              <td class="px-5 py-4">
+              <td class="px-4 py-4">
                 <div class="flex items-center gap-2">
-                  <div class="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                  <div class="h-1.5 w-14 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
                     <div class="h-full rounded-full bg-primary" [style.width.%]="p.progress"></div>
                   </div>
                   <span class="text-xs font-medium tabular-nums text-slate-600 dark:text-slate-300">{{ p.progress }}%</span>
                 </div>
               </td>
-              <td class="px-5 py-4"><app-status-badge [status]="p.status" /></td>
-              <td class="px-5 py-4">
-                <div class="flex flex-wrap items-center gap-3">
-                  <a [routerLink]="['/projects', p.id]" class="text-primary hover:underline">{{ 'common.view' | t }}</a>
+              <td class="px-4 py-4"><app-status-badge [status]="p.status" /></td>
+              <td class="px-4 py-4">
+                <div class="flex items-center gap-1">
+                  <a
+                    [routerLink]="['/projects', p.id]"
+                    class="stratix-icon-btn"
+                    [title]="'common.view' | t"
+                    [attr.aria-label]="'common.view' | t"
+                  >
+                    <app-ui-icon name="eye" size="sm" />
+                  </a>
                   @if (canDelete()) {
                     <button
                       type="button"
-                      class="text-sm text-danger hover:underline disabled:opacity-50"
+                      class="stratix-icon-btn stratix-icon-btn--danger"
                       [disabled]="deletingId() === p.id"
+                      [title]="'common.delete' | t"
+                      [attr.aria-label]="'common.delete' | t"
                       (click)="openDeleteModal(p)"
                     >
-                      {{ 'common.delete' | t }}
+                      <app-ui-icon name="trash" size="sm" />
                     </button>
                   }
                 </div>

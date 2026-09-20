@@ -1,5 +1,6 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TopbarComponent } from '../../layout/topbar/topbar.component';
 import { StatusBadgeComponent } from '../../shared/components/status-badge.component';
@@ -9,6 +10,7 @@ import { ProjectsStore } from '../../core/services/projects.store';
 import { DepartmentsStore } from '../../core/services/departments.store';
 import { ProjectHealthService } from '../../core/services/project-health.service';
 import { ProjectHealthScoreComponent } from '../../shared/components/project-health-score/project-health-score.component';
+import { UiIconComponent } from '../../shared/components/ui-icon/ui-icon.component';
 import { RoleAccessService } from '../../core/services/role-access.service';
 import { ProjectRow } from '../../core/data/mock-data';
 import { priorityLabelKey, projectStatusLabelKey } from '../../shared/utils/enum-labels';
@@ -28,8 +30,10 @@ import {
     StatusBadgeComponent,
     RouterLink,
     TranslatePipe,
+    DatePipe,
     FormsModule,
     ProjectHealthScoreComponent,
+    UiIconComponent,
     WarnUnsavedDirective,
   ],
   templateUrl: './projects.component.html',

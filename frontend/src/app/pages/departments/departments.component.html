@@ -1,10 +1,7 @@
 <app-topbar titleKey="page.departments" />
 <main class="stratix-page p-6">
   <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-    <div class="max-w-2xl">
-      <h2 class="text-lg font-semibold text-dark dark:text-slate-100">{{ 'page.departments' | t }}</h2>
-      <p class="mt-1 text-sm stratix-muted">{{ 'roles.deptHint' | t }}</p>
-    </div>
+    <p class="max-w-2xl text-sm stratix-muted">{{ 'roles.deptHint' | t }}</p>
     @if (canWrite()) {
       <button
         type="button"

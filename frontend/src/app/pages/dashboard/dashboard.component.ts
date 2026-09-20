@@ -42,6 +42,16 @@ import { scoreBandKey } from '../../core/models/kpi-evaluation.model';
 
 const LOAD_COLORS = CHART_LOAD;
 
+interface SummaryStat {
+  key: string;
+  label: string;
+  value: number;
+  hint: string;
+  icon: string;
+  iconClass: string;
+  valueClass: string;
+}
+
 interface SubscriptionUsage {
   planCode: string;
   status: string;
@@ -213,6 +223,78 @@ export class DashboardComponent implements OnInit {
   );
 
   readonly recentProjects = computed(() => this.projectsStore.projects().slice(0, 6));
+
+  private static readonly NEUTRAL_VALUE = 'text-dark dark:text-slate-100';
+
+  /** At-a-glance tiles. Each one only appears if the role already owns the matching widget. */
+  readonly summaryStats = computed((): SummaryStat[] => {
+    this.lang.lang();
+    const stats: SummaryStat[] = [];
+    const neutral = DashboardComponent.NEUTRAL_VALUE;
+
+    if (this.has('projects') || this.has('myProjects')) {
+      const list = this.has('myProjects') ? this.myProjects() : this.projectsStore.projects();
+      const avg = list.length
+        ? Math.round(list.reduce((sum, p) => sum + p.progress, 0) / list.length)
+        : 0;
+      stats.push({
+        key: 'projects',
+        label: this.lang.t(this.has('myProjects') ? 'dashboard.widget.myProjects' : 'dashboard.widget.projects'),
+        value: list.length,
+        hint: `${avg}% ${this.lang.t('dashboard.statAvgProgress')}`,
+        icon: 'folder',
+        iconClass: 'bg-primary/10 text-primary',
+        valueClass: neutral,
+      });
+    }
+
+    if (this.has('healthOverview') || this.has('projectHealth') || this.has('criticalProjects')) {
+      const atRisk = this.projectHealth().filter((p) => p.status !== 'HEALTHY').length;
+      stats.push({
+        key: 'atRisk',
+        label: this.lang.t('dashboard.statAtRisk'),
+        value: atRisk,
+        hint: this.lang.t('dashboard.statAtRiskHint'),
+        icon: 'warning',
+        iconClass: 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-300',
+        valueClass: atRisk > 0 ? 'text-amber-600 dark:text-amber-300' : neutral,
+      });
+    }
+
+    if (this.has('criticalRisks') || this.has('riskExposure')) {
+      const risks = this.riskStats();
+      stats.push({
+        key: 'risks',
+        label: this.lang.t('risks.statOpen'),
+        value: risks.openRisks,
+        hint: `${risks.criticalRisks} ${this.lang.t('dashboard.statCriticalHint')}`,
+        icon: 'alert-circle',
+        iconClass: 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300',
+        valueClass: risks.openRisks > 0 ? 'text-red-600 dark:text-red-300' : neutral,
+      });
+    }
+
+    if (
+      this.has('delayedTasks') ||
+      this.has('overdue') ||
+      this.has('myTasks') ||
+      this.has('teamTasks') ||
+      this.has('projects')
+    ) {
+      const overdue = this.myOverdue().length;
+      stats.push({
+        key: 'overdue',
+        label: this.lang.t('dashboard.widget.overdue'),
+        value: overdue,
+        hint: this.lang.t('dashboard.statOverdueHint'),
+        icon: 'clock',
+        iconClass: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300',
+        valueClass: overdue > 0 ? 'text-red-600 dark:text-red-300' : neutral,
+      });
+    }
+
+    return stats;
+  });
 
   readonly featureProgress = computed(() =>
     this.myProjects().map((p, i) => ({

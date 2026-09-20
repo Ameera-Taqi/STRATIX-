@@ -58,41 +58,61 @@
       </div>
     </section>
   } @else {
-    <div class="mb-6 max-w-3xl">
-      <h2 class="text-lg font-semibold text-dark dark:text-slate-100">{{ titleKey() | t }}</h2>
-      <p class="mt-1 text-sm stratix-muted">{{ hintKey() | t }}</p>
+    <div class="mb-6 flex flex-wrap items-center gap-3">
+      <p class="max-w-3xl text-sm stratix-muted">{{ hintKey() | t }}</p>
+      @if (!apiConnected()) {
+        <span
+          class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+        >
+          <app-ui-icon name="alert-circle" size="xs" />
+          {{ 'common.apiOffline' | t }}
+        </span>
+      }
     </div>
+
+    @if (summaryStats().length > 0) {
+      <div class="mb-6 grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-4">
+        @for (stat of summaryStats(); track stat.key) {
+          <div class="stratix-stat-card">
+            <div class="stratix-stat-icon" [class]="stat.iconClass">
+              <app-ui-icon [name]="stat.icon" size="md" />
+            </div>
+            <div class="min-w-0">
+              <p class="text-2xl font-bold tabular-nums" [class]="stat.valueClass">{{ stat.value }}</p>
+              <p class="truncate text-xs stratix-muted" [title]="stat.label">{{ stat.label }}</p>
+              <p class="truncate text-[11px] text-slate-400 dark:text-slate-500">{{ stat.hint }}</p>
+            </div>
+          </div>
+        }
+      </div>
+    }
 
     <!-- Health / portfolio overview (admin + executive) -->
     @if (has('healthOverview') || has('projectPortfolio') || has('healthTrends')) {
       <div class="stratix-card mb-6 overflow-hidden">
-        <div class="grid gap-6 p-6 lg:grid-cols-[auto_1fr] lg:items-center">
-          <div class="flex flex-col items-center gap-2">
+        <div class="stratix-card-header">
+          <h3 class="stratix-heading text-sm">{{ 'dashboard.portfolioHealth' | t }}</h3>
+          <p class="mt-1 text-sm stratix-muted">{{ 'dashboard.chartOverviewHint' | t }}</p>
+        </div>
+        <div class="grid gap-6 p-6 md:grid-cols-2">
+          <div class="flex flex-col items-center gap-3">
             <p class="text-xs font-medium uppercase tracking-wide stratix-muted">
               {{ (has('projectPortfolio') ? 'dashboard.widget.projectPortfolio' : 'dashboard.executiveOverview') | t }}
             </p>
             <app-donut-chart
               [segments]="portfolioDonut()"
-              [size]="140"
+              [size]="150"
               [centerLabel]="overallHealth().score + '%'"
               [centerSubLabel]="('dashboard.health.' + overallHealth().status) | t"
               [showLegend]="false"
             />
-            @if (apiConnected()) {
-              <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-                {{ 'common.apiConnected' | t }}
-              </span>
-            }
           </div>
-          <div>
-            <h2 class="text-lg font-bold text-dark dark:text-slate-100">{{ 'dashboard.portfolioHealth' | t }}</h2>
-            <p class="mt-1 text-sm stratix-muted">{{ 'dashboard.chartOverviewHint' | t }}</p>
-            @if (has('healthTrends') || has('healthOverview')) {
-              <div class="mt-5">
-                <app-donut-chart [segments]="healthMixDonut()" [size]="120" [showLegend]="true" />
-              </div>
-            }
-          </div>
+          @if (has('healthTrends') || has('healthOverview')) {
+            <div class="flex flex-col items-center gap-3">
+              <p class="text-xs font-medium uppercase tracking-wide stratix-muted">{{ 'dashboard.chartHealthMix' | t }}</p>
+              <app-donut-chart [segments]="healthMixDonut()" [size]="150" [showLegend]="true" />
+            </div>
+          }
         </div>
       </div>
     }
@@ -110,9 +130,12 @@
           </div>
           <ul class="divide-y divide-slate-100 dark:divide-slate-700">
             @for (p of recentProjects(); track p.id) {
-              <li class="flex items-center justify-between gap-3 px-5 py-3 text-sm">
-                <a [routerLink]="['/projects', p.id]" class="min-w-0 truncate font-medium text-primary hover:underline">{{ p.name }}</a>
-                <span class="tabular-nums stratix-muted">{{ p.progress }}%</span>
+              <li class="flex items-center gap-3 px-5 py-3 text-sm transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                <a [routerLink]="['/projects', p.id]" class="min-w-0 flex-1 truncate font-medium text-primary hover:underline">{{ p.name }}</a>
+                <div class="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                  <div class="h-full rounded-full bg-primary" [style.width.%]="p.progress"></div>
+                </div>
+                <span class="w-9 shrink-0 text-end tabular-nums stratix-muted">{{ p.progress }}%</span>
               </li>
             } @empty {
               <li class="px-5 py-8 text-center text-sm stratix-muted">{{ 'dashboard.noProjects' | t }}</li>
@@ -133,9 +156,12 @@
           </div>
           <ul class="divide-y divide-slate-100 dark:divide-slate-700">
             @for (p of myProjects(); track p.id) {
-              <li class="flex items-center justify-between gap-3 px-5 py-3 text-sm">
-                <a [routerLink]="['/projects', p.id]" class="min-w-0 truncate font-medium text-primary hover:underline">{{ p.name }}</a>
-                <span class="tabular-nums stratix-muted">{{ p.progress }}%</span>
+              <li class="flex items-center gap-3 px-5 py-3 text-sm transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                <a [routerLink]="['/projects', p.id]" class="min-w-0 flex-1 truncate font-medium text-primary hover:underline">{{ p.name }}</a>
+                <div class="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                  <div class="h-full rounded-full bg-primary" [style.width.%]="p.progress"></div>
+                </div>
+                <span class="w-9 shrink-0 text-end tabular-nums stratix-muted">{{ p.progress }}%</span>
               </li>
             } @empty {
               <li class="px-5 py-8 text-center text-sm stratix-muted">{{ 'dashboard.noProjects' | t }}</li>
@@ -234,7 +260,8 @@
                 {{ 'dashboard.noDepartmentData' | t }}
               </p>
             } @else {
-              <app-bar-chart [items]="departmentBars()" [height]="200" [maxValue]="100" />
+              <!-- Horizontal bars read better than columns for a handful of named departments. -->
+              <app-horizontal-bar-chart [items]="departmentBars()" [maxValue]="100" />
             }
           </div>
         </section>
@@ -248,26 +275,38 @@
           </div>
           <div class="space-y-4 p-5">
             @if (subscriptionUsage(); as usage) {
-              <p class="text-sm">
-                <span class="font-semibold text-dark dark:text-slate-100">{{ usage.planCode }}</span>
-                <span class="ms-2 text-xs uppercase stratix-muted">{{ usage.status }}</span>
-              </p>
+              <div class="flex items-center gap-2">
+                <span class="text-base font-semibold text-dark dark:text-slate-100">{{ usage.planCode }}</span>
+                <span class="stratix-badge bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                  {{ usage.status }}
+                </span>
+              </div>
               <div>
-                <div class="mb-1 flex justify-between text-xs stratix-muted">
-                  <span>{{ 'dashboard.usageUsers' | t }}</span>
-                  <span>{{ usage.usersUsed }} / {{ usage.usersMax || '—' }}</span>
+                <div class="mb-1.5 flex justify-between text-xs">
+                  <span class="stratix-muted">{{ 'dashboard.usageUsers' | t }}</span>
+                  <span class="font-medium tabular-nums text-dark dark:text-slate-200">
+                    {{ usage.usersUsed }} / {{ usage.usersMax || '—' }}
+                  </span>
                 </div>
-                <div class="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                  <div class="h-full rounded-full bg-primary" [style.width.%]="usagePct(usage.usersUsed, usage.usersMax)"></div>
+                <div class="h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                  <div
+                    class="h-full min-w-[0.25rem] rounded-full bg-primary"
+                    [style.width.%]="usagePct(usage.usersUsed, usage.usersMax)"
+                  ></div>
                 </div>
               </div>
               <div>
-                <div class="mb-1 flex justify-between text-xs stratix-muted">
-                  <span>{{ 'dashboard.usageProjects' | t }}</span>
-                  <span>{{ usage.projectsUsed }} / {{ usage.projectsMax || '—' }}</span>
+                <div class="mb-1.5 flex justify-between text-xs">
+                  <span class="stratix-muted">{{ 'dashboard.usageProjects' | t }}</span>
+                  <span class="font-medium tabular-nums text-dark dark:text-slate-200">
+                    {{ usage.projectsUsed }} / {{ usage.projectsMax || '—' }}
+                  </span>
                 </div>
-                <div class="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                  <div class="h-full rounded-full bg-primary" [style.width.%]="usagePct(usage.projectsUsed, usage.projectsMax)"></div>
+                <div class="h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                  <div
+                    class="h-full min-w-[0.25rem] rounded-full bg-primary"
+                    [style.width.%]="usagePct(usage.projectsUsed, usage.projectsMax)"
+                  ></div>
                 </div>
               </div>
             } @else {

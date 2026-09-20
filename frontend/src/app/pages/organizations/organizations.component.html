@@ -6,10 +6,7 @@
       <a routerLink="/dashboard" class="stratix-btn-primary mt-5 inline-flex">{{ 'common.backToDashboard' | t }}</a>
     </div>
   } @else {
-    <div class="mb-6 max-w-3xl">
-      <h2 class="text-lg font-semibold text-dark dark:text-slate-100">{{ 'page.organizations' | t }}</h2>
-      <p class="mt-1 text-sm stratix-muted">{{ 'orgs.hint' | t }}</p>
-    </div>
+    <p class="mb-6 max-w-3xl text-sm stratix-muted">{{ 'orgs.hint' | t }}</p>
 
     <div class="mb-6 grid gap-4 sm:grid-cols-3">
       <div class="stratix-stat-card">

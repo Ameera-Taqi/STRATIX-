@@ -100,6 +100,12 @@ function dateRangeValidator(startKey: string, endKey: string) {
       min-height: 0;
       overflow: hidden;
     }
+    .backlog-row-open {
+      background-color: rgb(241 245 249);
+    }
+    :host-context(html.dark) .backlog-row-open {
+      background-color: rgb(30 41 59);
+    }
   `,
 })
 export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
@@ -590,7 +596,6 @@ export class ProjectDetailComponent implements OnInit, HasUnsavedChanges {
       stageId: featureId,
     });
     this.taskFormBaseline = formSnapshot(this.taskForm.getRawValue());
-    this.setTab('project.tabs.tasks');
     this.showTaskForm.set(true);
   }
 

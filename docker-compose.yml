@@ -20,7 +20,7 @@ services:
       MSSQL_PID: Developer
       MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-YourStrong!Passw0rd}
     ports:
-      - "${MSSQL_PORT:-1433}:1433"
+      - "${MSSQL_PORT:-1434}:1433"
     volumes:
       - stratix_mssql_data:/var/opt/mssql
     networks:
@@ -90,8 +90,8 @@ services:
       Stratix__Jwt__ExpirationMs: ${STRATIX_JWT_EXPIRATION_MS:-900000}
       Stratix__PasswordReset__TokenPepper: ${STRATIX_RESET_PEPPER:?Set STRATIX_RESET_PEPPER in .env}
       Stratix__AllowLoginAliases: ${STRATIX_ALLOW_LOGIN_ALIASES:-false}
-      Stratix__FrontendUrl: ${FRONTEND_URL:-http://localhost:4200}
-      Stratix__Cors__Origins: ${FRONTEND_URL:-http://localhost:4200}
+      Stratix__FrontendUrl: ${FRONTEND_URL:-http://localhost:4201}
+      Stratix__Cors__Origins: ${FRONTEND_URL:-http://localhost:4201}
       Stratix__SyncSeedPasswords: ${STRATIX_SYNC_SEED_PASSWORDS:-true}
       Stratix__SeedData: ${STRATIX_SEED_DATA:-true}
       Stratix__Mail__Host: ${STRATIX_MAIL_HOST:-mailpit}

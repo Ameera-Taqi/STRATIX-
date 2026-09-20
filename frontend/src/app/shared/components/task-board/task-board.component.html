@@ -16,7 +16,7 @@
     >
       + {{ 'board.addColumn' | t }}
     </button>
-    @if (projectId() != null && !embedded()) {
+    @if (projectId() != null) {
       <button type="button" class="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-white" (click)="openAddTask()">
         + {{ 'tasks.add' | t }}
       </button>
@@ -155,7 +155,7 @@
   </section>
 }
 
-@if (showAddForm() && projectId() != null && !embedded()) {
+@if (showAddForm() && projectId() != null) {
   <div class="stratix-card mb-4 p-5">
     <h4 class="stratix-heading text-sm">{{ 'tasks.addTitle' | t }}</h4>
     @if (taskError()) {
@@ -267,7 +267,7 @@
 @if (showEmptyState()) {
   <div class="stratix-card mb-4 px-6 py-10 text-center text-sm stratix-muted">
     {{ 'tasks.empty' | t }}
-    @if (projectId() != null && !embedded()) {
+    @if (projectId() != null) {
       <button type="button" class="mt-3 block w-full text-primary" (click)="openAddTask()">+ {{ 'tasks.add' | t }}</button>
     }
   </div>

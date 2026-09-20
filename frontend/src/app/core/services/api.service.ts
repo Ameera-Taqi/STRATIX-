@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 
 import { inject, Injectable } from '@angular/core';
 
-import { Observable } from 'rxjs';
+import { Observable, timeout } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 
@@ -425,7 +425,9 @@ export class ApiService {
 
 
   analyzeProjectHealth(body: ProjectHealthAnalysisRequest): Observable<ProjectHealthAnalysisResponse> {
-    return this.http.post<ProjectHealthAnalysisResponse>(`${this.base}/ai/project-health-analysis`, body);
+    return this.http
+      .post<ProjectHealthAnalysisResponse>(`${this.base}/ai/project-health-analysis`, body)
+      .pipe(timeout(12_000));
   }
 
   getHealthSnapshotHistory(projectId: number, take = 30): Observable<ProjectHealthSnapshot[]> {

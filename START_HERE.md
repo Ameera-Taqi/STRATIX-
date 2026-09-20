@@ -30,7 +30,7 @@ cd frontend && npm start
 
 | URL | What |
 |-----|------|
-| http://localhost:4200 | Angular dashboard |
+| http://localhost:4201 | Angular dashboard (not 4200/4300 — those are the school app) |
 | http://localhost:8080 | API |
 | http://localhost:8080/api/health | Health check |
 | http://localhost:8025 | Mailpit (dev mail) |

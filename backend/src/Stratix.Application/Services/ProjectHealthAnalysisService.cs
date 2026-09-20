@@ -2,7 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Stratix.Application.Common;
 using Stratix.Application.DTOs.Ai;
 using Stratix.Application.Interfaces;
+using Stratix.Domain.Entities;
 using Stratix.Domain.Enums;
+using Stratix.Domain.Progress;
 using DomainTaskStatus = Stratix.Domain.Enums.TaskStatus;
 
 namespace Stratix.Application.Services;
@@ -10,35 +12,57 @@ namespace Stratix.Application.Services;
 public class ProjectHealthAnalysisService : IProjectHealthAnalysisService
 {
     private readonly IApplicationDbContext _db;
-    private readonly IProjectHealthSnapshotService _snapshots;
 
-    public ProjectHealthAnalysisService(IApplicationDbContext db, IProjectHealthSnapshotService snapshots)
+    public ProjectHealthAnalysisService(IApplicationDbContext db)
     {
         _db = db;
-        _snapshots = snapshots;
     }
 
     public async Task<ProjectHealthAnalysisResponse> AnalyzeAsync(ProjectHealthAnalysisRequest request, CancellationToken ct = default)
     {
-        var metrics = await BuildMetricsFromDatabaseAsync(request.ProjectId, ct);
-        // Formal analysis request — always persist a health snapshot for the audit trail.
-        await _snapshots.CaptureAsync(request.ProjectId, forceFormalCapture: true, ct);
-        return AnalyzeMetrics(metrics);
-    }
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-    private async Task<ProjectHealthAnalysisRequestMetrics> BuildMetricsFromDatabaseAsync(long projectId, CancellationToken ct)
-    {
-        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId, ct)
+        var project = await _db.Projects
+            .Where(p => p.Id == request.ProjectId)
+            .Select(p => new
+            {
+                p.Id,
+                p.Name,
+                p.Status,
+                p.Progress,
+                p.StartDate,
+                p.EndDate,
+                p.OrganizationId,
+            })
+            .FirstOrDefaultAsync(ct)
             ?? throw new KeyNotFoundException("Project not found");
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var tasks = await _db.Tasks.ActiveOnly().Where(t => t.ProjectId == projectId).ToListAsync(ct);
-        var risks = await _db.ProjectRisks.Where(r => r.ProjectId == projectId).ToListAsync(ct);
-        var stages = await _db.ProjectStages.Where(s => s.ProjectId == projectId).ToListAsync(ct);
+        var tasks = await _db.Tasks.ActiveOnly()
+            .Where(t => t.ProjectId == request.ProjectId)
+            .Select(t => new
+            {
+                t.Id,
+                t.StageId,
+                t.Status,
+                t.EstimatedHours,
+                t.DueDate,
+                t.CompletedAt,
+            })
+            .ToListAsync(ct);
+
+        var riskRows = await _db.ProjectRisks
+            .Where(r => r.ProjectId == request.ProjectId)
+            .Select(r => new { r.Status, r.RiskLevel })
+            .ToListAsync(ct);
+
+        var stages = await _db.ProjectStages
+            .Where(s => s.ProjectId == request.ProjectId)
+            .Select(s => new { s.Status, s.EndDate })
+            .ToListAsync(ct);
 
         var completedTasks = tasks.Count(t => t.Status == DomainTaskStatus.DONE);
         var overdueTasks = tasks.Count(t => t.DueDate is { } due && due < today && t.Status != DomainTaskStatus.DONE);
-        var openRisks = risks.Where(r => r.Status != RiskStatus.CLOSED).ToList();
+        var openRisks = riskRows.Where(r => r.Status != RiskStatus.CLOSED).ToList();
         var criticalRisks = openRisks.Count(r => r.RiskLevel == RiskLevel.CRITICAL);
 
         var distribution = new RiskSeverityDistributionDto(
@@ -51,18 +75,34 @@ public class ProjectHealthAnalysisService : IProjectHealthAnalysisService
         var delayedStages = stages.Count(s => s.EndDate is { } end && end < today && s.Status != StageStatus.DONE);
         var taskCompletionRate = tasks.Count == 0 ? 0m : Math.Round((decimal)completedTasks / tasks.Count * 100m, 2);
 
-        var slices = tasks.Select(t => new Stratix.Domain.Progress.TaskEffortSlice(
+        var slices = tasks.Select(t => new TaskEffortSlice(
             t.Id, t.StageId, t.Status, t.EstimatedHours, t.DueDate, t.CompletedAt));
-        var factors = Stratix.Domain.Progress.ProjectHealthCalculator.BuildFactors(
-            project.Progress, slices, criticalRisks, today);
-        var health = Stratix.Domain.Progress.ProjectHealthCalculator.Compute(factors);
+        var factors = ProjectHealthCalculator.BuildFactors(project.Progress, slices, criticalRisks, today);
+        var health = ProjectHealthCalculator.Compute(factors);
 
-        return new ProjectHealthAnalysisRequestMetrics(
+        _db.Add(new ProjectHealthSnapshot
+        {
+            OrganizationId = project.OrganizationId,
+            ProjectId = project.Id,
+            Score = health.Score,
+            Status = health.Status,
+            Progress = factors.Progress,
+            OnTimeTasks = factors.OnTimeTasks,
+            DelayedTasks = factors.DelayedTasks,
+            CriticalRisks = factors.CriticalRisks,
+            NoteKey = health.NoteKey,
+            CapturedAt = DateTimeOffset.UtcNow,
+        });
+        await _db.SaveChangesAsync(ct);
+
+        var metrics = new ProjectHealthAnalysisRequestMetrics(
             new ProjectInfoDto(project.Name, project.Status.ToString(), project.Progress, project.StartDate, project.EndDate),
             new TaskMetricsDto(tasks.Count, completedTasks, overdueTasks, overdueTasks),
             new RiskMetricsDto(openRisks.Count, criticalRisks, distribution),
             new StageMetricsDto(stages.Count, completedStages, delayedStages),
             new PerformanceMetricsDto(taskCompletionRate, Math.Round(health.Score, 1)));
+
+        return AnalyzeMetrics(metrics);
     }
 
     private static ProjectHealthAnalysisResponse AnalyzeMetrics(ProjectHealthAnalysisRequestMetrics request)

@@ -211,12 +211,40 @@ public class StratixDbContext : DbContext, IApplicationDbContext
         {
             foreach (var property in entityType.GetProperties())
             {
+                // datetimeoffset columns must be read natively. The converters assume datetime2.
+                if (UsesNativeDateTimeOffset(property))
+                    continue;
                 if (property.ClrType == typeof(DateTimeOffset))
                     property.SetValueConverter(DateTimeOffsetConverter);
                 else if (property.ClrType == typeof(DateTimeOffset?))
                     property.SetValueConverter(NullableDateTimeOffsetConverter);
             }
         }
+    }
+
+    private static bool UsesNativeDateTimeOffset(Microsoft.EntityFrameworkCore.Metadata.IMutableProperty property)
+    {
+        var column = property.GetColumnName() ?? property.Name;
+        if (column.Equals("deleted_at", StringComparison.OrdinalIgnoreCase)
+            || column.Equals("submitted_for_review_at", StringComparison.OrdinalIgnoreCase)
+            || column.Equals("captured_at", StringComparison.OrdinalIgnoreCase)
+            || column.Equals("submitted_at", StringComparison.OrdinalIgnoreCase)
+            || column.Equals("reviewed_at", StringComparison.OrdinalIgnoreCase)
+            || column.Equals("approved_at", StringComparison.OrdinalIgnoreCase)
+            || column.Equals("expires_at", StringComparison.OrdinalIgnoreCase)
+            || column.Equals("used_at", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var table = property.DeclaringEntityType.GetTableName();
+        if (table is "employee_evaluations" or "employee_kpi_results" or "evaluation_periods"
+            or "kpi_definitions" or "period_kpi_snapshots" or "task_quality_evaluations"
+            or "project_health_snapshots")
+        {
+            return column.Equals("created_at", StringComparison.OrdinalIgnoreCase)
+                || column.Equals("updated_at", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return false;
     }
 
     private void ApplyQueryFilters(ModelBuilder modelBuilder)

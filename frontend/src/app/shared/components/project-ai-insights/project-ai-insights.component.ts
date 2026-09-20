@@ -1,7 +1,8 @@
 import { NgClass } from '@angular/common';
-import { Component, inject, input, output, signal } from '@angular/core';
+import { Component, effect, inject, input, output, signal } from '@angular/core';
 import { ProjectHealthAnalysisResponse } from '../../../core/models/ai-health-analysis.model';
 import { ApiService } from '../../../core/services/api.service';
+import { ProjectAiAnalysisStore } from '../../../core/services/project-ai-analysis.store';
 import { LanguageService } from '../../../core/i18n/language.service';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { UiIconComponent } from '../ui-icon/ui-icon.component';
@@ -46,7 +47,10 @@ import { UiIconComponent } from '../ui-icon/ui-icon.component';
           (click)="analyze()"
         >
           @if (loading()) {
-            {{ 'ai.analyzing' | t }}
+            <span class="inline-flex items-center gap-2">
+              <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
+              {{ 'ai.analyzing' | t }}
+            </span>
           } @else if (result()) {
             {{ 'ai.reanalyze' | t }}
           } @else {
@@ -63,6 +67,11 @@ import { UiIconComponent } from '../ui-icon/ui-icon.component';
             <p class="font-medium">{{ 'ai.errorTitle' | t }}</p>
             <p class="mt-1">{{ error() }}</p>
             <p class="mt-2 text-xs opacity-80">{{ 'ai.errorHint' | t }}</p>
+          </div>
+        } @else if (loading()) {
+          <div class="px-4 py-10 text-center">
+            <span class="mx-auto block h-8 w-8 animate-spin rounded-full border-2 border-violet-200 border-t-violet-600"></span>
+            <p class="mt-3 text-sm font-medium text-dark dark:text-slate-100">{{ 'ai.analyzing' | t }}</p>
           </div>
         } @else if (!result()) {
           <div
@@ -194,6 +203,7 @@ export class ProjectAiInsightsComponent {
   readonly analyzed = output<void>();
 
   private readonly api = inject(ApiService);
+  private readonly cache = inject(ProjectAiAnalysisStore);
   private readonly lang = inject(LanguageService);
 
   readonly loading = signal(false);
@@ -201,6 +211,15 @@ export class ProjectAiInsightsComponent {
   readonly result = signal<ProjectHealthAnalysisResponse | null>(null);
   readonly reviewingIndex = signal<number | null>(null);
   readonly acknowledged = signal<Set<number>>(new Set());
+
+  constructor() {
+    effect(() => {
+      const id = this.projectId();
+      const cached = id ? this.cache.get(id) : null;
+      this.result.set(cached);
+      this.error.set(null);
+    });
+  }
 
   deliveryRiskClass(risk: string): string {
     const map: Record<string, string> = {
@@ -260,11 +279,15 @@ export class ProjectAiInsightsComponent {
           ...response,
           analyzedAt: response.analyzedAt || new Date().toISOString(),
         });
+        this.cache.set(projectId, this.result()!);
         this.loading.set(false);
         this.analyzed.emit();
       },
       error: (err) => {
-        const detail = err?.error?.detail ?? err?.message ?? 'Unknown error';
+        const timedOut = err?.name === 'TimeoutError';
+        const detail = timedOut
+          ? this.lang.t('ai.errorTimeout')
+          : (err?.error?.detail ?? err?.message ?? 'Unknown error');
         this.error.set(typeof detail === 'string' ? detail : 'AI analysis failed');
         this.loading.set(false);
       },
